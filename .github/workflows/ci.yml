@@ -29,6 +29,9 @@ jobs:
       - name: Core-Tests
         run: ./gradlew :core:test --stacktrace
 
+      - name: App-Unit-Tests
+        run: ./gradlew :app:testDebugUnitTest --stacktrace
+
       - name: Debug-APK bauen
         run: ./gradlew :app:assembleDebug --stacktrace
 
@@ -36,8 +39,10 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v6
         with:
-          name: core-test-reports
-          path: core/build/reports/tests/
+          name: test-reports
+          path: |
+            core/build/reports/tests/
+            app/build/reports/tests/
 
       - name: Debug-APK hochladen
         uses: actions/upload-artifact@v6
