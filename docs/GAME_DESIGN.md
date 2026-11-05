@@ -182,6 +182,18 @@ Für jeden Fossilfund mit Schlüssel `pieceKey = speciesId:boneId:age:sex` (im M
   - Die Rekonstruktion ersetzt den Run-Fund bzw. Bucheintrag nur, wenn sie besser ist. Bucheinträge tragen das Flag `reconstructed = true`.
   - **Museumsreif ist nur durch echte Funde erreichbar.** Das ist eine Kernregel.
 - Laborupgrades (schneller, mehr FP) gibt es nur über den Skilltree, nicht über Geld.
+- Präzisierungen (AP-10), Umsetzung `core.engine.LabSystem` (`AdvanceSystem` nach dem `MuseumSystem`) und `core.engine.Reconstruction` (Spieleraktion `GameEngine.reconstruct`):
+  - **Plätze:** `floor(labSlots)` Jobs (`run.labJobs`) laufen parallel; freie Plätze werden FIFO aus `run.labQueue` belegt. Das Labor läuft nach der Präparation (Duplikate dieses Ticks können sofort starten) und nach dem Museum (es ändert `run.pieces` nicht).
+  - **Dauer:** `labDuration * mods(lab_speed)` (Faktor-Stat, Clamp `min 0.1`), festgelegt beim Start eines Jobs; später gekaufte Skills verkürzen laufende Jobs nicht. `lab_1` + `lab_4`: 0.65 × 30 s = 19.5 s.
+  - **Große `dt`:** ereignisweise Abarbeitung; die Restzeit nach einem Abschluss geht an das nächste Stück der Warteschlange auf dem frei gewordenen Platz. Ein großer Schritt ergibt dasselbe wie viele kleine Ticks.
+  - **FP:** `layerIndex` ist `order` der Schicht der Art (Quartär 1, Neogen 2, Kreide 3 FP, jeweils mal `research_points`).
+  - **Ersatzteile:** je Zone (`bones.json`) nur bei **echt höherer** Qualität ersetzt (wie 4.4). Unbekannte Arten/Knochen in einem Job bringen 0 FP bzw. keine Ersatzteile (kein Abbruch).
+  - **Erforscht:** Art wird beim ersten Abschluss in `meta.researchedSpecies` aufgenommen.
+  - **Rekonstruktion möglich**, wenn höchstens `floor(reconstruction_missing_zones)` Zonen ohne Ersatzteil sind (Basis 0, `lab_5`: 1; fehlende Zonen werden mit `reconstructionMissingZoneQuality` ergänzt) und mindestens ein Ersatzteil existiert.
+  - **Qualität und Zonen:** Liegt `mean(Zonen)` über dem Cap, werden alle Zonen mit `cap / mean` skaliert. Run-Stück und Bucheintrag speichern diese skalierten Zonen, ihre Qualität ist deren Mittelwert (= `min(cap, mean)` bis auf Rundung). So stimmen `Piece.quality` (Mittelwert der Zonen) und Buchqualität überein, und eine erneute Rekonstruktion mit denselben Ersatzteilen gilt nicht als Verbesserung. Weil `DataValidator` `reconstructionCap < minQuality(Museumsreif)` verlangt, ist Museumsreif nie erreichbar.
+  - **Ersetzen:** Run-Fund und Bucheintrag werden unabhängig und nur bei **echt höherer** Qualität ersetzt (oder neu angelegt); Bucheintrag mit `reconstructed = true` und den Zonen. Ist keins von beiden besser, wird die Aktion abgelehnt (`ReconstructionFailure.NO_IMPROVEMENT`). Ein ersetzter Run-Fund zählt wie in 4.4 als Duplikat (Warteschlange oder Verkauf).
+  - **Ersatzteile werden nicht verbraucht** (Entscheidung AP-10; das Design ließ es offen): Sie sind laut Glossar das „beste gesicherte Zonen-Stück“ und bleiben bis zum Prestige erhalten.
+  - **Abfragen für die UI:** `GameEngine.reconstructableBones(state)` liefert `ReconstructionPreview` (Schlüssel, Zonen, erwartete Qualität, fehlende Zonen, `improvesRun`, `improvesBook`, `isImprovement`) für alle Schlüssel mit mindestens einem Ersatzteil, sortiert nach Schlüsseltext; `GameEngine.lab` (`jobDuration`, `progress(job)`, `researchPointsFor`, `slots`).
 
 ### 4.6 Museum [MVP]
 - Ausstellungsplätze = `halls * balance.slotsPerHall` (Start 1 Halle, 8 Plätze). Automatisch ausgestellt werden die wertvollsten Run-Funde.
@@ -510,6 +522,7 @@ Keine. Das Spiel ist ein Hobbyprojekt. Keine Werbung, keine In-App-Käufe, keine
   - Ereignisse in AP-07: `GameEvent.BlocksDug(layerId, amount)` je produzierender Schicht und Aufruf. Weitere Ereignisse ergänzen die jeweiligen APs.
   - Ereignisse in AP-08: `GameEvent.FossilFound(find, tierId)` je Fund und `GameEvent.BlocksPrepared(layerId, blocks, fossils, rockMoney)` je Schicht und Aufruf (Kapitel 4.2). Spieleraktion `GameEngine.tapPrep(state, rng): AdvanceResult` gleicht die Modifier ab und prüft das Ergebnis wie `advance`.
   - Ereignisse in AP-09: `BookUpdated(pieceKey, quality, previousQuality?)`, `NewPiece(pieceKey, quality)`, `PieceImproved(pieceKey, quality, previousQuality)`, `DuplicateQueued(pieceKey, quality)`, `DuplicateSold(pieceKey, quality, money)`, `SkeletonCompleted(speciesId)` (Kapitel 4.4). `defaultSystems`: `DigSystem` → `PrepSystem` mit `FindClassifier` → `MuseumSystem`.
+  - Ereignisse in AP-10: `LabJobStarted(pieceKey, duration)`, `LabJobCompleted(pieceKey, researchPoints)`, `SpeciesResearched(speciesId)` (erstmals, nach dem zugehörigen `LabJobCompleted`) aus `advance`; `Reconstructed(pieceKey, quality, improvedRun, improvedBook)` als erstes Ereignis von `GameEngine.reconstruct` (`ReconstructionResult.Success(state, events, preview)` bzw. `Failure(reason)`), gefolgt von `BookUpdated`, `NewPiece` (+ `SkeletonCompleted`) bzw. `PieceImproved` (+ `DuplicateQueued`/`DuplicateSold`). `defaultSystems`: `DigSystem` → `PrepSystem` mit `FindClassifier` → `MuseumSystem` → `LabSystem`.
   - Zufall: `core.random.GameRandom` (`nextDouble()`, `nextDouble(from, until)` mit `from == until` → `from`, `nextInt(bound)`) und `SeededRandom(seed)` auf Basis von `kotlin.random.Random`.
 - Umsetzung (AP-16): `app/vm/GameViewModel`.
   - Engine, Spielstand und `ModifierEngine` werden nur auf einem Dispatcher mit Parallelität 1 benutzt (nicht thread-safe). Dateizugriffe laufen auf `Dispatchers.IO` unter einem Mutex.
@@ -587,7 +600,7 @@ Ablage: `core/src/main/resources/data/`. Alle IDs in `snake_case`, Texte nur als
 
 **Spielstand (Auszug)**
 
-`book`-Einträge enthalten seit AP-09 zusätzlich `zones` (Zonen-Qualitäten des Buch-Fundes für die Zonen-Balken im Art-Detail, 8.3). Das Feld hat den Standardwert `[]`, ältere Spielstände laden ohne Migration; leer heißt „unbekannt“, maßgeblich ist `quality`. Rekonstruierte Einträge (AP-10) sollten die Zonen der Rekonstruktion speichern.
+`book`-Einträge enthalten seit AP-09 zusätzlich `zones` (Zonen-Qualitäten des Buch-Fundes für die Zonen-Balken im Art-Detail, 8.3). Das Feld hat den Standardwert `[]`, ältere Spielstände laden ohne Migration; leer heißt „unbekannt“, maßgeblich ist `quality`. Rekonstruierte Einträge (AP-10) speichern die (ggf. auf den Cap skalierten) Zonen der Rekonstruktion.
 
 ```json
 {

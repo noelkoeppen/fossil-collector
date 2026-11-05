@@ -85,16 +85,20 @@ class FindClassifier(
         }
 
         // 3. Duplikat: Laborwarteschlange oder Verkauf
-        return state.copy(meta = meta, run = handleDuplicate(keptRun, key, duplicate, context))
+        return state.copy(meta = meta, run = handleDuplicate(keptRun, key, duplicate, context::emit))
     }
 
-    private fun handleDuplicate(run: RunState, key: PieceKey, piece: Piece, context: AdvanceContext): RunState {
+    /**
+     * Behandelt [piece] als Duplikat (Schritt 3): Laborwarteschlange, falls Platz ist, sonst
+     * Sofortverkauf. Wird auch von der Rekonstruktion fuer das ersetzte Run-Stueck genutzt.
+     */
+    internal fun handleDuplicate(run: RunState, key: PieceKey, piece: Piece, emit: (GameEvent) -> Unit): RunState {
         if (hasQueueSpace(run)) {
-            context.emit(GameEvent.DuplicateQueued(key, piece.quality))
+            emit(GameEvent.DuplicateQueued(key, piece.quality))
             return run.copy(labQueue = run.labQueue + QueuedPiece(key, piece.zones))
         }
         val money = sellValue(key, piece.quality)
-        context.emit(GameEvent.DuplicateSold(key, piece.quality, money))
+        emit(GameEvent.DuplicateSold(key, piece.quality, money))
         return run.copy(money = run.money + money)
     }
 

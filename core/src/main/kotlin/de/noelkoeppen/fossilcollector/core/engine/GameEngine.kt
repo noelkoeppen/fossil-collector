@@ -2,6 +2,7 @@ package de.noelkoeppen.fossilcollector.core.engine
 
 import de.noelkoeppen.fossilcollector.core.data.GameData
 import de.noelkoeppen.fossilcollector.core.model.GameState
+import de.noelkoeppen.fossilcollector.core.model.PieceKey
 import de.noelkoeppen.fossilcollector.core.modifier.ModifierEngine
 import de.noelkoeppen.fossilcollector.core.number.GameNumber
 import de.noelkoeppen.fossilcollector.core.random.GameRandom
@@ -59,6 +60,15 @@ class GameEngine(
     val museum: MuseumSystem = systems.filterIsInstance<MuseumSystem>().firstOrNull() ?: MuseumSystem(data, modifiers)
 
     /**
+     * Labor fuer Abfragen der UI (Dauer, Fortschritt, FP). Enthaelt [systems] ein [LabSystem], wird
+     * genau diese Instanz genutzt, sonst eine eigene.
+     */
+    val lab: LabSystem = systems.filterIsInstance<LabSystem>().firstOrNull() ?: LabSystem(data, modifiers)
+
+    /** Rekonstruktion aus Ersatzteilen (Spieleraktion und Abfragen, Kapitel 4.5). */
+    val reconstruction: Reconstruction = Reconstruction(data, modifiers)
+
+    /**
      * Schreitet [state] um [dt] Sekunden fort. Veraendert [state] nicht.
      *
      * @return neuer Zustand und Ereignisse; bei `dt <= 0` die Eingabe-Instanz ohne Ereignisse
@@ -99,6 +109,32 @@ class GameEngine(
         return result
     }
 
+    /**
+     * Spieleraktion: rekonstruiert den Knochen [pieceKey] aus Ersatzteilen, siehe
+     * [Reconstruction.reconstruct]. Gleicht vorher die Modifier-Quellen ab (Capstone `lab_5`) und
+     * prueft das Ergebnis wie [advance] auf `NaN`/`Infinity`.
+     */
+    fun reconstruct(state: GameState, pieceKey: PieceKey): ReconstructionResult {
+        syncModifiers(state)
+        val result = reconstruction.reconstruct(state, pieceKey)
+        if (result is ReconstructionResult.Success) {
+            StateValidator.findNonFinite(result.state)?.let {
+                errorHandler.onNonFinite(it)
+                return ReconstructionResult.Failure(ReconstructionFailure.NON_FINITE_RESULT)
+            }
+        }
+        return result
+    }
+
+    /**
+     * Rekonstruierbare Knochen mit erwarteter Qualitaet und Verbesserungs-Flags (fuer die UI), siehe
+     * [Reconstruction.reconstructableBones]. Gleicht vorher die Modifier-Quellen ab.
+     */
+    fun reconstructableBones(state: GameState): List<ReconstructionPreview> {
+        syncModifiers(state)
+        return reconstruction.reconstructableBones(state)
+    }
+
     /** Aktuelle Verarbeitungsrate der Praeparatoren in Bloecken pro Sekunde (fuer die UI). */
     fun prepRate(): Double = prep.prepRate()
 
@@ -124,20 +160,23 @@ class GameEngine(
 
     companion object {
         /**
-         * Standard-Reihenfolge der Teilschritte. Stand AP-09: Grabung, Praeparation mit Einordnen
-         * der Funde ([FindClassifier]) und Museum ([MuseumSystem]).
+         * Standard-Reihenfolge der Teilschritte. Stand AP-10: Grabung, Praeparation mit Einordnen
+         * der Funde ([FindClassifier]), Museum ([MuseumSystem]) und Labor ([LabSystem]).
          *
          * Geplante Reihenfolge (spaetere APs fuegen ihr System hier ein):
          * 1. Grabung ([DigSystem], AP-07)
          * 2. Praeparation ([PrepSystem], AP-08) verbraucht die Bloecke aus Schritt 1
          * 3. Funde einordnen (AP-09, als [FindHandler] der Praeparation) und Museumseinnahmen (AP-09)
-         * 4. Labor (AP-10)
+         * 4. Labor (AP-10): nach der Praeparation, damit Duplikate dieses Ticks schon einen freien
+         *    Platz belegen koennen; nach dem Museum, weil das Labor `run.pieces` nicht aendert und die
+         *    Einnahmen davon unabhaengig sind.
          * 5. Meilensteine (AP-11)
          */
         fun defaultSystems(data: GameData, modifiers: ModifierEngine): List<AdvanceSystem> = listOf(
             DigSystem(data, modifiers),
             PrepSystem(data, modifiers, FindClassifier(data, modifiers)),
             MuseumSystem(data, modifiers),
+            LabSystem(data, modifiers),
         )
     }
 }

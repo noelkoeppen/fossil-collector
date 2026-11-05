@@ -103,4 +103,46 @@ sealed interface GameEvent {
      * @property speciesId Art-ID
      */
     data class SkeletonCompleted(val speciesId: String) : GameEvent
+
+    /**
+     * Ein Stueck aus der Laborwarteschlange belegt einen freien Forschungsplatz (Kapitel 4.5).
+     *
+     * @property pieceKey Schluessel des Stuecks
+     * @property duration Dauer der Forschung in Sekunden (`labDuration * lab_speed`)
+     */
+    data class LabJobStarted(val pieceKey: PieceKey, val duration: Double) : GameEvent
+
+    /**
+     * Eine Forschung ist abgeschlossen (Kapitel 4.5, Badge "Forschung fertig"). FP und Ersatzteile
+     * sind bereits gutgeschrieben.
+     *
+     * @property pieceKey Schluessel des erforschten Stuecks
+     * @property researchPoints gutgeschriebene FP `(layer.order + 1) * research_points`
+     */
+    data class LabJobCompleted(val pieceKey: PieceKey, val researchPoints: GameNumber) : GameEvent
+
+    /**
+     * Eine Art wurde erstmals im Labor abgeschlossen und gilt als erforscht (Completion-Stufe 1,
+     * Kapitel 4.7). Wird nach dem zugehoerigen [LabJobCompleted] gemeldet.
+     *
+     * @property speciesId Art-ID
+     */
+    data class SpeciesResearched(val speciesId: String) : GameEvent
+
+    /**
+     * Der Spieler hat einen Knochen aus Ersatzteilen rekonstruiert (Kapitel 4.5). Wird vor den
+     * Folge-Ereignissen ([BookUpdated], [NewPiece] bzw. [PieceImproved], [SkeletonCompleted],
+     * [DuplicateQueued] bzw. [DuplicateSold]) gemeldet.
+     *
+     * @property pieceKey Schluessel des rekonstruierten Knochens
+     * @property quality Qualitaet der Rekonstruktion (hoechstens `balance.reconstructionCap`)
+     * @property improvedRun `true`, wenn der Run-Fund ersetzt bzw. neu angelegt wurde
+     * @property improvedBook `true`, wenn der Bucheintrag ersetzt bzw. neu angelegt wurde
+     */
+    data class Reconstructed(
+        val pieceKey: PieceKey,
+        val quality: Double,
+        val improvedRun: Boolean,
+        val improvedBook: Boolean,
+    ) : GameEvent
 }
