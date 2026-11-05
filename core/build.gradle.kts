@@ -3,6 +3,7 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 // Reines Kotlin/JVM-Modul: Spiellogik ohne Android-Abhaengigkeiten (GAME_DESIGN.md, Kapitel 0, Regel 4).
 plugins {
     alias(libs.plugins.kotlin.jvm)
+    alias(libs.plugins.kotlin.serialization)
 }
 
 java {
@@ -18,6 +19,8 @@ kotlin {
 }
 
 dependencies {
+    implementation(libs.kotlinx.serialization.json)
+
     testImplementation(platform(libs.junit.bom))
     testImplementation(libs.junit.jupiter)
     testRuntimeOnly(libs.junit.platform.launcher)

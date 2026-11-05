@@ -326,6 +326,8 @@ Buch-Boni pro Art werden in AP-02 mit sinnvollen Stats belegt (z. B. Mammut → 
   - Standard: Kurzformen. DE: `1,5 K`, `2,3 Mio.`, `4,1 Mrd.`, `1,2 Bio.`; EN: `1.5K`, `2.3M`, `4.1B`, `1.2T`. Ab 10^15 automatisch wissenschaftlich.
   - Option in den Einstellungen: immer wissenschaftlich (`1,5e9`).
   - Unter 1000 ganzzahlig, darüber 1 bis 2 Nachkommastellen.
+  - Präzisierungen (AP-03): Höchstens 2 Nachkommastellen, Nullen am Ende entfallen (`1 Mio.`, `1,5 K`). Gerundet wird kaufmännisch (HALF_UP) **vor** der Wahl der Größenklasse, daher `999,6 → 1 K`, `999 999 → 1 Mio.` und `999,999 Bio. → 1e15`. Auch im Modus „immer wissenschaftlich“ bleiben Beträge unter 1000 ganzzahlig (`42` statt `4,2e1`). Negative Zahlen erhalten ein `-` vor dem Betrag; was auf 0 rundet, wird als `0` ohne Vorzeichen angezeigt. `NaN`/`±Infinity` werden als `NaN` bzw. `∞`/`-∞` angezeigt. Die Sprache wird als eigener Enum `NumberLanguage` (DE/EN) übergeben, unabhängig von der System-Locale.
+  - Serialisierung: `GameNumber` wird als JSON-Zahl geschrieben; das Standard-`Json` lehnt `NaN`/`Infinity` beim Schreiben ab.
 - Werte nie als `Int`/`Long` speichern. `NaN` bzw. `Infinity` werden in `advance()` erkannt und als Fehler geloggt (Debug: Exception).
 
 ### 6.7 Balancing-Werkzeug [MVP]
