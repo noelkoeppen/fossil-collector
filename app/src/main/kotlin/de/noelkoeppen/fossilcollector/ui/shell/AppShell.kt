@@ -49,18 +49,24 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.flow.emptyFlow
 import de.noelkoeppen.fossilcollector.R
+import de.noelkoeppen.fossilcollector.core.engine.PrestigeFailure
 import de.noelkoeppen.fossilcollector.core.engine.ReconstructionFailure
 import de.noelkoeppen.fossilcollector.core.model.Settings
 import de.noelkoeppen.fossilcollector.core.number.GameNumber
 import de.noelkoeppen.fossilcollector.ui.book.BookScreen
 import de.noelkoeppen.fossilcollector.ui.dig.DigScreen
+import de.noelkoeppen.fossilcollector.ui.fame.FameActions
+import de.noelkoeppen.fossilcollector.ui.fame.FameScreen
+import de.noelkoeppen.fossilcollector.ui.fame.fameActions
 import de.noelkoeppen.fossilcollector.ui.lab.LabActions
 import de.noelkoeppen.fossilcollector.ui.lab.LabScreen
 import de.noelkoeppen.fossilcollector.ui.lab.labActions
 import de.noelkoeppen.fossilcollector.ui.museum.MuseumActions
 import de.noelkoeppen.fossilcollector.ui.museum.MuseumScreen
 import de.noelkoeppen.fossilcollector.ui.museum.museumActions
+import de.noelkoeppen.fossilcollector.ui.GameNumberFormat
 import de.noelkoeppen.fossilcollector.ui.rememberGameNumberFormat
+import de.noelkoeppen.fossilcollector.ui.resolveNumberLanguage
 import de.noelkoeppen.fossilcollector.ui.theme.FossilCollectorTheme
 import de.noelkoeppen.fossilcollector.ui.theme.QualityColors
 import de.noelkoeppen.fossilcollector.vm.DigActions
@@ -71,8 +77,8 @@ import de.noelkoeppen.fossilcollector.vm.GameViewModel
 
 /**
  * App-Shell (AP-16, Kapitel 8.1): Theme, obere Leiste, untere Navigation mit den sichtbaren Tabs
- * (Kapitel 8.2) und Platzhalter-Screens. Die echten Screens ersetzen die Platzhalter in
- * [TabContent] ab AP-17.
+ * (Kapitel 8.2) und den Screens in [TabContent] (seit AP-22 alle Tabs; die Einstellungen sind
+ * noch ein Platzhalter bis AP-24).
  */
 @Composable
 fun AppShell(viewModel: GameViewModel) {
@@ -82,7 +88,9 @@ fun AppShell(viewModel: GameViewModel) {
 
     LaunchedEffect(viewModel) {
         viewModel.messages.collect { message ->
-            snackbarHostState.showSnackbar(messageText(message, context))
+            // Zahlen im Hinweis im aktuellen Zahlenformat des Spielstands.
+            val settings = (viewModel.uiState.value as? GameUiState.Ready)?.settings ?: Settings()
+            snackbarHostState.showSnackbar(messageText(message, context, settings))
         }
     }
 
@@ -97,7 +105,7 @@ fun AppShell(viewModel: GameViewModel) {
     }
 }
 
-private fun messageText(message: GameMessage, context: android.content.Context): String = when (message) {
+private fun messageText(message: GameMessage, context: android.content.Context, settings: Settings): String = when (message) {
     is GameMessage.LoadedFromBackup -> context.getString(R.string.message_loaded_from_backup, message.backupIndex)
     GameMessage.SaveUnreadableNewGame -> context.getString(R.string.message_save_unreadable)
     GameMessage.SaveFailed -> context.getString(R.string.message_save_failed)
@@ -107,6 +115,17 @@ private fun messageText(message: GameMessage, context: android.content.Context):
             ReconstructionFailure.MISSING_SPARE_ZONES -> R.string.lab_message_recon_missing_zones
             ReconstructionFailure.UNKNOWN_PIECE -> R.string.lab_message_recon_unknown
             ReconstructionFailure.NON_FINITE_RESULT -> R.string.lab_message_recon_error
+        },
+    )
+    is GameMessage.Prestiged -> {
+        val systemLanguage = context.resources.configuration.locales[0]?.language.orEmpty()
+        val format = GameNumberFormat(resolveNumberLanguage(settings.language, systemLanguage), settings.numberFormat)
+        context.getString(R.string.fame_message_prestiged, format.format(message.fameGained))
+    }
+    is GameMessage.PrestigeFailed -> context.getString(
+        when (message.reason) {
+            PrestigeFailure.NOT_ENOUGH_FAME -> R.string.fame_message_prestige_not_enough
+            PrestigeFailure.NON_FINITE_RESULT -> R.string.fame_message_prestige_error
         },
     )
 }
@@ -162,7 +181,7 @@ fun GameShell(
     }
 }
 
-/** Inhalt eines Tabs. Grabung seit AP-17, Museum seit AP-18, Labor seit AP-19, Sammelbuch seit AP-20; die uebrigen Tabs sind Platzhalter, bis AP-22 ff. sie ersetzen. */
+/** Inhalt eines Tabs. Grabung seit AP-17, Museum seit AP-18, Labor seit AP-19, Sammelbuch seit AP-20, Ruhm seit AP-22. */
 @Composable
 private fun TabContent(tab: GameTab, state: GameUiState.Ready, viewModel: GameViewModel?) {
     when (tab) {
@@ -188,9 +207,11 @@ private fun TabContent(tab: GameTab, state: GameUiState.Ready, viewModel: GameVi
             settings = state.settings,
             texts = state.texts,
         )
-        else -> PlaceholderScreen(
-            title = stringResource(tab.titleRes),
-            text = stringResource(tab.placeholderRes),
+        GameTab.FAME -> FameScreen(
+            state = state.fameScreen,
+            settings = state.settings,
+            texts = state.texts,
+            actions = remember(viewModel) { viewModel?.let(::fameActions) ?: FameActions.NONE },
         )
     }
 }
@@ -336,15 +357,6 @@ private val GameTab.titleRes: Int
         GameTab.MUSEUM -> R.string.tab_museum
         GameTab.BOOK -> R.string.tab_book
         GameTab.FAME -> R.string.tab_fame
-    }
-
-private val GameTab.placeholderRes: Int
-    get() = when (this) {
-        GameTab.DIG -> R.string.placeholder_dig
-        GameTab.LAB -> R.string.placeholder_lab
-        GameTab.MUSEUM -> R.string.placeholder_museum
-        GameTab.BOOK -> R.string.placeholder_book
-        GameTab.FAME -> R.string.placeholder_fame
     }
 
 /** Vorlaeufige Material-Symbole; eigene Icons folgen in AP-26. */
