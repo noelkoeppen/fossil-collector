@@ -31,6 +31,8 @@ import de.noelkoeppen.fossilcollector.platform.SaveLoadResult
 import de.noelkoeppen.fossilcollector.platform.SaveSource
 import de.noelkoeppen.fossilcollector.platform.SaveStorage
 import de.noelkoeppen.fossilcollector.platform.TimeSource
+import de.noelkoeppen.fossilcollector.ui.book.BookUiMapper
+import de.noelkoeppen.fossilcollector.ui.book.BookUiState
 import de.noelkoeppen.fossilcollector.ui.lab.LabUiMapper
 import de.noelkoeppen.fossilcollector.ui.lab.LabUiState
 import de.noelkoeppen.fossilcollector.ui.museum.MuseumUiMapper
@@ -134,6 +136,7 @@ class GameViewModel(
     private var purchases: Purchases? = null
     private var qualityTiers: QualityTiers? = null
     private var texts: TextProvider = TextProvider.EMPTY
+    private var bookMapper: BookUiMapper? = null
     private val popupBundler = FindPopupBundler()
 
     private val foreground = MutableStateFlow(false)
@@ -273,6 +276,7 @@ class GameViewModel(
         purchases = Purchases(loadedData, modifiers)
         qualityTiers = QualityTiers.fromGameData(loadedData)
         texts = TextProvider.fromGameData(loadedData)
+        bookMapper = BookUiMapper(loadedData)
         popupBundler.reset()
         state = loadedState
         lastSavedState = if (needsInitialSave) null else loadedState
@@ -355,6 +359,8 @@ class GameViewModel(
                 ?: DigUiState.EMPTY,
             museum = engine?.let { e -> MuseumUiMapper.map(e, current, gameData) } ?: MuseumUiState.EMPTY,
             lab = engine?.let { e -> LabUiMapper.map(e, current, gameData) } ?: LabUiState.EMPTY,
+            // Gecacht: neu gebaut nur bei geaendertem Buch, erforschten Arten oder Schichten.
+            book = bookMapper?.map(currentEngine, current) ?: BookUiState.EMPTY,
         )
     }
 

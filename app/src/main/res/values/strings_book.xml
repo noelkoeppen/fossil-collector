@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Sammelbuch-Screen (AP-20, Kapitel 4.7 und 8.3) -->
+<resources>
+    <!-- Liste -->
+    <string name="book_layer_locked">Schicht gesperrt</string>
+    <string name="book_layer_progress">%1$d von %2$d Arten entdeckt · %3$d vollständig</string>
+    <string name="book_layer_locked_hint">Diese Schicht ist im aktuellen Run noch nicht freigeschaltet.</string>
+    <string name="book_unknown_mark">?</string>
+    <string name="book_unknown_species">Unbekannte Art</string>
+    <string name="book_bones_progress">%1$d/%2$d Knochen</string>
+    <string name="book_no_layers">Noch keine Einträge.</string>
+
+    <!-- Completion-Stufen -->
+    <string name="book_level_none">Nicht erforscht</string>
+    <string name="book_level_researched">Stufe 1: Erforscht</string>
+    <string name="book_level_complete">Stufe 2: Skelett vollständig</string>
+
+    <!-- Art-Detail -->
+    <string name="book_back">Zurück</string>
+    <string name="book_skeleton_description">Skelett: %1$d von %2$d Knochen im Buch</string>
+    <string name="book_bones_title">Knochen</string>
+    <string name="book_bone_missing">Fehlt</string>
+    <string name="book_bone_quality">%1$s · %2$d %%</string>
+    <string name="book_bone_reconstructed">Rekonstruiert</string>
+    <string name="book_zone_quality">%1$d %%</string>
+    <string name="book_zone_unknown">–</string>
+    <string name="book_min_tier">Schlechteste Stufe: %1$s</string>
+
+    <!-- Boni -->
+    <string name="book_bonus_title">Buch-Bonus</string>
+    <string name="book_bonus_percent">%1$s %%</string>
+    <string name="book_bonus_add">%1$s</string>
+    <string name="book_bonus_stat_value">%1$s: %2$s</string>
+    <string name="book_bonus_factor">Faktor ×%1$s nach schlechtester Stufe (%2$s)</string>
+    <string name="book_bonus_inactive">Ab Stufe 2: %1$s bis %2$s, je nach schlechtester Stufe der Knochen</string>
+    <string name="book_researched_title">Forschungs-Bonus</string>
+    <string name="book_researched_inactive">Ab Stufe 1 (ein Stück der Art im Labor erforscht)</string>
+    <string name="book_bonus_active_label">Aktiv</string>
+    <string name="book_bonus_inactive_label">Noch nicht aktiv</string>
+</resources>

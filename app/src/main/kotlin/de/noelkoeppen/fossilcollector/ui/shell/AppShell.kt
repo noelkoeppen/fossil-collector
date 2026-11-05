@@ -52,6 +52,7 @@ import de.noelkoeppen.fossilcollector.R
 import de.noelkoeppen.fossilcollector.core.engine.ReconstructionFailure
 import de.noelkoeppen.fossilcollector.core.model.Settings
 import de.noelkoeppen.fossilcollector.core.number.GameNumber
+import de.noelkoeppen.fossilcollector.ui.book.BookScreen
 import de.noelkoeppen.fossilcollector.ui.dig.DigScreen
 import de.noelkoeppen.fossilcollector.ui.lab.LabActions
 import de.noelkoeppen.fossilcollector.ui.lab.LabScreen
@@ -161,7 +162,7 @@ fun GameShell(
     }
 }
 
-/** Inhalt eines Tabs. Grabung seit AP-17, Museum seit AP-18, Labor seit AP-19; die uebrigen Tabs sind Platzhalter, bis AP-20 ff. sie ersetzen. */
+/** Inhalt eines Tabs. Grabung seit AP-17, Museum seit AP-18, Labor seit AP-19, Sammelbuch seit AP-20; die uebrigen Tabs sind Platzhalter, bis AP-22 ff. sie ersetzen. */
 @Composable
 private fun TabContent(tab: GameTab, state: GameUiState.Ready, viewModel: GameViewModel?) {
     when (tab) {
@@ -181,6 +182,11 @@ private fun TabContent(tab: GameTab, state: GameUiState.Ready, viewModel: GameVi
             settings = state.settings,
             texts = state.texts,
             actions = remember(viewModel) { viewModel?.let(::museumActions) ?: MuseumActions.NONE },
+        )
+        GameTab.BOOK -> BookScreen(
+            state = state.book,
+            settings = state.settings,
+            texts = state.texts,
         )
         else -> PlaceholderScreen(
             title = stringResource(tab.titleRes),
