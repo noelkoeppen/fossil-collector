@@ -47,7 +47,10 @@ object StateValidator {
         number("meta.fameTotal", meta.fameTotal)?.let { return it }
         number("meta.prestigeCount", meta.prestigeCount)?.let { return it }
         number("meta.stats.piecesFound", meta.stats.piecesFound)?.let { return it }
-        for ((key, entry) in meta.book) double("meta.book[$key].quality", entry.quality)?.let { return it }
+        for ((key, entry) in meta.book) {
+            double("meta.book[$key].quality", entry.quality)?.let { return it }
+            doubles("meta.book[$key].zones", entry.zones)?.let { return it }
+        }
 
         number("run.money", run.money)?.let { return it }
         number("run.researchPoints", run.researchPoints)?.let { return it }

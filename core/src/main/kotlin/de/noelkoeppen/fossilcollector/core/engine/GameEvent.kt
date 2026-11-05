@@ -1,5 +1,6 @@
 package de.noelkoeppen.fossilcollector.core.engine
 
+import de.noelkoeppen.fossilcollector.core.model.PieceKey
 import de.noelkoeppen.fossilcollector.core.number.GameNumber
 
 /**
@@ -47,4 +48,59 @@ sealed interface GameEvent {
      * @property tierId ID der Qualitaetsstufe des Stuecks (`balance.qualityTiers`)
      */
     data class FossilFound(val find: Find, val tierId: String) : GameEvent
+
+    /**
+     * Der Fund hat einen neuen oder besseren Eintrag im Sammelbuch erzeugt (Kapitel 4.4, Schritt 1).
+     * Grundlage fuer das Badge "neuer Bucheintrag" (Kapitel 8.1).
+     *
+     * @property pieceKey Schluessel des Eintrags
+     * @property quality neue Qualitaet im Buch
+     * @property previousQuality bisherige Qualitaet oder `null`, wenn es noch keinen Eintrag gab
+     */
+    data class BookUpdated(val pieceKey: PieceKey, val quality: Double, val previousQuality: Double?) : GameEvent
+
+    /**
+     * Erster Fund dieses Schluessels im aktuellen Durchlauf (Kapitel 4.4, Schritt 2); das Stueck
+     * wird in den Run-Bestand aufgenommen.
+     *
+     * @property pieceKey Schluessel des Stuecks
+     * @property quality Qualitaet des Stuecks
+     */
+    data class NewPiece(val pieceKey: PieceKey, val quality: Double) : GameEvent
+
+    /**
+     * Der Fund ersetzt einen schlechteren Run-Fund desselben Schluessels (Kapitel 4.4, Schritt 2).
+     * Das ersetzte Stueck wird danach als Duplikat behandelt ([DuplicateQueued] bzw. [DuplicateSold]).
+     *
+     * @property pieceKey Schluessel des Stuecks
+     * @property quality Qualitaet des neuen Stuecks
+     * @property previousQuality Qualitaet des ersetzten Stuecks
+     */
+    data class PieceImproved(val pieceKey: PieceKey, val quality: Double, val previousQuality: Double) : GameEvent
+
+    /**
+     * Ein Duplikat wurde in die Laborwarteschlange gestellt (Kapitel 4.4, Schritt 3).
+     *
+     * @property pieceKey Schluessel des Duplikats
+     * @property quality Qualitaet des Duplikats
+     */
+    data class DuplicateQueued(val pieceKey: PieceKey, val quality: Double) : GameEvent
+
+    /**
+     * Ein Duplikat wurde sofort verkauft, weil die Laborwarteschlange voll ist (Kapitel 4.4,
+     * Schritt 3). Das Geld ist bereits gutgeschrieben.
+     *
+     * @property pieceKey Schluessel des Duplikats
+     * @property quality Qualitaet des Duplikats
+     * @property money Erloes `layer.value * (0.5 + q) * duplicateSellFactor * sell_price`
+     */
+    data class DuplicateSold(val pieceKey: PieceKey, val quality: Double, val money: GameNumber) : GameEvent
+
+    /**
+     * Mit diesem Fund sind im aktuellen Durchlauf erstmals alle Knochen der Art vorhanden
+     * (Skelett vollstaendig, Kapitel 4.6). Wird nach [NewPiece] gemeldet.
+     *
+     * @property speciesId Art-ID
+     */
+    data class SkeletonCompleted(val speciesId: String) : GameEvent
 }
