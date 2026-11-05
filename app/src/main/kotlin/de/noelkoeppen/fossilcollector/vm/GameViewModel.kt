@@ -16,11 +16,13 @@ import de.noelkoeppen.fossilcollector.core.engine.GameEngine
 import de.noelkoeppen.fossilcollector.core.engine.GameEvent
 import de.noelkoeppen.fossilcollector.core.engine.NumericErrorHandler
 import de.noelkoeppen.fossilcollector.core.engine.QualityTiers
+import de.noelkoeppen.fossilcollector.core.engine.ReconstructionResult
 import de.noelkoeppen.fossilcollector.core.engine.RunStart
 import de.noelkoeppen.fossilcollector.core.engine.purchase.BuyMode
 import de.noelkoeppen.fossilcollector.core.engine.purchase.PurchaseResult
 import de.noelkoeppen.fossilcollector.core.engine.purchase.Purchases
 import de.noelkoeppen.fossilcollector.core.model.GameState
+import de.noelkoeppen.fossilcollector.core.model.PieceKey
 import de.noelkoeppen.fossilcollector.core.modifier.ModifierEngine
 import de.noelkoeppen.fossilcollector.core.random.GameRandom
 import de.noelkoeppen.fossilcollector.core.random.SeededRandom
@@ -29,6 +31,8 @@ import de.noelkoeppen.fossilcollector.platform.SaveLoadResult
 import de.noelkoeppen.fossilcollector.platform.SaveSource
 import de.noelkoeppen.fossilcollector.platform.SaveStorage
 import de.noelkoeppen.fossilcollector.platform.TimeSource
+import de.noelkoeppen.fossilcollector.ui.lab.LabUiMapper
+import de.noelkoeppen.fossilcollector.ui.lab.LabUiState
 import de.noelkoeppen.fossilcollector.ui.museum.MuseumUiMapper
 import de.noelkoeppen.fossilcollector.ui.museum.MuseumUiState
 import kotlinx.coroutines.CoroutineDispatcher
@@ -200,6 +204,25 @@ class GameViewModel(
 
     override fun unlockLayer(layerId: String) = purchase { p, state -> p.unlockLayer(state, layerId) }
 
+    // --- Aktionen des Screens Labor (AP-19) ---
+
+    /**
+     * Rekonstruiert [pieceKey] ueber `GameEngine.reconstruct`. Bei Erfolg gehen die Ereignisse
+     * (Rekonstruiert, Buch, Fund ...) wie bei [performWithEvents] an [events] und die Fund-Popups.
+     * Wird die Aktion abgelehnt (z. B. weil sich der Spielstand seit der Anzeige geaendert hat und
+     * sie keine Verbesserung mehr waere), bleibt der Zustand unveraendert und [messages] liefert
+     * [GameMessage.ReconstructionFailed].
+     */
+    fun reconstruct(pieceKey: PieceKey) = performWithEvents { engine, current ->
+        when (val result = engine.reconstruct(current, pieceKey)) {
+            is ReconstructionResult.Success -> AdvanceResult(result.state, result.events)
+            is ReconstructionResult.Failure -> {
+                messageChannel.trySend(GameMessage.ReconstructionFailed(result.reason))
+                AdvanceResult(current, emptyList())
+            }
+        }
+    }
+
     /** Kauf ueber [Purchases]; bei Fehlschlag (z. B. Geld reicht nicht mehr) bleibt der Zustand unveraendert. */
     private fun purchase(action: (Purchases, GameState) -> PurchaseResult) = perform { _, current ->
         val p = purchases ?: return@perform current
@@ -331,6 +354,7 @@ class GameViewModel(
             dig = engine?.let { e -> purchases?.let { p -> DigStateMapper.map(gameData, e, p, current) } }
                 ?: DigUiState.EMPTY,
             museum = engine?.let { e -> MuseumUiMapper.map(e, current, gameData) } ?: MuseumUiState.EMPTY,
+            lab = engine?.let { e -> LabUiMapper.map(e, current, gameData) } ?: LabUiState.EMPTY,
         )
     }
 
