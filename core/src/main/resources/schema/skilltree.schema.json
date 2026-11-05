@@ -1,0 +1,118 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://noelkoeppen.de/fossilcollector/schema/skilltree.schema.json",
+  "title": "Skilltree (skilltree.json)",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "id": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9_]*$"
+      },
+      "branch": {
+        "enum": [
+          "dig",
+          "prep",
+          "lab",
+          "curator",
+          "expedition"
+        ]
+      },
+      "depth": {
+        "type": "integer",
+        "minimum": 1
+      },
+      "baseCost": {
+        "type": "number",
+        "exclusiveMinimum": 0
+      },
+      "requires": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*$"
+        },
+        "uniqueItems": true
+      },
+      "capstone": {
+        "type": "boolean"
+      },
+      "effects": {
+        "type": "array",
+        "items": {
+          "$ref": "#/$defs/effect"
+        },
+        "minItems": 1
+      }
+    },
+    "required": [
+      "id",
+      "branch",
+      "depth",
+      "baseCost",
+      "effects"
+    ]
+  },
+  "$defs": {
+    "statId": {
+      "enum": [
+        "dig_rate",
+        "prep_rate",
+        "find_chance",
+        "damage_reduction",
+        "quality_base_min",
+        "museum_income",
+        "skeleton_bonus",
+        "sell_price",
+        "lab_speed",
+        "research_points",
+        "fame_gain",
+        "layer_unlock_cost",
+        "hall_cost",
+        "start_teams",
+        "start_lab_slots",
+        "guaranteed_fossil_chance",
+        "no_damage_chance",
+        "reconstruction_missing_zones",
+        "special_exhibit_mult",
+        "offline_efficiency",
+        "offline_cap_hours"
+      ]
+    },
+    "effect": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "stat": {
+          "$ref": "#/$defs/statId"
+        },
+        "op": {
+          "enum": [
+            "add",
+            "mult"
+          ]
+        },
+        "value": {
+          "type": "number"
+        },
+        "category": {
+          "enum": [
+            "upgrade",
+            "skill",
+            "book",
+            "milestone",
+            "event"
+          ]
+        }
+      },
+      "required": [
+        "stat",
+        "op",
+        "value",
+        "category"
+      ]
+    }
+  }
+}

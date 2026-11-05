@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://noelkoeppen.de/fossilcollector/schema/locale.schema.json",
+  "title": "Inhaltstexte (locale/<sprache>.json)",
+  "type": "object",
+  "propertyNames": {
+    "pattern": "^[a-z_]+(\\.[a-z0-9_]+)+$"
+  },
+  "additionalProperties": {
+    "type": "string",
+    "minLength": 1
+  }
+}

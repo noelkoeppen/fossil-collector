@@ -26,6 +26,11 @@ jobs:
       - name: Gradle einrichten
         uses: gradle/actions/setup-gradle@v5
 
+      - name: Datenvalidierung (JSON-Schemas)
+        run: |
+          python3 -m pip install --quiet jsonschema
+          python3 tools/validate_data.py
+
       - name: Core-Tests
         run: ./gradlew :core:test --stacktrace
 
