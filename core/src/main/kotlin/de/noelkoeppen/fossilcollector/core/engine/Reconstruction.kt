@@ -127,7 +127,8 @@ class Reconstruction(
         val events = ArrayList<GameEvent>()
         events += GameEvent.Reconstructed(key, preview.quality, preview.improvesRun, preview.improvesBook)
 
-        var meta = state.meta
+        // Zaehler fuer den Meilenstein `reconstructions` (AP-11).
+        var meta = state.meta.let { it.copy(stats = it.stats.copy(reconstructions = it.stats.reconstructions + 1.0)) }
         if (preview.improvesBook) {
             val previous = meta.book[key]
             meta = meta.copy(

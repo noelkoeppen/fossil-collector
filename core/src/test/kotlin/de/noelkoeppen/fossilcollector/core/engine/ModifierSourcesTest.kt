@@ -91,11 +91,11 @@ class ModifierSourcesTest {
     @Test
     fun `fremde Quellen bleiben unberuehrt`() {
         val engine = ModifierEngine.fromGameData(data)
-        val book = listOf(Modifier(StatId.MUSEUM_INCOME, ModifierOp.MULT, 0.01, ModifierCategory.BOOK))
-        engine.setSource("book:cave_bear", book)
+        val extra = listOf(Modifier(StatId.MUSEUM_INCOME, ModifierOp.MULT, 0.01, ModifierCategory.EVENT))
+        engine.setSource("event:test", extra)
         ModifierSources.sync(engine, newState().withSkills("dig_1"), data)
-        assertEquals(setOf("book:cave_bear", "skill:dig_1"), engine.sourceIds)
-        assertEquals(book, engine.source("book:cave_bear"))
+        assertEquals(setOf("event:test", "skill:dig_1"), engine.sourceIds)
+        assertEquals(extra, engine.source("event:test"))
     }
 
     @Test
@@ -118,9 +118,9 @@ class ModifierSourcesTest {
     @Test
     fun `eigener Provider erweitert den Abgleich`() {
         val extra = object : ModifierSourceProvider {
-            override val prefix = "milestone:"
+            override val prefix = "event:"
             override fun sources(state: GameState, data: GameData) =
-                mapOf("milestone:test" to listOf(Modifier(StatId.DIG_RATE, ModifierOp.MULT, 0.5, ModifierCategory.MILESTONE)))
+                mapOf("event:test" to listOf(Modifier(StatId.DIG_RATE, ModifierOp.MULT, 0.5, ModifierCategory.EVENT)))
         }
         val sources = ModifierSources(ModifierSources.DEFAULT_PROVIDERS + extra)
         val engine = ModifierEngine.fromGameData(data)

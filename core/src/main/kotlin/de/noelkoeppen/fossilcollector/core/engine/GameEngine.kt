@@ -68,6 +68,16 @@ class GameEngine(
     /** Rekonstruktion aus Ersatzteilen (Spieleraktion und Abfragen, Kapitel 4.5). */
     val reconstruction: Reconstruction = Reconstruction(data, modifiers)
 
+    /** Sammelbuch-Completion und Buch-Boni (Abfragen fuer die UI, Kapitel 4.7). */
+    val completion: Completion = Completion(data)
+
+    /**
+     * Meilensteine (Kapitel 5.2). Enthaelt [systems] ein [MilestoneSystem], wird genau diese Instanz
+     * genutzt, sonst eine eigene.
+     */
+    val milestones: MilestoneSystem =
+        systems.filterIsInstance<MilestoneSystem>().firstOrNull() ?: MilestoneSystem(data)
+
     /**
      * Schreitet [state] um [dt] Sekunden fort. Veraendert [state] nicht.
      *
@@ -98,26 +108,53 @@ class GameEngine(
 
     /**
      * Spieleraktion: Tippen auf "Freilegen", siehe [PrepSystem.tapPrep]. Gleicht vorher die
-     * Modifier-Quellen ab und prueft das Ergebnis wie [advance] auf `NaN`/`Infinity`.
+     * Modifier-Quellen ab, prueft danach die Meilensteine (z. B. `first_find`, Ereignisse am Ende der
+     * Liste) und das Ergebnis wie [advance] auf `NaN`/`Infinity`.
      *
      * @return neuer Zustand und Ereignisse (Funde fuer das Fund-Popup)
      */
     fun tapPrep(state: GameState, rng: GameRandom): AdvanceResult {
         syncModifiers(state)
-        val result = prep.tapPrep(state, rng)
+        val prepared = prep.tapPrep(state, rng)
+        val events = ArrayList(prepared.events)
+        val result = AdvanceResult(milestones.check(prepared.state) { events += it }, events)
         StateValidator.findNonFinite(result.state)?.let { return reject(state, it) }
         return result
     }
 
     /**
+     * Prueft sofort alle offenen Meilensteine (Kapitel 5.2), z. B. nach einem Kauf oder dem Prestige.
+     * [advance] prueft ohnehin am Ende jedes Ticks; [tapPrep] und [reconstruct] pruefen selbst.
+     *
+     * @return neuer Zustand (bzw. die Eingabe-Instanz, wenn nichts erreicht wurde) und
+     *   [GameEvent.MilestoneReached]-Ereignisse
+     */
+    fun checkMilestones(state: GameState): AdvanceResult {
+        val events = ArrayList<GameEvent>()
+        val result = milestones.check(state) { events += it }
+        if (result === state) return AdvanceResult(state, emptyList())
+        StateValidator.findNonFinite(result)?.let { return reject(state, it) }
+        return AdvanceResult(result, events)
+    }
+
+    /** Stand aller Arten im Sammelbuch (Completion, Boni), siehe [Completion.overview]. */
+    fun bookOverview(state: GameState): List<SpeciesCompletion> = completion.overview(state)
+
+    /** Completion-Stufe einer Art, siehe [Completion.levelOf]. */
+    fun completionLevel(state: GameState, speciesId: String): CompletionLevel = completion.levelOf(state, speciesId)
+
+    /**
      * Spieleraktion: rekonstruiert den Knochen [pieceKey] aus Ersatzteilen, siehe
-     * [Reconstruction.reconstruct]. Gleicht vorher die Modifier-Quellen ab (Capstone `lab_5`) und
-     * prueft das Ergebnis wie [advance] auf `NaN`/`Infinity`.
+     * [Reconstruction.reconstruct]. Gleicht vorher die Modifier-Quellen ab (Capstone `lab_5`), prueft
+     * danach die Meilensteine (Ereignisse am Ende der Liste) und das Ergebnis wie [advance] auf
+     * `NaN`/`Infinity`.
      */
     fun reconstruct(state: GameState, pieceKey: PieceKey): ReconstructionResult {
         syncModifiers(state)
-        val result = reconstruction.reconstruct(state, pieceKey)
+        var result = reconstruction.reconstruct(state, pieceKey)
         if (result is ReconstructionResult.Success) {
+            val events = ArrayList(result.events)
+            result = result.copy(state = milestones.check(result.state) { events += it }, events = events)
             StateValidator.findNonFinite(result.state)?.let {
                 errorHandler.onNonFinite(it)
                 return ReconstructionResult.Failure(ReconstructionFailure.NON_FINITE_RESULT)
@@ -160,8 +197,9 @@ class GameEngine(
 
     companion object {
         /**
-         * Standard-Reihenfolge der Teilschritte. Stand AP-10: Grabung, Praeparation mit Einordnen
-         * der Funde ([FindClassifier]), Museum ([MuseumSystem]) und Labor ([LabSystem]).
+         * Standard-Reihenfolge der Teilschritte. Stand AP-11: Grabung, Praeparation mit Einordnen
+         * der Funde ([FindClassifier]), Museum ([MuseumSystem]), Labor ([LabSystem]) und
+         * Meilensteine ([MilestoneSystem]).
          *
          * Geplante Reihenfolge (spaetere APs fuegen ihr System hier ein):
          * 1. Grabung ([DigSystem], AP-07)
@@ -170,13 +208,14 @@ class GameEngine(
          * 4. Labor (AP-10): nach der Praeparation, damit Duplikate dieses Ticks schon einen freien
          *    Platz belegen koennen; nach dem Museum, weil das Labor `run.pieces` nicht aendert und die
          *    Einnahmen davon unabhaengig sind.
-         * 5. Meilensteine (AP-11)
+         * 5. Meilensteine (AP-11): zuletzt, damit alle Zaehler dieses Ticks beruecksichtigt sind.
          */
         fun defaultSystems(data: GameData, modifiers: ModifierEngine): List<AdvanceSystem> = listOf(
             DigSystem(data, modifiers),
             PrepSystem(data, modifiers, FindClassifier(data, modifiers)),
             MuseumSystem(data, modifiers),
             LabSystem(data, modifiers),
+            MilestoneSystem(data),
         )
     }
 }

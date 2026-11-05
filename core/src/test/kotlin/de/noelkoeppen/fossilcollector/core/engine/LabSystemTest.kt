@@ -264,6 +264,7 @@ class LabSystemTest {
         val engine = GameEngine(data, modifiers)
         assertTrue(engine.lab.slots(state(slots = 2.0)) == 2)
         val s = state(queue = listOf(queued(skull), queued(PieceKey("hipparion", "jaw"))), skills = setOf("lab_1", "lab_4"))
+            .withAllMilestonesDone(data) // ohne FP-Belohnung von first_research
         val result = engine.advance(s, 19.5, SeededRandom(SEED))
         assertEquals(1.0, result.state.run.researchPoints.toDouble(), EPS)
         assertEquals(setOf("cave_bear"), result.state.meta.researchedSpecies)
@@ -276,7 +277,7 @@ class LabSystemTest {
         val modifiers = ModifierEngine.fromGameData(data)
         val engine = GameEngine(data, modifiers)
         val rng = SeededRandom(SEED)
-        var s = state(slots = 2.0)
+        var s = state(slots = 2.0).withAllMilestonesDone(data) // ohne FP-Belohnungen der Meilensteine
         s = s.copy(run = s.run.copy(blocks = mapOf(Q to n(3000.0)), preparators = n(50.0)))
         var completed = 0
         repeat(600) {
