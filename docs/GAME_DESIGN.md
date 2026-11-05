@@ -128,6 +128,18 @@ Graben → Präparieren → (Labor) → Rekonstruieren → Ausstellen. Später k
 | Museumsreif | `PRISTINE` | ≥ 0.90 |
 
 - Weil die Zerbrechlichkeit mit der Tiefe steigt, bleiben Funde aus tiefen Schichten auch mit guten Werkzeugen selten perfekt. Das ist **Absicht** und darf nicht „gefixt“ werden.
+- Präzisierungen (AP-08), Umsetzung `core.engine.PrepSystem` (läuft in `GameEngine.defaultSystems` direkt nach der Grabung):
+  - `prepRate` ist der Stat `prep_rate`, additiv mit Basis 0; die Basis kommt aus der Quelle `upgrade:preparator` (0.2 je Präparator), `mult`-Modifier (Skill `prep_2`, Buch-Boni) wirken darauf. `prep_rate` wirkt **nicht** auf das Tippen (`tapPrep(state, rng)`, analog zu `tapDig`).
+  - **Bruchteile:** Gewürfelt werden nur **ganze** Blöcke. Die Verarbeitungsmenge eines Aufrufs (`prepRate * dt` bzw. `tapPrepAmount`) wird auf den globalen Fortschritt `run.prepProgress` addiert; daraus werden so viele ganze Blöcke freigelegt, wie Budget und Lager erlauben. Eine Schicht stellt nur ganze Blöcke bereit (`floor(blocks)`), Bruchteile im Lager warten auf weitere Grabung. Danach bleibt nur der angefangene Bruchteil im Fortschritt (immer `[0, 1)`); Kapazität ohne verfügbare Blöcke verfällt. Beispiel: 4 Tipps à 0.25 legen genau einen Block frei. `prepProgress` hat den Standardwert 0, alte Spielstände laden ohne Migration.
+  - **Reihenfolge:** tiefste Schicht (höchste `order`) mit mindestens einem ganzen Block zuerst, dann die nächsthöhere.
+  - **Fundchance:** `p = 1 - (1 - find_chance) * (1 - guaranteed_fossil_chance)`, ein Wurf pro Block. `find_chance` hat die Basis `balance.findChance`, `guaranteed_fossil_chance` (Capstone `dig_5`) die Basis 0. Das entspricht zwei unabhängigen Chancen („2 % der Blöcke enthalten garantiert ein Fossil“, sonst normaler Fundwurf); ohne Capstone ist `p = find_chance`.
+  - **Gestein:** `layer.value * balance.rockSellFactor` wird sofort gutgeschrieben, ohne `sell_price` (der Stat gilt laut 4.4 für den Verkauf von Duplikaten).
+  - **Schadensfreiheit** (`no_damage_chance`, Capstone `prep_5`): ein Wurf pro Fund (nur wenn die Chance > 0 ist); bei Erfolg entfällt der Schaden in **allen** Zonen, `zoneQ = base`.
+  - `quality_base_min` hat die Basis `balance.qualityBaseMin` und wird auf `qualityBaseMax` begrenzt. `damage_reduction` ist additiv mit Basis 0. Die Zonenanzahl kommt aus `bones.json`.
+  - Würfelreihenfolge je Block: Fund → Art → Knochen → (Schadensfreiheit) → je Zone Grundqualität und Schaden.
+  - Stufen: `QualityTiers.tierOf(q)` bzw. `indexOf(q)` (Index passend zu `bookTierFactor`); eine Grenze gehört zur höheren Stufe (`q >= minQuality`).
+  - **Ergebnis eines Fossils:** `Find(pieceKey, layerId, zones, undamaged)` (transient, nicht gespeichert). Die Präparation zählt `meta.stats.piecesFound` hoch, meldet `GameEvent.FossilFound(find, tierId)` und übergibt den Fund **sofort** an den `FindHandler` des `PrepSystem` (`onFind(state, find, context) -> GameState`). Stand AP-08: `FindHandler.NONE` (keine Einordnung). **AP-09** implementiert das Einordnen aus 4.4 als `FindHandler` und trägt ihn in `GameEngine.defaultSystems` ein (`PrepSystem(data, modifiers, handler)`); `GameEngine.tapPrep` nutzt automatisch dieselbe Instanz. Weil der Handler den Zustand pro Fund aktualisiert, sieht der nächste Wurf den neuen `run.pieces` (Pech-Schutz auch bei großem `dt`).
+  - Je Schicht und Aufruf zusätzlich `GameEvent.BlocksPrepared(layerId, blocks, fossils, rockMoney)` nach den Fund-Ereignissen dieser Schicht.
 
 ### 4.3 Zonen [MVP]
 - Jeder Knochentyp hat 4 benannte Zonen (`bones.json`). Die Anzahl ist pro Knochen konfigurierbar, der Code darf nicht fest von 4 ausgehen.
@@ -198,6 +210,7 @@ Für jeden Fossilfund mit Schlüssel `pieceKey = speciesId:boneId:age:sex` (im M
 ### 4.9 Pech-Schutz [MVP]
 - Bei der Knochenwahl innerhalb einer Art bekommen Knochen, die im **aktuellen Durchlauf** noch fehlen, das Gewicht `balance.missingBoneWeight` (Start 3), vorhandene das Gewicht 1.
 - Dazu kommen Ersatzteile und Rekonstruktion als zweiter Weg zu fehlenden bzw. besseren Knochen.
+- Präzisierung (AP-08): „fehlend“ heißt, dass `run.pieces` keinen Eintrag mit dem `pieceKey` des neuen Fundes hat (im MVP `speciesId:boneId:_:_`). Mit Alter/Geschlecht [Später] ist die Regel neu zu prüfen.
 
 ---
 
@@ -472,6 +485,7 @@ Keine. Das Spiel ist ein Hobbyprojekt. Keine Werbung, keine In-App-Käufe, keine
   - `dt <= 0`: keine Änderung (Eingabe-Instanz, keine Ereignisse). Große `dt` werden in einem Schritt gerechnet; die Aufteilung der Offline-Zeit (7.1) übernimmt AP-14.
   - `NaN`/`Infinity` (in `dt` oder im Ergebnis): Aufruf von `NumericErrorHandler`. Standard `THROW` wirft `NonFiniteValueException` (Tests, Debug). Ein nicht werfender Handler (Release: loggen) führt dazu, dass der Tick verworfen wird: `advance` gibt den unveränderten Eingabe-Zustand ohne Ereignisse zurück.
   - Ereignisse in AP-07: `GameEvent.BlocksDug(layerId, amount)` je produzierender Schicht und Aufruf. Weitere Ereignisse ergänzen die jeweiligen APs.
+  - Ereignisse in AP-08: `GameEvent.FossilFound(find, tierId)` je Fund und `GameEvent.BlocksPrepared(layerId, blocks, fossils, rockMoney)` je Schicht und Aufruf (Kapitel 4.2). Spieleraktion `GameEngine.tapPrep(state, rng): AdvanceResult` gleicht die Modifier ab und prüft das Ergebnis wie `advance`.
   - Zufall: `core.random.GameRandom` (`nextDouble()`, `nextDouble(from, until)` mit `from == until` → `from`, `nextInt(bound)`) und `SeededRandom(seed)` auf Basis von `kotlin.random.Random`.
 
 ### 10.4 Tests [MVP]
@@ -555,7 +569,7 @@ Ablage: `core/src/main/resources/data/`. Alle IDs in `snake_case`, Texte nur als
   "run": {
     "money": 1234.5, "researchPoints": 12, "unlockedLayers": 2,
     "teams": { "quaternary": 41, "neogene": 5 }, "preparators": 26, "halls": 4, "labSlots": 2,
-    "toolLevel": 3, "blocks": { "quaternary": 2.4, "neogene": 0.7 },
+    "toolLevel": 3, "blocks": { "quaternary": 2.4, "neogene": 0.7 }, "prepProgress": 0.25,
     "pieces": { "cave_bear:skull:_:_": { "zones": [0.9,0.7,0.8,0.6] } },
     "spareZones": { "cave_bear:skull:_:_:snout": 0.92 },
     "labQueue": [ { "piece": "hipparion:ribs:_:_", "zones": [0.1,0.2,0.3,0.4] } ],

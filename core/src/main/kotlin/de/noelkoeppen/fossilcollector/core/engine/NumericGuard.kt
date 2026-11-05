@@ -58,6 +58,7 @@ object StateValidator {
         number("run.labSlots", run.labSlots)?.let { return it }
         number("run.toolLevel", run.toolLevel)?.let { return it }
         for ((id, v) in run.blocks) number("run.blocks[$id]", v)?.let { return it }
+        number("run.prepProgress", run.prepProgress)?.let { return it }
         for ((key, piece) in run.pieces) doubles("run.pieces[$key].zones", piece.zones)?.let { return it }
         for ((key, v) in run.spareZones) double("run.spareZones[$key]", v)?.let { return it }
         for ((i, q) in run.labQueue.withIndex()) doubles("run.labQueue[$i].zones", q.zones)?.let { return it }

@@ -46,6 +46,13 @@ class GameEngine(
     val dig: DigSystem = DigSystem(data, modifiers)
 
     /**
+     * Praeparation fuer Abfragen der UI und das Tippen. Enthaelt [systems] ein [PrepSystem], wird
+     * genau diese Instanz genutzt (damit Tippen denselben [FindHandler] verwendet wie [advance]),
+     * sonst eine eigene ohne Handler.
+     */
+    val prep: PrepSystem = systems.filterIsInstance<PrepSystem>().firstOrNull() ?: PrepSystem(data, modifiers)
+
+    /**
      * Schreitet [state] um [dt] Sekunden fort. Veraendert [state] nicht.
      *
      * @return neuer Zustand und Ereignisse; bei `dt <= 0` die Eingabe-Instanz ohne Ereignisse
@@ -74,6 +81,22 @@ class GameEngine(
     fun tapDig(state: GameState, layerId: String): GameState = dig.tapDig(state, layerId)
 
     /**
+     * Spieleraktion: Tippen auf "Freilegen", siehe [PrepSystem.tapPrep]. Gleicht vorher die
+     * Modifier-Quellen ab und prueft das Ergebnis wie [advance] auf `NaN`/`Infinity`.
+     *
+     * @return neuer Zustand und Ereignisse (Funde fuer das Fund-Popup)
+     */
+    fun tapPrep(state: GameState, rng: GameRandom): AdvanceResult {
+        syncModifiers(state)
+        val result = prep.tapPrep(state, rng)
+        StateValidator.findNonFinite(result.state)?.let { return reject(state, it) }
+        return result
+    }
+
+    /** Aktuelle Verarbeitungsrate der Praeparatoren in Bloecken pro Sekunde (fuer die UI). */
+    fun prepRate(): Double = prep.prepRate()
+
+    /**
      * Aktuelle Produktion der Schicht [layerId] in Bloecken pro Sekunde (fuer die UI). Nutzt den
      * Stand der Modifier-Quellen nach dem letzten [advance] bzw. [syncModifiers].
      */
@@ -86,17 +109,18 @@ class GameEngine(
 
     companion object {
         /**
-         * Standard-Reihenfolge der Teilschritte. Stand AP-07: nur Grabung.
+         * Standard-Reihenfolge der Teilschritte. Stand AP-08: Grabung und Praeparation.
          *
          * Geplante Reihenfolge (spaetere APs fuegen ihr System hier ein):
          * 1. Grabung ([DigSystem], AP-07)
-         * 2. Praeparation (AP-08) verbraucht die Bloecke aus Schritt 1
-         * 3. Funde einordnen und Museumseinnahmen (AP-09)
+         * 2. Praeparation ([PrepSystem], AP-08) verbraucht die Bloecke aus Schritt 1
+         * 3. Funde einordnen (AP-09, als [FindHandler] der Praeparation) und Museumseinnahmen (AP-09)
          * 4. Labor (AP-10)
          * 5. Meilensteine (AP-11)
          */
         fun defaultSystems(data: GameData, modifiers: ModifierEngine): List<AdvanceSystem> = listOf(
             DigSystem(data, modifiers),
+            PrepSystem(data, modifiers),
         )
     }
 }

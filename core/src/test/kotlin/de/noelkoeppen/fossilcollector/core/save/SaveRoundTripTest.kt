@@ -93,6 +93,7 @@ class SaveRoundTripTest {
     fun fullV1FixtureLoadsAsExpected() {
         val loaded = codec.decode(SaveFixtures.read("v1_full.json"))
         assertEquals(SaveFixtures.fullV1, loaded)
+        assertEquals(GameNumber.ZERO, loaded.run.prepProgress)
         assertEquals(loaded, codec.decode(codec.encode(loaded)))
     }
 
@@ -105,6 +106,16 @@ class SaveRoundTripTest {
         assertTrue(loaded.run.labJobs.isEmpty())
         assertNull(loaded.run.specialExhibit)
         assertEquals(n(1.0), loaded.run.halls)
+        // AP-08: Feld ohne Eintrag im alten Spielstand -> Standardwert, keine Migration noetig.
+        assertEquals(GameNumber.ZERO, loaded.run.prepProgress)
+    }
+
+    @Test
+    fun prepProgressRoundTrip() {
+        val state = SaveFixtures.fullV1.copy(run = SaveFixtures.fullV1.run.copy(prepProgress = n(0.375)))
+        val text = codec.encode(state)
+        assertEquals(JsonPrimitive(0.375), Json.parseToJsonElement(text).jsonObject.getValue("run").jsonObject.getValue("prepProgress"))
+        assertEquals(state, codec.decode(text))
     }
 
     @Test

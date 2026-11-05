@@ -92,6 +92,9 @@ data class Stats(
  * @property labQueue Duplikate, die auf einen Laborplatz warten
  * @property labJobs laufende Forschungen
  * @property specialExhibit Art-ID fuer die Capstone-Sonderausstellung oder `null`
+ * @property prepProgress angefangener Praeparationsfortschritt in Bloecken, immer in `[0, 1)`
+ *   (Bruchteil-Verarbeitung, Kapitel 4.2; Standardwert 0, damit aeltere Spielstaende ohne
+ *   Migration laden)
  */
 @Serializable
 data class RunState(
@@ -109,6 +112,7 @@ data class RunState(
     val labQueue: List<QueuedPiece> = emptyList(),
     val labJobs: List<LabJob> = emptyList(),
     val specialExhibit: String? = null,
+    val prepProgress: GameNumber = GameNumber.ZERO,
 ) {
     companion object {
         /**

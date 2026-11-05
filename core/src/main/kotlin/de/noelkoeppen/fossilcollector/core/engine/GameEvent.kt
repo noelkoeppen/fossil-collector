@@ -20,4 +20,31 @@ sealed interface GameEvent {
      * @property amount erzeugte Bloecke in diesem Aufruf
      */
     data class BlocksDug(val layerId: String, val amount: GameNumber) : GameEvent
+
+    /**
+     * Die Praeparation hat ganze Bloecke einer Schicht freigelegt (Kapitel 4.2). Hoechstens ein
+     * Ereignis je Schicht und Aufruf (bzw. Tipp), nur wenn [blocks] > 0. Wird nach den
+     * [FossilFound]-Ereignissen dieser Schicht gemeldet.
+     *
+     * @property layerId Schicht-ID
+     * @property blocks freigelegte Bloecke (Gestein und Fossilien zusammen)
+     * @property fossils davon Fossilien
+     * @property rockMoney Geld aus dem Gestein, bereits gutgeschrieben
+     */
+    data class BlocksPrepared(
+        val layerId: String,
+        val blocks: GameNumber,
+        val fossils: GameNumber,
+        val rockMoney: GameNumber,
+    ) : GameEvent
+
+    /**
+     * Ein Fossil wurde freigelegt (Kapitel 4.2). Ein Ereignis je Fund, in der Reihenfolge der
+     * Wuerfe. Das Einordnen (Buch, Museum, Labor, Verkauf) erfolgt im [FindHandler] (AP-09), der
+     * eigene Ereignisse melden kann.
+     *
+     * @property find der Fund mit Zonen-Qualitaeten
+     * @property tierId ID der Qualitaetsstufe des Stuecks (`balance.qualityTiers`)
+     */
+    data class FossilFound(val find: Find, val tierId: String) : GameEvent
 }
