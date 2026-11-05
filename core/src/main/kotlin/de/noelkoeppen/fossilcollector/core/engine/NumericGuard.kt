@@ -43,47 +43,52 @@ object StateValidator {
     fun findNonFinite(state: GameState): NonFiniteValueException? {
         val meta = state.meta
         val run = state.run
-        number("meta.fame", meta.fame)?.let { return it }
-        number("meta.fameTotal", meta.fameTotal)?.let { return it }
-        number("meta.prestigeCount", meta.prestigeCount)?.let { return it }
-        number("meta.fameSpent", meta.fameSpent)?.let { return it }
-        number("meta.stats.piecesFound", meta.stats.piecesFound)?.let { return it }
-        number("meta.stats.pristineFound", meta.stats.pristineFound)?.let { return it }
-        number("meta.stats.researchCompleted", meta.stats.researchCompleted)?.let { return it }
-        number("meta.stats.reconstructions", meta.stats.reconstructions)?.let { return it }
+        number(meta.fame) { "meta.fame" }?.let { return it }
+        number(meta.fameTotal) { "meta.fameTotal" }?.let { return it }
+        number(meta.prestigeCount) { "meta.prestigeCount" }?.let { return it }
+        number(meta.fameSpent) { "meta.fameSpent" }?.let { return it }
+        number(meta.stats.piecesFound) { "meta.stats.piecesFound" }?.let { return it }
+        number(meta.stats.pristineFound) { "meta.stats.pristineFound" }?.let { return it }
+        number(meta.stats.researchCompleted) { "meta.stats.researchCompleted" }?.let { return it }
+        number(meta.stats.reconstructions) { "meta.stats.reconstructions" }?.let { return it }
         for ((key, entry) in meta.book) {
-            double("meta.book[$key].quality", entry.quality)?.let { return it }
-            doubles("meta.book[$key].zones", entry.zones)?.let { return it }
+            double(entry.quality) { "meta.book[$key].quality" }?.let { return it }
+            doubles(entry.zones) { "meta.book[$key].zones" }?.let { return it }
         }
 
-        number("run.money", run.money)?.let { return it }
-        number("run.researchPoints", run.researchPoints)?.let { return it }
-        number("run.unlockedLayers", run.unlockedLayers)?.let { return it }
-        for ((id, v) in run.teams) number("run.teams[$id]", v)?.let { return it }
-        number("run.preparators", run.preparators)?.let { return it }
-        number("run.halls", run.halls)?.let { return it }
-        number("run.labSlots", run.labSlots)?.let { return it }
-        number("run.toolLevel", run.toolLevel)?.let { return it }
-        for ((id, v) in run.blocks) number("run.blocks[$id]", v)?.let { return it }
-        number("run.prepProgress", run.prepProgress)?.let { return it }
-        for ((key, piece) in run.pieces) doubles("run.pieces[$key].zones", piece.zones)?.let { return it }
-        for ((key, v) in run.spareZones) double("run.spareZones[$key]", v)?.let { return it }
-        for ((i, q) in run.labQueue.withIndex()) doubles("run.labQueue[$i].zones", q.zones)?.let { return it }
+        number(run.money) { "run.money" }?.let { return it }
+        number(run.researchPoints) { "run.researchPoints" }?.let { return it }
+        number(run.unlockedLayers) { "run.unlockedLayers" }?.let { return it }
+        for ((id, v) in run.teams) number(v) { "run.teams[$id]" }?.let { return it }
+        number(run.preparators) { "run.preparators" }?.let { return it }
+        number(run.halls) { "run.halls" }?.let { return it }
+        number(run.labSlots) { "run.labSlots" }?.let { return it }
+        number(run.toolLevel) { "run.toolLevel" }?.let { return it }
+        for ((id, v) in run.blocks) number(v) { "run.blocks[$id]" }?.let { return it }
+        number(run.prepProgress) { "run.prepProgress" }?.let { return it }
+        for ((key, piece) in run.pieces) doubles(piece.zones) { "run.pieces[$key].zones" }?.let { return it }
+        for ((key, v) in run.spareZones) double(v) { "run.spareZones[$key]" }?.let { return it }
+        for ((i, q) in run.labQueue.withIndex()) doubles(q.zones) { "run.labQueue[$i].zones" }?.let { return it }
         for ((i, job) in run.labJobs.withIndex()) {
-            doubles("run.labJobs[$i].zones", job.zones)?.let { return it }
-            double("run.labJobs[$i].remaining", job.remaining)?.let { return it }
+            doubles(job.zones) { "run.labJobs[$i].zones" }?.let { return it }
+            double(job.remaining) { "run.labJobs[$i].remaining" }?.let { return it }
         }
         return null
     }
 
-    private fun number(path: String, value: GameNumber): NonFiniteValueException? =
-        if (value.isFinite) null else NonFiniteValueException(path, value.toDouble())
+    // Der Pfad wird nur im Fehlerfall gebaut (AP-14: die Pruefung laeuft offline in jedem Schritt).
 
-    private fun double(path: String, value: Double): NonFiniteValueException? =
-        if (value.isFinite()) null else NonFiniteValueException(path, value)
+    private inline fun number(value: GameNumber, path: () -> String): NonFiniteValueException? =
+        if (value.isFinite) null else NonFiniteValueException(path(), value.toDouble())
 
-    private fun doubles(path: String, values: List<Double>): NonFiniteValueException? {
-        for ((i, v) in values.withIndex()) double("$path[$i]", v)?.let { return it }
+    private inline fun double(value: Double, path: () -> String): NonFiniteValueException? =
+        if (value.isFinite()) null else NonFiniteValueException(path(), value)
+
+    private inline fun doubles(values: List<Double>, path: () -> String): NonFiniteValueException? {
+        for (i in values.indices) {
+            val v = values[i]
+            if (!v.isFinite()) return NonFiniteValueException("${path()}[$i]", v)
+        }
         return null
     }
 }

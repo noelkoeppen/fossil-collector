@@ -168,15 +168,36 @@ object BookSources : ModifierSourceProvider {
     @Volatile
     private var cached: Pair<GameData, Completion>? = null
 
+    /** Letztes Ergebnis mit seinen Eingaben (Identitaet von Daten, Buch und erforschten Arten). */
+    private class LastResult(
+        val data: GameData,
+        val book: Any,
+        val researched: Any,
+        val sources: Map<String, List<Modifier>>,
+    )
+
+    @Volatile
+    private var last: LastResult? = null
+
+    /**
+     * Quellen aus Buch und erforschten Arten. Haben sich `meta.book` und `meta.researchedSpecies`
+     * (gleiche Instanzen) und die Daten nicht geaendert, wird das letzte Ergebnis (dieselbe
+     * Map-Instanz) zurueckgegeben; [ModifierSources.sync] ueberspringt den Abgleich dann (AP-14).
+     */
     override fun sources(state: GameState, data: GameData): Map<String, List<Modifier>> {
+        val meta = state.meta
+        last?.let {
+            if (it.data === data && it.book === meta.book && it.researched === meta.researchedSpecies) return it.sources
+        }
         val completion = completionFor(data)
         val result = LinkedHashMap<String, List<Modifier>>()
         for (species in data.species) {
-            completion.bookBonus(state.meta.book, species)?.let { result[prefix + species.id] = listOf(it) }
+            completion.bookBonus(meta.book, species)?.let { result[prefix + species.id] = listOf(it) }
             if (completion.isResearched(state, species)) {
                 result[RESEARCHED_PREFIX + species.id] = listOf(data.balance.researchedBonus)
             }
         }
+        last = LastResult(data, meta.book, meta.researchedSpecies, result)
         return result
     }
 

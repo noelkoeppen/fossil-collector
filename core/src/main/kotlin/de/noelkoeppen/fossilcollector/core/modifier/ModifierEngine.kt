@@ -41,6 +41,15 @@ class ModifierEngine(
     private val sources = LinkedHashMap<String, List<Modifier>>()
     private val cache = HashMap<CacheKey, Double>()
 
+    /**
+     * Zaehler fuer Aenderungen der Quellen: steigt bei jedem [setSource], jedem erfolgreichen
+     * [removeSource] und jedem [clearSources], das Quellen entfernt. Erlaubt Aufrufern (z. B.
+     * `ModifierSources.sync`), einen Abgleich zu ueberspringen, wenn sich weder Spielstand noch Quellen
+     * geaendert haben. Kein Spielwert.
+     */
+    var revision: Long = 0L
+        private set
+
     /** IDs aller aktuell gesetzten Quellen in Einfuegereihenfolge. */
     val sourceIds: Set<String>
         get() = sources.keys.toSet()
@@ -52,12 +61,16 @@ class ModifierEngine(
     fun setSource(id: String, modifiers: List<Modifier>) {
         sources[id] = modifiers.toList()
         cache.clear()
+        revision++
     }
 
     /** Entfernt die Quelle [id]. Gibt `true` zurueck, wenn sie vorhanden war. */
     fun removeSource(id: String): Boolean {
         val removed = sources.remove(id) != null
-        if (removed) cache.clear()
+        if (removed) {
+            cache.clear()
+            revision++
+        }
         return removed
     }
 
@@ -66,6 +79,7 @@ class ModifierEngine(
         if (sources.isNotEmpty()) {
             sources.clear()
             cache.clear()
+            revision++
         }
     }
 

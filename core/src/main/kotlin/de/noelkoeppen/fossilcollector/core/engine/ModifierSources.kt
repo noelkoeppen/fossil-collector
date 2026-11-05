@@ -7,6 +7,7 @@ import de.noelkoeppen.fossilcollector.core.model.RunState
 import de.noelkoeppen.fossilcollector.core.modifier.Modifier
 import de.noelkoeppen.fossilcollector.core.modifier.ModifierEngine
 import de.noelkoeppen.fossilcollector.core.number.GameNumber
+import java.lang.ref.WeakReference
 
 /**
  * Liefert die Modifier-Quellen einer Quellen-Art aus dem Spielstand.
@@ -55,20 +56,44 @@ class ModifierSources(
         }
     }
 
-    /** Gleicht die Quellen von [engine] mit [state] ab. */
+    /** Stand des letzten Abgleichs (fuer das Ueberspringen unveraenderter Provider). */
+    private class LastSync(
+        val engine: WeakReference<ModifierEngine>,
+        val revision: Long,
+        val wanted: List<Map<String, List<Modifier>>>,
+    )
+
+    @Volatile
+    private var last: LastSync? = null
+
+    /**
+     * Gleicht die Quellen von [engine] mit [state] ab.
+     *
+     * Performance (AP-14, Offline-Fortschritt mit vielen tausend Schritten): Liefert ein Provider
+     * **dieselbe Map-Instanz** wie beim letzten Abgleich derselben Engine und wurden die Quellen der
+     * Engine seitdem nicht veraendert ([ModifierEngine.revision]), ist sein Abgleich bereits erledigt
+     * und wird uebersprungen. Provider koennen ihr Ergebnis dafuer zwischenspeichern (z. B. [BookSources]).
+     */
     fun sync(engine: ModifierEngine, state: GameState, data: GameData) {
-        for (provider in providers) {
+        val previous = last?.takeIf { it.engine.get() === engine && it.revision == engine.revision }
+        val applied = ArrayList<Map<String, List<Modifier>>>(providers.size)
+        // Kopie der IDs vor dem Abgleich; Provider entfernen nur IDs mit ihrem eigenen Prefix.
+        val existingIds = engine.sourceIds
+        for ((index, provider) in providers.withIndex()) {
             val wanted = provider.sources(state, data)
+            applied += wanted
+            if (previous != null && previous.wanted[index] === wanted) continue
             require(wanted.keys.all { it.startsWith(provider.prefix) }) {
                 "Provider ${provider.prefix} liefert fremde IDs: ${wanted.keys}"
             }
-            for (id in engine.sourceIds) {
+            for (id in existingIds) {
                 if (id.startsWith(provider.prefix) && id !in wanted) engine.removeSource(id)
             }
             for ((id, modifiers) in wanted) {
                 if (engine.source(id) != modifiers) engine.setSource(id, modifiers)
             }
         }
+        last = LastSync(WeakReference(engine), engine.revision, applied)
     }
 
     companion object {

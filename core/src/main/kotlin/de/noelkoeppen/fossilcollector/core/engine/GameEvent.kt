@@ -97,6 +97,23 @@ sealed interface GameEvent {
     data class DuplicateSold(val pieceKey: PieceKey, val quality: Double, val money: GameNumber) : GameEvent
 
     /**
+     * Offline-Aggregation (Kapitel 7.1, AP-14): [count] Fossilien aus [layerId] wurden nicht einzeln
+     * gewuerfelt, sondern als Duplikate zum Erwartungswert verkauft. Hoechstens ein Ereignis je
+     * Schicht und `advance`-Aufruf; entsteht nur im Offline-Fortschritt.
+     *
+     * @property layerId Schicht-ID
+     * @property count Anzahl der aggregierten Funde
+     * @property expectedQuality angenommene Qualitaet je Fund ([PrepSystem.expectedQuality])
+     * @property money gutgeschriebener Erloes
+     */
+    data class FindsAggregated(
+        val layerId: String,
+        val count: GameNumber,
+        val expectedQuality: Double,
+        val money: GameNumber,
+    ) : GameEvent
+
+    /**
      * Mit diesem Fund sind im aktuellen Durchlauf erstmals alle Knochen der Art vorhanden
      * (Skelett vollstaendig, Kapitel 4.6). Wird nach [NewPiece] gemeldet.
      *

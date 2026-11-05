@@ -34,7 +34,7 @@ import kotlin.math.max
  * passenden Stelle eingefuegt. An [advance] selbst muss dafuer nichts geaendert werden.
  *
  * Grosse `dt` sind erlaubt und werden in einem Schritt gerechnet. Die Aufteilung der
- * Offline-Zeit in 1-Sekunden-Schritte (Kapitel 7.1) ist Sache des Aufrufers (AP-14).
+ * Offline-Zeit in 1-Sekunden-Schritte (Kapitel 7.1) uebernimmt [applyOffline] ([OfflineProgress]).
  *
  * Die Engine ist wie die [ModifierEngine] nicht thread-safe (Nutzung nur aus der Spielschleife).
  *
@@ -108,18 +108,37 @@ class GameEngine(
      * @throws NonFiniteValueException mit dem Standard-Handler, wenn `dt` oder ein Wert im
      *   Ergebnis `NaN`/unendlich ist
      */
-    fun advance(state: GameState, dt: Double, rng: GameRandom): AdvanceResult {
+    fun advance(state: GameState, dt: Double, rng: GameRandom): AdvanceResult =
+        advance(state, dt, AdvanceContext(rng))
+
+    /**
+     * Wie [advance] mit vorgegebenem [context] (gleicher Ablauf, gleiche Systeme). Der
+     * Offline-Fortschritt ([applyOffline]) nutzt das, um Ereignisse zusammenzufassen statt zu sammeln
+     * und die Zahl einzeln gewuerfelter Funde zu begrenzen ([AdvanceContext.detailedFinds]).
+     *
+     * @return neuer Zustand und die im [context] gesammelten Ereignisse (leer bei gesetztem Empfaenger)
+     */
+    fun advance(state: GameState, dt: Double, context: AdvanceContext): AdvanceResult {
         if (!dt.isFinite()) return reject(state, NonFiniteValueException("dt", dt))
         if (dt <= 0.0) return AdvanceResult(state, emptyList())
 
         syncModifiers(state)
-        val context = AdvanceContext(rng)
         var current = state
         for (system in systems) current = system.advance(current, dt, context)
 
         StateValidator.findNonFinite(current)?.let { return reject(state, it) }
         return AdvanceResult(current, context.events)
     }
+
+    /** Offline-Fortschritt (Kapitel 7.1), siehe [OfflineProgress]. */
+    val offline: OfflineProgress = OfflineProgress(data, modifiers, this)
+
+    /**
+     * Offline-Fortschritt beim App-Start bzw. bei der Rueckkehr (Kapitel 7.1): rechnet die Zeit seit
+     * `state.lastSavedAt` bis [now] (Millisekunden) ueber [advance] in 1-Sekunden-Schritten nach und
+     * setzt `lastSavedAt` auf [now]. Details siehe [OfflineProgress.apply].
+     */
+    fun applyOffline(state: GameState, now: Long, rng: GameRandom): OfflineResult = offline.apply(state, now, rng)
 
     /** Gleicht die Modifier-Quellen mit [state] ab (z. B. nach dem Laden fuer UI-Abfragen). */
     fun syncModifiers(state: GameState) {
@@ -389,7 +408,7 @@ class GameEngine(
 
     private fun reject(state: GameState, error: NonFiniteValueException): AdvanceResult {
         errorHandler.onNonFinite(error)
-        return AdvanceResult(state, emptyList())
+        return AdvanceResult(state, emptyList(), rejected = true)
     }
 
     companion object {
