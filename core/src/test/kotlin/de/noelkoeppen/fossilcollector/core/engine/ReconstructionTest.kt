@@ -50,7 +50,7 @@ class ReconstructionTest {
         return base.copy(
             meta = base.meta.copy(skills = skills, book = book),
             run = base.run.copy(spareZones = spare, pieces = pieces),
-        )
+        ).withAllMilestonesDone(data) // exakte Ereignislisten ohne Meilensteine (AP-11, eigene Tests)
     }
 
     private fun engine() = GameEngine(data, ModifierEngine.fromGameData(data))

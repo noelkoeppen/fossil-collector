@@ -37,10 +37,12 @@ interface ModifierSourceProvider {
  *   `effectsPerLevel` mal Stufe (z. B. `upgrade:tools`)
  * - [SkillSources]: `skill:<skillId>` fuer jeden gekauften Skill
  *
- * **Erweiterung (AP-11):** Buch-Boni (`book:<speciesId>`, `book:researched:<speciesId>`) und
- * Meilensteine (`milestone:<id>`) werden als weitere [ModifierSourceProvider] mit eigenem Prefix
- * implementiert und in [DEFAULT_PROVIDERS] aufgenommen. An [sync] selbst muss dafuer nichts
- * geaendert werden.
+ * - [BookSources] (AP-11): `book:<speciesId>` (Buch-Bonus ab Completion-Stufe 2) und
+ *   `book:researched:<speciesId>` (Pauschal-Bonus fuer erforschte Arten)
+ * - [MilestoneSources] (AP-11): `milestone:<id>` mit den `reward.effects` erreichter Meilensteine
+ *
+ * Weitere Quellen-Arten werden als [ModifierSourceProvider] mit eigenem Prefix implementiert und in
+ * [DEFAULT_PROVIDERS] aufgenommen. An [sync] selbst muss dafuer nichts geaendert werden.
  */
 class ModifierSources(
     private val providers: List<ModifierSourceProvider> = DEFAULT_PROVIDERS,
@@ -70,9 +72,9 @@ class ModifierSources(
     }
 
     companion object {
-        /** Provider fuer AP-06. AP-11 ergaenzt Buch und Meilensteine. */
+        /** Standard-Provider: Upgrades und Skills (AP-06), Buch und Meilensteine (AP-11). */
         val DEFAULT_PROVIDERS: List<ModifierSourceProvider> =
-            listOf(UpgradeSources, SkillSources)
+            listOf(UpgradeSources, SkillSources, BookSources, MilestoneSources)
 
         /** Standard-Instanz mit [DEFAULT_PROVIDERS]. */
         val DEFAULT: ModifierSources = ModifierSources()

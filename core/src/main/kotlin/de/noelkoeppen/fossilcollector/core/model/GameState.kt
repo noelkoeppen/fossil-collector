@@ -67,10 +67,22 @@ data class MetaState(
     val stats: Stats = Stats(),
 )
 
-/** Statistiken (bleiben beim Prestige erhalten). Neue Felder immer mit Standardwert ergaenzen. */
+/**
+ * Statistiken (bleiben beim Prestige erhalten). Neue Felder immer mit Standardwert ergaenzen, dann
+ * laden aeltere Spielstaende ohne Migration.
+ *
+ * @property piecesFound gefundene Fossilien insgesamt (Praeparation, AP-08)
+ * @property pristineFound davon Funde in der hoechsten Qualitaetsstufe (Museumsreif), gezaehlt von
+ *   der Praeparation (AP-11, Meilenstein `pristine_found`)
+ * @property researchCompleted abgeschlossene Laborforschungen (AP-11, Meilenstein `research_completed`)
+ * @property reconstructions durchgefuehrte Rekonstruktionen (AP-11, Meilenstein `reconstructions`)
+ */
 @Serializable
 data class Stats(
     val piecesFound: GameNumber = GameNumber.ZERO,
+    val pristineFound: GameNumber = GameNumber.ZERO,
+    val researchCompleted: GameNumber = GameNumber.ZERO,
+    val reconstructions: GameNumber = GameNumber.ZERO,
 )
 
 /**

@@ -171,7 +171,7 @@ class GameEngineTest {
 
     @Test
     fun `gesperrte Schichten produzieren nichts`() {
-        val s = state(mapOf(Q to 10.0, N to 10.0), unlocked = 1)
+        val s = state(mapOf(Q to 10.0, N to 10.0), unlocked = 1).withAllMilestonesDone(data)
         val e = engine()
         val result = e.advance(s, 10.0, rng)
         assertEquals(10.0, blocks(result.state, Q), EPS)
@@ -189,7 +189,7 @@ class GameEngineTest {
 
     @Test
     fun `BlocksDug je produzierender Schicht in Schichtreihenfolge`() {
-        val s = state(mapOf(Q to 10.0, C to 2.0), unlocked = 3)
+        val s = state(mapOf(Q to 10.0, C to 2.0), unlocked = 3).withAllMilestonesDone(data)
         val events = engine().advance(s, 1.0, rng).events
         assertEquals(2, events.size)
         val q = events[0] as GameEvent.BlocksDug

@@ -7,6 +7,7 @@ import de.noelkoeppen.fossilcollector.core.model.MetaState
 import de.noelkoeppen.fossilcollector.core.model.PieceKey
 import de.noelkoeppen.fossilcollector.core.model.RunStartValues
 import de.noelkoeppen.fossilcollector.core.model.Settings
+import de.noelkoeppen.fossilcollector.core.model.Stats
 import de.noelkoeppen.fossilcollector.core.number.GameNumber
 import de.noelkoeppen.fossilcollector.core.number.NumberNotation
 import de.noelkoeppen.fossilcollector.core.save.SaveFixtures.n
@@ -128,6 +129,33 @@ class SaveRoundTripTest {
         val text = codec.encode(state)
         assertEquals(JsonPrimitive(0.375), Json.parseToJsonElement(text).jsonObject.getValue("run").jsonObject.getValue("prepProgress"))
         assertEquals(state, codec.decode(text))
+    }
+
+    @Test
+    fun statsAndMilestonesRoundTrip() {
+        // AP-11: neue Zaehler in meta.stats und erreichte Meilensteine.
+        val state = SaveFixtures.fullV1.let {
+            it.copy(
+                meta = it.meta.copy(
+                    milestonesDone = setOf("first_find", "teams_10", "first_reconstruction"),
+                    stats = Stats(
+                        piecesFound = n(1520.0),
+                        pristineFound = n(3.0),
+                        researchCompleted = n(42.0),
+                        reconstructions = n(7.0),
+                    ),
+                ),
+            )
+        }
+        val text = codec.encode(state)
+        val stats = Json.parseToJsonElement(text).jsonObject.getValue("meta").jsonObject.getValue("stats").jsonObject
+        assertEquals(setOf("piecesFound", "pristineFound", "researchCompleted", "reconstructions"), stats.keys)
+        assertEquals(state, codec.decode(text))
+        // Aeltere Spielstaende ohne die neuen Zaehler laden ohne Migration mit 0.
+        val legacy = codec.decode(SaveFixtures.read("v1_full.json")).meta
+        assertEquals(Stats(piecesFound = n(1520.0)), legacy.stats)
+        assertEquals(GameNumber.ZERO, legacy.stats.pristineFound)
+        assertEquals(setOf("first_find"), legacy.milestonesDone)
     }
 
     @Test

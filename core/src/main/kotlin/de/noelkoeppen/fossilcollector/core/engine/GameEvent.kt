@@ -145,4 +145,19 @@ sealed interface GameEvent {
         val improvedRun: Boolean,
         val improvedBook: Boolean,
     ) : GameEvent
+
+    /**
+     * Ein Meilenstein wurde erreicht (Kapitel 5.2, Toast). Wird genau einmal je Meilenstein gemeldet;
+     * Geld und FP der Belohnung sind bereits gutgeschrieben, dauerhafte Effekte wirken ab dem
+     * naechsten Abgleich der Modifier-Quellen.
+     *
+     * @property milestoneId ID aus `milestones.json` (Texte `milestone.<id>.name|desc`)
+     * @property money gutgeschriebenes Geld
+     * @property researchPoints gutgeschriebene FP
+     */
+    data class MilestoneReached(
+        val milestoneId: String,
+        val money: GameNumber,
+        val researchPoints: GameNumber,
+    ) : GameEvent
 }

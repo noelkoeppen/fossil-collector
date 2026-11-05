@@ -26,6 +26,7 @@ import kotlin.math.min
  *     das gespeicherte Ersatzteil `run.spareZones[SpareZoneKey(pieceKey, zoneId)]`, wenn sie **echt
  *     hoeher** ist (oder es noch keins gibt).
  *   - Die Art wird in `meta.researchedSpecies` aufgenommen (Completion-Stufe 1, Kapitel 4.7).
+ *   - `meta.stats.researchCompleted` wird um 1 erhoeht (Meilenstein `research_completed`, AP-11).
  * - **Grosse `dt`:** Die Zeit wird ereignisweise abgearbeitet. Endet ein Job vor Ablauf von `dt`,
  *   startet auf dem frei gewordenen Platz sofort das naechste Stueck der Warteschlange und bekommt
  *   die Restzeit. Ergebnis und Ereignisse sind daher unabhaengig davon, ob `dt` in einem Schritt oder
@@ -118,7 +119,7 @@ class LabSystem(
         }
 
         context.emit(GameEvent.LabJobCompleted(key, points))
-        var meta = state.meta
+        var meta = state.meta.let { it.copy(stats = it.stats.copy(researchCompleted = it.stats.researchCompleted + 1.0)) }
         if (key.speciesId !in meta.researchedSpecies && key.speciesId in data.speciesById) {
             meta = meta.copy(researchedSpecies = meta.researchedSpecies + key.speciesId)
             context.emit(GameEvent.SpeciesResearched(key.speciesId))

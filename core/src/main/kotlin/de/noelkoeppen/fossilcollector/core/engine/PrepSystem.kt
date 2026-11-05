@@ -72,8 +72,8 @@ fun interface FindHandler {
  *    `quality_base_min` hat die Basis `balance.qualityBaseMin` und wird auf `qualityBaseMax`
  *    begrenzt.
  *
- * **Ergebnis eines Fossils:** ein [Find]. Die Praeparation zaehlt `meta.stats.piecesFound` hoch,
- * meldet [GameEvent.FossilFound] und uebergibt den Fund an den [findHandler] (AP-09).
+ * **Ergebnis eines Fossils:** ein [Find]. Die Praeparation zaehlt `meta.stats.piecesFound` hoch
+ * (bei der hoechsten Qualitaetsstufe zusaetzlich `meta.stats.pristineFound`, AP-11), meldet [GameEvent.FossilFound] und uebergibt den Fund an den [findHandler] (AP-09).
  *
  * Die Modifier-Quellen muessen aktuell sein; [GameEngine.advance] und [GameEngine.tapPrep] gleichen
  * sie vorher ab.
@@ -173,10 +173,17 @@ class PrepSystem(
             }
             fossils++
             val meta = current.meta
+            val tierIndex = qualityTiers.indexOf(find.quality)
+            val pristine = tierIndex == qualityTiers.tiers.lastIndex
             current = current.copy(
-                meta = meta.copy(stats = meta.stats.copy(piecesFound = meta.stats.piecesFound + 1.0)),
+                meta = meta.copy(
+                    stats = meta.stats.copy(
+                        piecesFound = meta.stats.piecesFound + 1.0,
+                        pristineFound = if (pristine) meta.stats.pristineFound + 1.0 else meta.stats.pristineFound,
+                    ),
+                ),
             )
-            context.emit(GameEvent.FossilFound(find, qualityTiers.tierOf(find.quality).id))
+            context.emit(GameEvent.FossilFound(find, qualityTiers.tiers[tierIndex].id))
             current = findHandler.onFind(current, find, context)
         }
 

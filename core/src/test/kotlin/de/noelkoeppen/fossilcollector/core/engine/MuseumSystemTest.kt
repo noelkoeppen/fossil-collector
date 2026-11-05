@@ -285,6 +285,7 @@ class MuseumSystemTest {
         var rockMoney = 0.0
         var soldMoney = 0.0
         var museumMoney = 0.0
+        var milestoneMoney = 0.0
         var newPieces = 0
         repeat(6000) {
             val incomeBefore = engine.incomePerSecond(s).toDouble()
@@ -292,6 +293,7 @@ class MuseumSystemTest {
             rockMoney += result.events.filterIsInstance<GameEvent.BlocksPrepared>().sumOf { it.rockMoney.toDouble() }
             soldMoney += result.events.filterIsInstance<GameEvent.DuplicateSold>().sumOf { it.money.toDouble() }
             newPieces += result.events.count { it is GameEvent.NewPiece }
+            milestoneMoney += result.events.filterIsInstance<GameEvent.MilestoneReached>().sumOf { it.money.toDouble() }
             s = result.state
             // Museum laeuft nach der Praeparation und sieht den neuen Bestand dieses Ticks
             museumMoney += engine.incomePerSecond(s).toDouble() * 0.1
@@ -302,7 +304,8 @@ class MuseumSystemTest {
         assertEquals(newPieces, s.run.pieces.size)
         assertEquals(s.run.pieces.keys, s.meta.book.keys)
         assertTrue(museumMoney > 0.0)
-        assertEquals(rockMoney + soldMoney + museumMoney, s.run.money.toDouble(), 1e-6)
+        assertTrue(milestoneMoney > 0.0) // AP-11: mindestens first_find und teams_10
+        assertEquals(rockMoney + soldMoney + museumMoney + milestoneMoney, s.run.money.toDouble(), 1e-6)
         assertEquals(engine.museum.incomePerSecond(s), engine.incomePerSecond(s))
         assertTrue(engine.exhibitedPieces(s).size <= 8)
     }

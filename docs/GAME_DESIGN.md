@@ -226,6 +226,12 @@ Für jeden Fossilfund mit Schlüssel `pieceKey = speciesId:boneId:age:sex` (im M
   `bookBonusValue = baseValue * balance.bookTierFactor[minTier]`, Standard-Faktoren [1, 2, 3, 5, 8] für Fragment … Museumsreif.
   Stufe 1 gibt pauschal `balance.researchedBonus` (+1 % `museum_income`).
 - Buch-Boni haben die Modifier-Kategorie `book`, sind permanent und werden innerhalb der Kategorie **addiert**.
+- Präzisierungen (AP-11), Umsetzung `core.engine.Completion` und `core.engine.BookSources`:
+  - **Stufen:** Stufe 1 = Art in `meta.researchedSpecies` (setzt das `LabSystem`), Stufe 2 = `Skeletons.isCompleteInBook`. Die Bedingungen sind unabhängig (ein Buch kann allein aus Funden vollständig sein); `Completion.levelOf(state, speciesId)` liefert die höchste erfüllte Stufe (`CompletionLevel.NONE/RESEARCHED/SKELETON_COMPLETE`). Stufe 2 setzt Stufe 1 also **nicht** voraus.
+  - **`minTier`:** je Knochen der Art zählt der beste Bucheintrag (über Alter/Geschlecht, relevant erst [Später]), `minTier` ist die niedrigste Stufe dieser Qualitäten (`QualityTiers.indexOf`, Index in `bookTierFactor`).
+  - **Kumulativ (Entscheidung AP-11):** `researchedBonus` gilt für jede erforschte Art, auch ab Stufe 2, **zusätzlich** zum Buch-Bonus („Stufe 1 gibt pauschal“). Beispiel Höhlenbär erforscht und vollständig in Gut: `museum_income` × (1 + 0.01 · 3 + 0.01).
+  - **Modifier-Quellen** (Provider `BookSources`, Prefix `book:`, in `ModifierSources.DEFAULT_PROVIDERS`): `book:<speciesId>` mit `bookBonus.stat/op` und Wert `bookBonus.value * bookTierFactor[minTier]`, Kategorie `book`; `book:researched:<speciesId>` mit `balance.researchedBonus`. Unbekannte Arten im Spielstand werden ignoriert. Die Boni wirken ab dem nächsten Abgleich der Quellen (Beginn des nächsten `advance` bzw. `syncModifiers`).
+  - **Abfragen für die UI (AP-20):** `GameEngine.bookOverview(state)` bzw. `Completion.overview(state)` liefert je Art `SpeciesCompletion` (Stufe, Flags, Knochen im Buch/gesamt, `minTierIndex`, wirksamer Buch- und Pauschal-Bonus) in Datenreihenfolge; `GameEngine.completionLevel(state, speciesId)`.
 
 ### 4.8 Alter und Geschlecht [Später, Datenmodell schon im MVP]
 - Altersstufen (konfigurierbar, Start 3): Jungtier, Halbwüchsig, Ausgewachsen. Geschlecht: weiblich, männlich.
@@ -258,6 +264,13 @@ Die Simulation (Kapitel 6.7) mit den Startwerten aus Kapitel 6.4 trifft dieses P
 
 ### 5.2 Meilensteine [MVP]
 Datengetriebene Meilensteine (`milestones.json`) mit kleiner Belohnung (Geld oder FP) und Toast-Meldung, z. B.: erster Fund, erstes Skelett, erste Museumsreif-Qualität, 10 Teams, neue Schicht, erste Rekonstruktion, erstes Prestige. Sie dienen vor allem als Orientierung („Was mache ich als Nächstes?“).
+- Präzisierungen (AP-11), Umsetzung `core.engine.MilestoneSystem` (letztes `AdvanceSystem` in `GameEngine.defaultSystems`) und `core.engine.MilestoneSources`:
+  - **Bedingung:** erreicht, sobald der Zähler `>= condition.value` ist. Zähler: `pieces_found` = `meta.stats.piecesFound`; `skeletons_completed` = Arten mit Stufe 2 im **Sammelbuch** (permanent); `pristine_found` = `meta.stats.pristineFound` (Funde der **höchsten** Stufe aus `qualityTiers`, gezählt von der Präparation; Rekonstruktionen erreichen sie nie); `teams_total` = Summe aller `run.teams`; `layers_unlocked` = `run.unlockedLayers`; `research_completed` = `meta.stats.researchCompleted` (`LabSystem`, je abgeschlossenem Job); `reconstructions` = `meta.stats.reconstructions` (je erfolgreicher Rekonstruktion); `prestiges` = `meta.prestigeCount` (tritt erst mit AP-12 ein). `teams_total` und `layers_unlocked` beziehen sich auf den aktuellen Durchlauf, alle anderen Zähler sind permanent.
+  - Die neuen Zähler in `meta.stats` haben den Standardwert 0; ältere Spielstände laden ohne Migration (bisherige Museumsreif-Funde, Forschungen und Rekonstruktionen werden nicht nachgezählt).
+  - **Belohnung genau einmal:** ID in `meta.milestonesDone` (permanent), `reward.money` und `reward.researchPoints` sofort gutgeschrieben, Ereignis `GameEvent.MilestoneReached(milestoneId, money, researchPoints)`. `reward.effects` wirken dauerhaft über den Provider `MilestoneSources` als Quelle `milestone:<id>` ab dem nächsten Abgleich. Unbekannte IDs in `milestonesDone` werden ignoriert.
+  - Auswertung in Datenreihenfolge in einem Durchgang; Belohnungen ändern keinen Zähler, ein Meilenstein löst also keinen weiteren aus. Mehrere Meilensteine können im selben Aufruf erreicht werden.
+  - **Zeitpunkt:** am Ende jedes `advance` (nach allen anderen Systemen). Die Engine-Aktionen `tapPrep` und `reconstruct` prüfen selbst und hängen die Ereignisse an ihre Ereignisliste an. Für Aktionen außerhalb der Engine (Käufe über `Purchases`, später Prestige) gibt es `GameEngine.checkMilestones(state): AdvanceResult`; ohne Aufruf greift spätestens der nächste Tick (≤ 0,1 s). Das `GameViewModel` wurde dafür in AP-11 **nicht** geändert.
+  - Abfrage für die UI: `GameEngine.milestones.progress(state)` (`MilestoneProgress`: Definition, aktueller Zähler, Ziel, erreicht).
 
 ### 5.3 Prestige [MVP]
 - Der Button sitzt im Ruhm-Tab und ist aktiv, sobald die Vorschau mindestens 1 Ruhm zeigt. Die Vorschau wird live angezeigt („Ruhm bei Neustart: +7“). Bestätigungsdialog mit Übersicht, was verloren geht und was bleibt.
@@ -334,7 +347,7 @@ Buch vollständig, Buch in Museumsreif, voller Skilltree. Später zusätzlich: C
   - **Rabatte:** `hall_cost` wirkt als Faktor auf `baseCost` der Hallen, `layer_unlock_cost` auf `unlockCost` der Schichten (Faktor-Stats, Clamp aus `statLimits`).
   - **Schicht-Freischaltung:** nur die nächste Schicht in Reihenfolge (`unlockedLayers` zählt die offenen Schichten). Die neue Schicht bekommt Team- und Lagereinträge mit 0.
   - **Werkzeugstufen** werden mit FP bezahlt (Währung aus `upgrades.json`), Generatoren mit der Währung aus `generators.json`, Teams und Schichten mit Geld.
-  - **Modifier-Quellen:** `ModifierSources.sync(engine, state, data)` gleicht die Quellen der Engine mit dem Spielstand ab (idempotent, unveränderte Quellen werden nicht neu gesetzt). Provider im MVP-Stand AP-06: `upgrade:<generatorId>` (Effekte je Einheit mal Bestand, z. B. `upgrade:preparator`), `upgrade:<upgradeId>` (`effectsPerLevel` mal Stufe, z. B. `upgrade:tools`) und `skill:<skillId>`. AP-11 ergänzt Buch-Boni und Meilensteine als weitere `ModifierSourceProvider` mit eigenem Prefix. Quellen mit Prefixen ohne Provider bleiben unberührt.
+  - **Modifier-Quellen:** `ModifierSources.sync(engine, state, data)` gleicht die Quellen der Engine mit dem Spielstand ab (idempotent, unveränderte Quellen werden nicht neu gesetzt). Provider im MVP-Stand AP-06: `upgrade:<generatorId>` (Effekte je Einheit mal Bestand, z. B. `upgrade:preparator`), `upgrade:<upgradeId>` (`effectsPerLevel` mal Stufe, z. B. `upgrade:tools`) und `skill:<skillId>`. AP-11 ergänzt `BookSources` (`book:<speciesId>`, `book:researched:<speciesId>`, Kapitel 4.7) und `MilestoneSources` (`milestone:<id>`, Kapitel 5.2). Quellen mit Prefixen ohne Provider bleiben unberührt.
   - **Startwerte:** `RunStart.values(data, engine)` erzeugt `RunStartValues`: Teams in Schicht 1 = `start_teams`, Laborplätze = `lab_slot.free + start_lab_slots`, Hallen = `hall.free`, Präparatoren = `preparator.free`, Geld/FP/Werkzeugstufe 0.
   - Die festen Verknüpfungen zwischen Definitions-IDs und Feldern des Spielstands (`preparator`, `hall`, `lab_slot`, `tools`) stehen in `core.data.DefinitionIds`.
 
@@ -529,6 +542,7 @@ Keine. Das Spiel ist ein Hobbyprojekt. Keine Werbung, keine In-App-Käufe, keine
   - Ereignisse in AP-08: `GameEvent.FossilFound(find, tierId)` je Fund und `GameEvent.BlocksPrepared(layerId, blocks, fossils, rockMoney)` je Schicht und Aufruf (Kapitel 4.2). Spieleraktion `GameEngine.tapPrep(state, rng): AdvanceResult` gleicht die Modifier ab und prüft das Ergebnis wie `advance`.
   - Ereignisse in AP-09: `BookUpdated(pieceKey, quality, previousQuality?)`, `NewPiece(pieceKey, quality)`, `PieceImproved(pieceKey, quality, previousQuality)`, `DuplicateQueued(pieceKey, quality)`, `DuplicateSold(pieceKey, quality, money)`, `SkeletonCompleted(speciesId)` (Kapitel 4.4). `defaultSystems`: `DigSystem` → `PrepSystem` mit `FindClassifier` → `MuseumSystem`.
   - Ereignisse in AP-10: `LabJobStarted(pieceKey, duration)`, `LabJobCompleted(pieceKey, researchPoints)`, `SpeciesResearched(speciesId)` (erstmals, nach dem zugehörigen `LabJobCompleted`) aus `advance`; `Reconstructed(pieceKey, quality, improvedRun, improvedBook)` als erstes Ereignis von `GameEngine.reconstruct` (`ReconstructionResult.Success(state, events, preview)` bzw. `Failure(reason)`), gefolgt von `BookUpdated`, `NewPiece` (+ `SkeletonCompleted`) bzw. `PieceImproved` (+ `DuplicateQueued`/`DuplicateSold`). `defaultSystems`: `DigSystem` → `PrepSystem` mit `FindClassifier` → `MuseumSystem` → `LabSystem`.
+  - Ereignisse in AP-11: `MilestoneReached(milestoneId, money, researchPoints)` aus `advance` (zuletzt), `tapPrep`, `reconstruct` und `checkMilestones` (Kapitel 5.2). `defaultSystems`: `DigSystem` → `PrepSystem` mit `FindClassifier` → `MuseumSystem` → `LabSystem` → `MilestoneSystem`.
   - Zufall: `core.random.GameRandom` (`nextDouble()`, `nextDouble(from, until)` mit `from == until` → `from`, `nextInt(bound)`) und `SeededRandom(seed)` auf Basis von `kotlin.random.Random`.
 - Umsetzung (AP-16): `app/vm/GameViewModel`.
   - Engine, Spielstand und `ModifierEngine` werden nur auf einem Dispatcher mit Parallelität 1 benutzt (nicht thread-safe). Dateizugriffe laufen auf `Dispatchers.IO` unter einem Mutex.
@@ -618,7 +632,7 @@ Ablage: `core/src/main/resources/data/`. Alle IDs in `snake_case`, Texte nur als
     "book": { "parasaurolophus:dorsal:_:_": { "quality": 0.83, "reconstructed": false, "zones": [0.9,0.8,0.8,0.82] } },
     "researchedSpecies": ["cave_bear"],
     "milestonesDone": ["first_find"],
-    "stats": { "piecesFound": 1520 }
+    "stats": { "piecesFound": 1520, "pristineFound": 3, "researchCompleted": 410, "reconstructions": 12 }
   },
   "run": {
     "money": 1234.5, "researchPoints": 12, "unlockedLayers": 2,

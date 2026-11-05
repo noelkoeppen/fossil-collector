@@ -444,6 +444,7 @@ class PrepSystemTest {
         val modifiers = ModifierEngine.fromGameData(data)
         val engine = GameEngine(data, modifiers)
         val s = state(unlocked = 1, preparators = 5.0).let { it.copy(run = it.run.copy(teams = mapOf(Q to n(10.0)))) }
+            .withAllMilestonesDone(data)
         val result = engine.advance(s, 10.0, SeededRandom(SEED))
         // 10 Teams * 0.1 * 10 s = 10 Bloecke, 5 Praeparatoren * 0.2 * 10 s = 10 Bloecke
         assertEquals(0.0, blocks(result.state, Q), EPS)
