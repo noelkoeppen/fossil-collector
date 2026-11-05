@@ -1,4 +1,39 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Fossil Collector</string>
+
+    <!-- Loading -->
+    <string name="loading">Loading excavation …</string>
+    <string name="data_error_title">Game data invalid</string>
+    <string name="data_error_text">The game data could not be loaded. Please reinstall the app or report the error.</string>
+
+    <!-- Top bar -->
+    <string name="top_bar_money_label">Money</string>
+    <string name="top_bar_research_label">RP</string>
+    <string name="top_bar_fame_label">Fame</string>
+    <string name="top_bar_money_value">$%1$s</string>
+    <string name="top_bar_money_rate">$%1$s/s</string>
+    <string name="top_bar_settings">Settings</string>
+
+    <!-- Tabs -->
+    <string name="tab_dig">Dig</string>
+    <string name="tab_lab">Lab</string>
+    <string name="tab_museum">Museum</string>
+    <string name="tab_book">Collection</string>
+    <string name="tab_fame">Fame</string>
+
+    <!-- Placeholder screens (real screens from AP-17) -->
+    <string name="placeholder_dig">The excavation cross-section with layers, teams and preparation will appear here.</string>
+    <string name="placeholder_lab">Research slots, queue and reconstruction will appear here.</string>
+    <string name="placeholder_museum">The museum halls with your exhibited finds will appear here.</string>
+    <string name="placeholder_book">The collection book with all species and bones will appear here.</string>
+    <string name="placeholder_fame">The skill tree and prestige will appear here.</string>
+    <string name="placeholder_settings_title">Settings</string>
+    <string name="placeholder_settings">Language, number format, export and import will follow in a later version.</string>
+    <string name="back">Back</string>
+
+    <!-- Save game messages -->
+    <string name="message_loaded_from_backup">Your save was damaged, so it was replaced by backup %1$d.</string>
+    <string name="message_save_unreadable">Your save could not be read. A new game was started.</string>
+    <string name="message_save_failed">Saving failed. It will be retried shortly.</string>
 </resources>

@@ -36,6 +36,10 @@ android {
     buildFeatures {
         compose = true
     }
+
+    testOptions {
+        unitTests.all { it.useJUnitPlatform() }
+    }
 }
 
 kotlin {
@@ -53,5 +57,15 @@ dependencies {
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
+    implementation(libs.androidx.compose.material.icons.core)
+    implementation(libs.androidx.lifecycle.viewmodel.compose)
+    implementation(libs.androidx.lifecycle.runtime.compose)
+    implementation(libs.androidx.lifecycle.process)
+    implementation(libs.kotlinx.coroutines.android)
     debugImplementation(libs.androidx.compose.ui.tooling)
+
+    // JVM-Unit-Tests ohne Android (SaveStorage, Tab-Regeln, Raten), JUnit 5 wie in core.
+    testImplementation(platform(libs.junit.bom))
+    testImplementation(libs.junit.jupiter)
+    testRuntimeOnly(libs.junit.platform.launcher)
 }

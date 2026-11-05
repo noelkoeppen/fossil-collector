@@ -414,6 +414,11 @@ Buch vollständig, Buch in Museumsreif, voller Skilltree. Später zusätzlich: C
   - Laborwarteschlange und Laborjobs speichern die Zonen-Qualitäten des Stücks mit, weil das Labor daraus Ersatzteile gewinnt (4.5).
   - Qualitäten (0.0–1.0) und die Restdauer von Laborjobs sind `Double`; alle Mengen, Währungen und Zähler sind `GameNumber`.
   - Der Startzustand (`GameState.newGame`, `RunState.newRun`) legt nur Struktur an; Balancing-Startwerte übergibt der Aufrufer als `RunStartValues`.
+- Umsetzung (AP-16): `app/platform/SaveStorage` (reine `java.io.File`-Logik ohne Android, JVM-Tests in `app/src/test`).
+  - Schreiben: `save.json.tmp` vollständig schreiben (`fsync`) → Backups rotieren (`bak2 → bak3`, `bak1 → bak2`, `save.json` nach `bak1` kopieren) → `save.json.tmp` atomar in `save.json` umbenennen. `save.json.tmp` wird beim Laden nie gelesen.
+  - Laden: `save.json`, dann `bak1..3`; der erste lesbare Stand gewinnt (`SaveLoadResult.Loaded` mit `SaveSource`). Auch ein Spielstand aus einer neueren App-Version (`UnsupportedVersion`) zählt als unlesbar.
+  - Kam der Stand aus einem Backup, wird die defekte Hauptdatei beim nächsten Speichern verworfen statt rotiert, damit sie keine lesbaren Backups verdrängt. Ist gar nichts lesbar (`Unreadable`), wird die Hauptdatei nach `save.corrupt.json` kopiert und ein neues Spiel gestartet; die UI zeigt jeweils einen Hinweis (Snackbar).
+  - `GameViewModel` setzt `lastSavedAt` bei jedem Speichern auf die aktuelle Zeit. Ein neues Spiel wird sofort gespeichert. Beim Wechsel in den Hintergrund (`Activity.onStop` und `ProcessLifecycleOwner` `ON_STOP` über `platform/AppLifecycleObserver`) wird gespeichert und die Spielschleife angehalten; die Zeit im Hintergrund ist Offline-Zeit (AP-14/AP-23).
 
 ---
 
@@ -437,6 +442,8 @@ Buch vollständig, Buch in Museumsreif, voller Skilltree. Später zusätzlich: C
 
 Beim ersten Erscheinen eines Tabs gibt es einen kurzen Hinweistext (ein Satz).
 
+Umsetzung (AP-16): `app/vm/TabUnlockRules`. Museum: `meta.stats.piecesFound > 0` oder ein Bucheintrag. Sammelbuch: mindestens 5 Einträge im Sammelbuch (`meta.book`). Labor: **Platzhalter bis AP-09/AP-10** (es gibt noch keinen Duplikat-Zähler): Laborwarteschlange, Laborjobs, Ersatzteile oder eine erforschte Art vorhanden. Ruhm: `prestigeCount > 0` oder `fameTotal > 0` oder Prestige-Vorschau ≥ 1 (**Platzhalter bis AP-12**, liefert `false`). Einmal gezeigte Tabs bleiben während der Sitzung sichtbar (`revealTabs`); dauerhaft gespeichert wird das noch nicht (offener Punkt für AP-25, das ohnehin „erstes Erscheinen“ für die Hinweistexte braucht).
+
 ### 8.3 Screens
 - **Grabung:** Vertikaler Querschnitt mit Schichten als Farbbänder (oben jung, unten alt). Pro Schicht: Blöcke im Lager, Blöcke/s, Teams kaufen (×1/×10/Max). Gesperrte Schichten zeigen Kosten und Spar-Fortschritt. Darunter der Bereich Präparation: großer Freilege-Button (Tippen), Präparatoren kaufen, Verarbeitungsrate. **Fund-Popup:** Ein neuer oder besserer Fund erscheint kurz als Karte (Art, Knochen, Qualitätsstufe in Farbe). Bei vielen Funden pro Sekunde werden die Popups gebündelt (höchstens 1 pro Sekunde, Priorität: bessere Stufe).
 - **Labor:** Forschungsplätze mit Fortschrittsbalken, Warteschlange, Laborplatz kaufen, Werkzeugstufen (FP), Liste rekonstruierbarer Knochen mit Button „Rekonstruieren“.
@@ -447,6 +454,7 @@ Beim ersten Erscheinen eines Tabs gibt es einen kurzen Hinweistext (ein Satz).
 
 ### 8.4 Qualitätsfarben
 Fragment Grau `#8A8A8A` · Beschädigt Braun `#A0703C` · Gut Grün `#5FA35F` · Exzellent Blau `#4A90D9` · Museumsreif Gold `#E2B93B`.
+Umsetzung (AP-16): Die App liest die Farben aus `balance.json: qualityTiers[].color` (`ui/theme/QualityColors`, bereitgestellt über `LocalQualityColors`), damit sie nur an einer Stelle stehen.
 
 ### 8.5 Grafikstil
 - Flache, **schematische Vektorgrafik** im Stil von Museumstafeln: knochenfarbene Formen (`#E8DFC8`) auf dunklem Grund, begrenzte Palette. Bewusst vereinfacht, nicht anatomisch exakt.
@@ -503,6 +511,14 @@ Keine. Das Spiel ist ein Hobbyprojekt. Keine Werbung, keine In-App-Käufe, keine
   - Ereignisse in AP-08: `GameEvent.FossilFound(find, tierId)` je Fund und `GameEvent.BlocksPrepared(layerId, blocks, fossils, rockMoney)` je Schicht und Aufruf (Kapitel 4.2). Spieleraktion `GameEngine.tapPrep(state, rng): AdvanceResult` gleicht die Modifier ab und prüft das Ergebnis wie `advance`.
   - Ereignisse in AP-09: `BookUpdated(pieceKey, quality, previousQuality?)`, `NewPiece(pieceKey, quality)`, `PieceImproved(pieceKey, quality, previousQuality)`, `DuplicateQueued(pieceKey, quality)`, `DuplicateSold(pieceKey, quality, money)`, `SkeletonCompleted(speciesId)` (Kapitel 4.4). `defaultSystems`: `DigSystem` → `PrepSystem` mit `FindClassifier` → `MuseumSystem`.
   - Zufall: `core.random.GameRandom` (`nextDouble()`, `nextDouble(from, until)` mit `from == until` → `from`, `nextInt(bound)`) und `SeededRandom(seed)` auf Basis von `kotlin.random.Random`.
+- Umsetzung (AP-16): `app/vm/GameViewModel`.
+  - Engine, Spielstand und `ModifierEngine` werden nur auf einem Dispatcher mit Parallelität 1 benutzt (nicht thread-safe). Dateizugriffe laufen auf `Dispatchers.IO` unter einem Mutex.
+  - Schleife: fester Takt 100 ms, je Tick `advance(state, 0.1, rng)`. Ist ein Tick zu spät, werden verpasste Ticks nicht nachgeholt. Die Schleife läuft nur im Vordergrund.
+  - Veröffentlichung: `uiState: StateFlow<GameUiState>` (`Loading`, `DataError`, `Ready` mit Rohwerten; formatiert wird in der UI über `NumberFormatter`), `events: SharedFlow<GameEvent>` (ohne Wiederholung, Puffer 64), `messages: Flow<GameMessage>` (Channel, genau einmal zugestellt).
+  - „$/s“ in der oberen Leiste ist die über 5 s geglättete Geldänderung durch `advance` (`RateTracker`), nicht durch Käufe. So stimmt die Anzeige ohne eigene Formel, sobald weitere Systeme Geld erzeugen.
+  - Spieleraktionen: `perform { engine, state -> engine.xyz(state, ...) }` als Erweiterungsstelle für AP-17 ff.
+  - Spieldaten: `DataRepository` lädt aus den Java-Ressourcen von `core`; diese landen im APK (`data/*.json` im APK-Root) und sind dort über den ClassLoader erreichbar.
+  - Release-Build: `NumericErrorHandler` loggt und verwirft den Tick; Debug-Build wirft.
 
 ### 10.4 Tests [MVP]
 - Pro Engine-System Unit-Tests mit festem Seed.
