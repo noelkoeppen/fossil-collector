@@ -34,13 +34,13 @@ jobs:
 
       - name: Testberichte hochladen
         if: failure()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: core-test-reports
           path: core/build/reports/tests/
 
       - name: Debug-APK hochladen
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: fossil-collector-debug-apk
           path: app/build/outputs/apk/debug/*.apk
