@@ -3,10 +3,12 @@ package de.noelkoeppen.fossilcollector.vm
 import androidx.compose.runtime.Immutable
 import de.noelkoeppen.fossilcollector.core.data.QualityTierDefinition
 import de.noelkoeppen.fossilcollector.core.data.TextProvider
+import de.noelkoeppen.fossilcollector.core.engine.PrestigeFailure
 import de.noelkoeppen.fossilcollector.core.engine.ReconstructionFailure
 import de.noelkoeppen.fossilcollector.core.model.Settings
 import de.noelkoeppen.fossilcollector.core.number.GameNumber
 import de.noelkoeppen.fossilcollector.ui.book.BookUiState
+import de.noelkoeppen.fossilcollector.ui.fame.FameUiState
 import de.noelkoeppen.fossilcollector.ui.lab.LabUiState
 import de.noelkoeppen.fossilcollector.ui.museum.MuseumUiState
 
@@ -38,6 +40,8 @@ sealed interface GameUiState {
      * @property museum Ausschnitt fuer den Screen Museum (AP-18, [de.noelkoeppen.fossilcollector.ui.museum.MuseumUiMapper])
      * @property lab Ausschnitt fuer den Screen Labor (AP-19, [de.noelkoeppen.fossilcollector.ui.lab.LabUiMapper])
      * @property book Ausschnitt fuer den Screen Sammelbuch (AP-20, [de.noelkoeppen.fossilcollector.ui.book.BookUiMapper])
+     * @property fameScreen Ausschnitt fuer den Screen Ruhm (AP-22, [de.noelkoeppen.fossilcollector.ui.fame.FameUiMapper]);
+     *   heisst nicht `fame`, weil [fame] schon der Ruhm der oberen Leiste ist
      */
     @Immutable
     data class Ready(
@@ -53,6 +57,7 @@ sealed interface GameUiState {
         val museum: MuseumUiState = MuseumUiState.EMPTY,
         val lab: LabUiState = LabUiState.EMPTY,
         val book: BookUiState = BookUiState.EMPTY,
+        val fameScreen: FameUiState = FameUiState.EMPTY,
     ) : GameUiState
 }
 
@@ -70,4 +75,10 @@ sealed interface GameMessage {
 
     /** Eine Rekonstruktion wurde abgelehnt (AP-19); der Spielstand ist unveraendert. */
     data class ReconstructionFailed(val reason: ReconstructionFailure) : GameMessage
+
+    /** Prestige ausgefuehrt (AP-22): neuer Durchlauf, [fameGained] Ruhm gutgeschrieben. */
+    data class Prestiged(val fameGained: GameNumber) : GameMessage
+
+    /** Prestige abgelehnt (AP-22); der Spielstand ist unveraendert. */
+    data class PrestigeFailed(val reason: PrestigeFailure) : GameMessage
 }

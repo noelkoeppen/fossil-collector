@@ -15,6 +15,8 @@ import de.noelkoeppen.fossilcollector.core.engine.AdvanceResult
 import de.noelkoeppen.fossilcollector.core.engine.GameEngine
 import de.noelkoeppen.fossilcollector.core.engine.GameEvent
 import de.noelkoeppen.fossilcollector.core.engine.NumericErrorHandler
+import de.noelkoeppen.fossilcollector.core.engine.PrestigeMetaStep
+import de.noelkoeppen.fossilcollector.core.engine.PrestigeResult
 import de.noelkoeppen.fossilcollector.core.engine.QualityTiers
 import de.noelkoeppen.fossilcollector.core.engine.ReconstructionResult
 import de.noelkoeppen.fossilcollector.core.engine.RunStart
@@ -33,6 +35,9 @@ import de.noelkoeppen.fossilcollector.platform.SaveStorage
 import de.noelkoeppen.fossilcollector.platform.TimeSource
 import de.noelkoeppen.fossilcollector.ui.book.BookUiMapper
 import de.noelkoeppen.fossilcollector.ui.book.BookUiState
+import de.noelkoeppen.fossilcollector.ui.fame.FameUiMapper
+import de.noelkoeppen.fossilcollector.ui.fame.FameUiState
+import de.noelkoeppen.fossilcollector.ui.fame.PrestigeDialogState
 import de.noelkoeppen.fossilcollector.ui.lab.LabUiMapper
 import de.noelkoeppen.fossilcollector.ui.lab.LabUiState
 import de.noelkoeppen.fossilcollector.ui.museum.MuseumUiMapper
@@ -70,7 +75,7 @@ import java.io.IOException
  *   Die Schleife laeuft nur im Vordergrund (siehe [onAppForeground]/[onAppBackground]).
  * - **Speichern:** Autosave alle [AUTOSAVE_INTERVAL_NANOS], beim Wechsel in den Hintergrund
  *   (Prozess-Lifecycle `ON_STOP` ueber `platform/AppLifecycleObserver` und `Activity.onStop`) sowie
- *   direkt nach dem Anlegen eines neuen Spiels. `lastSavedAt` wird beim Speichern auf die aktuelle Zeit gesetzt.
+ *   direkt nach dem Anlegen eines neuen Spiels und direkt nach dem Prestige (Kapitel 7.2). `lastSavedAt` wird beim Speichern auf die aktuelle Zeit gesetzt.
  *
  * Threading: Spielstand, Engine und [ModifierEngine] werden ausschliesslich auf [gameDispatcher]
  * (Parallelitaet 1) angefasst. Dateizugriffe laufen auf [ioDispatcher] unter einem Mutex.
@@ -137,6 +142,7 @@ class GameViewModel(
     private var qualityTiers: QualityTiers? = null
     private var texts: TextProvider = TextProvider.EMPTY
     private var bookMapper: BookUiMapper? = null
+    private var prestigeDialog: PrestigeDialogState? = null
     private val popupBundler = FindPopupBundler()
 
     private val foreground = MutableStateFlow(false)
@@ -226,6 +232,76 @@ class GameViewModel(
         }
     }
 
+    // --- Ruhm-Screen: Prestige-Dialog (AP-22) ---
+
+    /** Oeffnet den Prestige-Dialog ("Skills behalten" vorgewaehlt), sofern die Vorschau mindestens 1 Ruhm zeigt. */
+    fun openPrestigeDialog() = updatePrestigeDialog { engine, current, _ ->
+        if (engine.canPrestige(current)) PrestigeDialogState() else null
+    }
+
+    /** Schliesst den Prestige-Dialog ohne Prestige; die Auswahl verfaellt. */
+    fun dismissPrestigeDialog() = updatePrestigeDialog { _, _, _ -> null }
+
+    /** Wahl "Skills behalten" ([enabled] = `false`) bzw. "Skills neu verteilen" (`true`). */
+    fun setPrestigeRespec(enabled: Boolean) = updatePrestigeDialog { _, current, dialog ->
+        dialog?.withRespec(enabled, current.meta.skills.toList())
+    }
+
+    /**
+     * Respec-Auswahl: [skillId] entfernen bzw. anhaengen. Angehaengt wird nur, was in der aktuellen
+     * Vorschau (`GameEngine.respecPreview`) kaufbar ist.
+     */
+    fun toggleRespecSkill(skillId: String) = updatePrestigeDialog { engine, current, dialog ->
+        if (dialog == null || !dialog.respec) return@updatePrestigeDialog dialog
+        val plan = engine.respecPreview(current, dialog.selection)
+        dialog.toggle(skillId, selectable = engine.skillTree.canBuy(plan.meta, skillId))
+    }
+
+    /** Respec-Auswahl leeren (alle Skills zurueck, nichts neu kaufen). */
+    fun clearRespecSelection() = updatePrestigeDialog { _, _, dialog -> dialog?.cleared() }
+
+    /**
+     * Fuehrt das Prestige mit der Wahl aus dem offenen Dialog aus: `GameEngine.prestige(state,
+     * NONE)` bzw. `prestige(state, respecStep(selection))`. Bei Erfolg gehen die Ereignisse
+     * (`Prestiged`, ggf. Meilensteine) an [events], der Dialog schliesst, [messages] liefert
+     * [GameMessage.Prestiged] und der Spielstand wird sofort gespeichert (Kapitel 7.2). Bei
+     * Ablehnung bleibt alles unveraendert und es kommt [GameMessage.PrestigeFailed].
+     */
+    fun confirmPrestige() {
+        viewModelScope.launch(gameDispatcher) {
+            val currentEngine = engine ?: return@launch
+            val current = state ?: return@launch
+            val dialog = prestigeDialog ?: return@launch
+            val step = if (dialog.respec) currentEngine.respecStep(dialog.selection) else PrestigeMetaStep.NONE
+            when (val result = currentEngine.prestige(current, step)) {
+                is PrestigeResult.Success -> {
+                    state = result.state
+                    prestigeDialog = null
+                    // Die Geldrate des alten Durchlaufs gilt nicht mehr.
+                    moneyRate.reset()
+                    dispatchEvents(result.events)
+                    messageChannel.trySend(GameMessage.Prestiged(result.fameGained))
+                    publish()
+                    saveCurrent()
+                }
+                is PrestigeResult.Failure -> {
+                    messageChannel.trySend(GameMessage.PrestigeFailed(result.reason))
+                    publish()
+                }
+            }
+        }
+    }
+
+    /** Aendert den Dialogzustand auf dem Spiel-Thread und veroeffentlicht den UI-Zustand. */
+    private fun updatePrestigeDialog(change: (GameEngine, GameState, PrestigeDialogState?) -> PrestigeDialogState?) {
+        viewModelScope.launch(gameDispatcher) {
+            val currentEngine = engine ?: return@launch
+            val current = state ?: return@launch
+            prestigeDialog = change(currentEngine, current, prestigeDialog)
+            publish()
+        }
+    }
+
     /** Kauf ueber [Purchases]; bei Fehlschlag (z. B. Geld reicht nicht mehr) bleibt der Zustand unveraendert. */
     private fun purchase(action: (Purchases, GameState) -> PurchaseResult) = perform { _, current ->
         val p = purchases ?: return@perform current
@@ -281,6 +357,7 @@ class GameViewModel(
         state = loadedState
         lastSavedState = if (needsInitialSave) null else loadedState
         revealedTabs = emptySet()
+        prestigeDialog = null
         moneyRate.reset()
         publish()
         if (needsInitialSave) saveCurrent()
@@ -361,6 +438,7 @@ class GameViewModel(
             lab = engine?.let { e -> LabUiMapper.map(e, current, gameData) } ?: LabUiState.EMPTY,
             // Gecacht: neu gebaut nur bei geaendertem Buch, erforschten Arten oder Schichten.
             book = bookMapper?.map(currentEngine, current) ?: BookUiState.EMPTY,
+            fameScreen = FameUiMapper.map(currentEngine, current, prestigeDialog),
         )
     }
 
