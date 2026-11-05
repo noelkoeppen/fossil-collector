@@ -17,7 +17,7 @@ import de.noelkoeppen.fossilcollector.core.data.StatLimit
  * Die Engine kennt den Spielzustand nicht. Sie verwaltet benannte **Quellen**: Jede Quelle hat eine
  * frei waehlbare ID und eine Liste von Modifiern. Spielsysteme (Upgrades, Skills, Buch-Boni,
  * Meilensteine) setzen ihre Quellen mit [setSource] und entfernen sie mit [removeSource].
- * Empfohlene ID-Konvention: `<art>:<definitionsId>`, z. B. `skill:lab_1`, `upgrade:tool`,
+ * Empfohlene ID-Konvention: `<art>:<definitionsId>`, z. B. `skill:lab_1`, `upgrade:tools`,
  * `book:triceratops`, `milestone:first_find`.
  *
  * Basiswerte kommen vom Aufrufer (aus `balance.json` bzw. den Generatoren); die Engine enthaelt
