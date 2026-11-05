@@ -1,6 +1,11 @@
 package de.noelkoeppen.fossilcollector.core.engine
 
 import de.noelkoeppen.fossilcollector.core.data.GameData
+import de.noelkoeppen.fossilcollector.core.engine.purchase.BuyMode
+import de.noelkoeppen.fossilcollector.core.engine.purchase.PurchaseQuote
+import de.noelkoeppen.fossilcollector.core.engine.purchase.PurchaseResult
+import de.noelkoeppen.fossilcollector.core.engine.purchase.PurchaseTarget
+import de.noelkoeppen.fossilcollector.core.engine.purchase.Purchases
 import de.noelkoeppen.fossilcollector.core.model.GameState
 import de.noelkoeppen.fossilcollector.core.model.PieceKey
 import de.noelkoeppen.fossilcollector.core.modifier.ModifierEngine
@@ -58,6 +63,9 @@ class GameEngine(
      * [MuseumSystem], wird genau diese Instanz genutzt (gemeinsamer Cache), sonst eine eigene.
      */
     val museum: MuseumSystem = systems.filterIsInstance<MuseumSystem>().firstOrNull() ?: MuseumSystem(data, modifiers)
+
+    /** Kaufaktionen (zustandslos); Hallenkauf ueber [buyHalls] bzw. [hallQuote]. */
+    private val purchases: Purchases = Purchases(data, modifiers)
 
     /**
      * Labor fuer Abfragen der UI (Dauer, Fortschritt, FP). Enthaelt [systems] ein [LabSystem], wird
@@ -189,6 +197,31 @@ class GameEngine(
 
     /** Ausgestellte Stuecke, wertvollstes zuerst (fuer die UI), siehe [MuseumSystem.exhibitedPieces]. */
     fun exhibitedPieces(state: GameState): List<ExhibitedPiece> = museum.exhibitedPieces(state)
+
+    /**
+     * Spieleraktion: Sonderausstellung waehlen bzw. mit `null` aufheben, siehe
+     * [MuseumSystem.setSpecialExhibit]. Gleicht vorher die Modifier-Quellen ab.
+     */
+    fun setSpecialExhibit(state: GameState, speciesId: String?): SpecialExhibitResult {
+        syncModifiers(state)
+        return museum.setSpecialExhibit(state, speciesId)
+    }
+
+    /**
+     * Spieleraktion: Museumshallen kaufen (Kapitel 4.6, 6.3), siehe [Purchases.buyHalls]. Gleicht
+     * vorher die Modifier-Quellen ab (Rabatt `hall_cost`).
+     */
+    fun buyHalls(state: GameState, mode: BuyMode): PurchaseResult {
+        syncModifiers(state)
+        return purchases.buyHalls(state, mode)
+    }
+
+    /**
+     * Vorschau fuer den Hallenkauf im Modus [mode] (fuer die UI), siehe [Purchases.quote]. Nutzt den
+     * Stand der Modifier-Quellen nach dem letzten [advance] bzw. [syncModifiers].
+     */
+    fun hallQuote(state: GameState, mode: BuyMode): PurchaseQuote? =
+        purchases.quote(state, PurchaseTarget.Halls, mode)
 
     private fun reject(state: GameState, error: NonFiniteValueException): AdvanceResult {
         errorHandler.onNonFinite(error)

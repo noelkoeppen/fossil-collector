@@ -52,6 +52,9 @@ import de.noelkoeppen.fossilcollector.R
 import de.noelkoeppen.fossilcollector.core.model.Settings
 import de.noelkoeppen.fossilcollector.core.number.GameNumber
 import de.noelkoeppen.fossilcollector.ui.dig.DigScreen
+import de.noelkoeppen.fossilcollector.ui.museum.MuseumActions
+import de.noelkoeppen.fossilcollector.ui.museum.MuseumScreen
+import de.noelkoeppen.fossilcollector.ui.museum.museumActions
 import de.noelkoeppen.fossilcollector.ui.rememberGameNumberFormat
 import de.noelkoeppen.fossilcollector.ui.theme.FossilCollectorTheme
 import de.noelkoeppen.fossilcollector.ui.theme.QualityColors
@@ -146,7 +149,7 @@ fun GameShell(
     }
 }
 
-/** Inhalt eines Tabs. Grabung seit AP-17; die uebrigen Tabs sind Platzhalter, bis AP-18 ff. sie ersetzen. */
+/** Inhalt eines Tabs. Grabung seit AP-17, Museum seit AP-18; die uebrigen Tabs sind Platzhalter, bis AP-19 ff. sie ersetzen. */
 @Composable
 private fun TabContent(tab: GameTab, state: GameUiState.Ready, viewModel: GameViewModel?) {
     when (tab) {
@@ -154,6 +157,12 @@ private fun TabContent(tab: GameTab, state: GameUiState.Ready, viewModel: GameVi
             state = state,
             actions = viewModel ?: DigActions.NONE,
             findPopups = viewModel?.findPopups ?: emptyFlow(),
+        )
+        GameTab.MUSEUM -> MuseumScreen(
+            state = state.museum,
+            settings = state.settings,
+            texts = state.texts,
+            actions = remember(viewModel) { viewModel?.let(::museumActions) ?: MuseumActions.NONE },
         )
         else -> PlaceholderScreen(
             title = stringResource(tab.titleRes),

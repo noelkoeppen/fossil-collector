@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Museum screen (AP-18, chapter 8.3) -->
+<resources>
+    <string name="museum_income_label">Income</string>
+    <string name="museum_income_value">%1$s $/s</string>
+    <string name="museum_slots_summary">%1$d of %2$d spots filled</string>
+    <string name="museum_hall_title">Hall %1$d</string>
+    <string name="museum_empty_slot">Empty spot</string>
+    <string name="museum_no_exhibits">Nothing on display yet. Prepare fossils at the dig site.</string>
+    <string name="museum_piece_income">%1$s $/s</string>
+    <string name="museum_piece_quality">%1$s · %2$d %%</string>
+    <string name="museum_piece_skeleton">Skeleton</string>
+    <string name="museum_piece_special">Special exhibit</string>
+
+    <!-- Buy halls -->
+    <string name="museum_buy_halls_title">Halls</string>
+    <string name="museum_halls_owned">Halls: %1$s</string>
+
+    <!-- Skeleton bonuses -->
+    <string name="museum_skeletons_title">Complete skeletons</string>
+    <string name="museum_skeletons_hint">Complete skeletons earn ×%1$s.</string>
+    <string name="museum_skeletons_none">No skeleton complete yet. Find every bone of a species.</string>
+
+    <!-- Special exhibit (capstone) -->
+    <string name="museum_special_title">Special exhibit</string>
+    <string name="museum_special_hint">One chosen complete skeleton earns an extra ×%1$s.</string>
+    <string name="museum_special_none">None</string>
+    <string name="museum_special_current">Current: %1$s</string>
+    <string name="museum_special_inactive">The choice has no effect right now: the skeleton is not complete.</string>
+    <string name="museum_special_no_options">Complete a skeleton to choose it.</string>
+</resources>

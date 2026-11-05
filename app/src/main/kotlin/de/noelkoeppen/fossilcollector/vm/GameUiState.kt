@@ -5,6 +5,7 @@ import de.noelkoeppen.fossilcollector.core.data.QualityTierDefinition
 import de.noelkoeppen.fossilcollector.core.data.TextProvider
 import de.noelkoeppen.fossilcollector.core.model.Settings
 import de.noelkoeppen.fossilcollector.core.number.GameNumber
+import de.noelkoeppen.fossilcollector.ui.museum.MuseumUiState
 
 /**
  * Unveraenderlicher UI-Zustand, veroeffentlicht von [GameViewModel.uiState] (Kapitel 10.3).
@@ -31,6 +32,7 @@ sealed interface GameUiState {
      * @property qualityTiers Qualitaetsstufen aus den Spieldaten (fuer die Qualitaetsfarben)
      * @property texts Inhaltstexte (Standardsprache); die UI waehlt die Sprache per `TextProvider.withLanguage`
      * @property dig Ausschnitt fuer den Screen Grabung (AP-17)
+     * @property museum Ausschnitt fuer den Screen Museum (AP-18, [de.noelkoeppen.fossilcollector.ui.museum.MuseumUiMapper])
      */
     @Immutable
     data class Ready(
@@ -43,6 +45,7 @@ sealed interface GameUiState {
         val qualityTiers: List<QualityTierDefinition>,
         val texts: TextProvider = TextProvider.EMPTY,
         val dig: DigUiState = DigUiState.EMPTY,
+        val museum: MuseumUiState = MuseumUiState.EMPTY,
     ) : GameUiState
 }
 

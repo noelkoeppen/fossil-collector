@@ -29,6 +29,8 @@ import de.noelkoeppen.fossilcollector.platform.SaveLoadResult
 import de.noelkoeppen.fossilcollector.platform.SaveSource
 import de.noelkoeppen.fossilcollector.platform.SaveStorage
 import de.noelkoeppen.fossilcollector.platform.TimeSource
+import de.noelkoeppen.fossilcollector.ui.museum.MuseumUiMapper
+import de.noelkoeppen.fossilcollector.ui.museum.MuseumUiState
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
@@ -327,6 +329,7 @@ class GameViewModel(
             texts = texts,
             dig = engine?.let { e -> purchases?.let { p -> DigStateMapper.map(gameData, e, p, current) } }
                 ?: DigUiState.EMPTY,
+            museum = engine?.let { e -> MuseumUiMapper.map(e, current, gameData) } ?: MuseumUiState.EMPTY,
         )
     }
 
