@@ -317,7 +317,8 @@ class GameViewModel(
     private fun publish() {
         val current = state ?: return
         val gameData = data ?: return
-        revealedTabs = TabUnlockRules.revealTabs(revealedTabs, current)
+        val currentEngine = engine ?: return
+        revealedTabs = TabUnlockRules.revealTabs(revealedTabs, current, currentEngine::canPrestige)
         _uiState.value = GameUiState.Ready(
             money = current.run.money,
             moneyPerSecond = moneyRate.perSecond(),
