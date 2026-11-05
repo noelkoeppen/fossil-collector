@@ -1,0 +1,32 @@
+{
+  "saveVersion": 1,
+  "lastSavedAt": 1762351200000,
+  "meta": {
+    "fame": 4, "fameTotal": 19, "prestigeCount": 2,
+    "skills": ["dig_1", "dig_2"],
+    "book": {
+      "parasaurolophus:dorsal:_:_": { "quality": 0.83, "reconstructed": false },
+      "cave_bear:skull:adult:female": { "quality": 0.89, "reconstructed": true }
+    },
+    "researchedSpecies": ["cave_bear"],
+    "milestonesDone": ["first_find"],
+    "stats": { "piecesFound": 1520 }
+  },
+  "run": {
+    "money": 1234.5, "researchPoints": 12, "unlockedLayers": 2,
+    "teams": { "quaternary": 41, "neogene": 5 }, "preparators": 26, "halls": 4, "labSlots": 2,
+    "toolLevel": 3, "blocks": { "quaternary": 2.4, "neogene": 0.7 },
+    "pieces": {
+      "cave_bear:skull:_:_": { "zones": [0.9, 0.7, 0.8, 0.6] },
+      "cave_bear:jaw:juvenile:_": { "zones": [0.5, 0.5, 0.25] }
+    },
+    "spareZones": {
+      "cave_bear:skull:_:_:snout": 0.92,
+      "cave_bear:skull:adult:male:occiput": 0.4
+    },
+    "labQueue": [ { "piece": "hipparion:ribs:_:_", "zones": [0.1, 0.2, 0.3, 0.4] } ],
+    "labJobs": [ { "piece": "cave_bear:skull:_:_", "zones": [0.92, 0.5, 0.5, 0.5], "remaining": 12.0 } ],
+    "specialExhibit": null
+  },
+  "settings": { "language": "system", "numberFormat": "short" }
+}
