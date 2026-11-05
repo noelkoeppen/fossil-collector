@@ -46,6 +46,7 @@ object StateValidator {
         number("meta.fame", meta.fame)?.let { return it }
         number("meta.fameTotal", meta.fameTotal)?.let { return it }
         number("meta.prestigeCount", meta.prestigeCount)?.let { return it }
+        number("meta.fameSpent", meta.fameSpent)?.let { return it }
         number("meta.stats.piecesFound", meta.stats.piecesFound)?.let { return it }
         number("meta.stats.pristineFound", meta.stats.pristineFound)?.let { return it }
         number("meta.stats.researchCompleted", meta.stats.researchCompleted)?.let { return it }

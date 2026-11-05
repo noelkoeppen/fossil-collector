@@ -293,7 +293,7 @@ Datengetriebene Meilensteine (`milestones.json`) mit kleiner Belohnung (Geld ode
   - **`fame_gain`** ist ein Faktor-Stat (Basis 1.0) und wird **einmal auf die Summe** angewendet, vor dem Abrunden (mathematisch gleich der Anwendung je Skelett, ohne zusätzliche Rundungsverluste). Der Buch-Bonus des Tyrannosaurus (`mult`) wirkt also prozentual auf den Gesamtgewinn, z. B. Stufe Gut: × (1 + 0.03 · 3).
   - **Abfragen:** `GameEngine.fameGainPreview(state)`, `canPrestige(state)` (Vorschau ≥ 1), `prestigeSummary(state)` (`PrestigeSummary`: Gewinn, Faktor, Beiträge je Skelett `SkeletonFame`, Ruhm und Prestige-Zähler danach, verlorene Mengen wie Geld, FP, Blöcke, Teams, Präparatoren, Hallen, Laborplätze, Werkzeugstufe, gesperrte Schichten, Run-Funde, Ersatzteile, Laborstücke, Sonderausstellung, sowie bleibende Anzahlen). Alle drei gleichen vorher die Modifier-Quellen ab.
   - **Aktion** `GameEngine.prestige(state, metaStep = PrestigeMetaStep.NONE): PrestigeResult` (`Success(state, events, fameGained)` bzw. `Failure(NOT_ENOUGH_FAME | NON_FINITE_RESULT)`). Ablauf: Vorschau ≥ 1 prüfen → `fame`, `fameTotal` + Gewinn, `prestigeCount` + 1 → `metaStep` → Modifier-Quellen mit neuem Metazustand und leerem Durchlauf abgleichen (nur permanente Quellen wirken, `start_teams`/`start_lab_slots`) → `RunState.newRun(erste Schicht, RunStart.values)` ersetzt den kompletten Run-Zustand (inkl. `prepProgress`, Laborjobs und Sonderausstellung) → Quellen mit dem Ergebnis abgleichen → Meilensteine prüfen (`first_prestige`, Belohnung landet im neuen Durchlauf). Ereignisse: `GameEvent.Prestiged(fameGained)`, danach ggf. `MilestoneReached`. `settings` und `lastSavedAt` bleiben unverändert.
-  - **Respec (AP-13):** `PrestigeMetaStep` ist die Erweiterungsstelle. Er erhält den Metazustand mit bereits gutgeschriebenem Ruhm und läuft **vor** der Berechnung der Startwerte, damit zurückgegebene Start-Skills (`dig_3`, `lab_3`) im neuen Durchlauf nicht mehr wirken.
+  - **Respec (AP-13):** `PrestigeMetaStep` ist die Erweiterungsstelle. Er erhält den Metazustand mit bereits gutgeschriebenem Ruhm und läuft **vor** der Berechnung der Startwerte, damit zurückgegebene Start-Skills (`dig_3`, `lab_3`) im neuen Durchlauf nicht mehr wirken. Umsetzung `RespecStep` (über `GameEngine.respecStep(rebuy)`): alle Skills zurück, Erstattung von `meta.fameSpent` (siehe 5.4), danach Neukauf der Liste `rebuy` in dieser Reihenfolge; nicht kaufbare Wünsche werden übersprungen. Neu gekaufte Start-Skills wirken sofort im neuen Durchlauf. Ohne Respec (Skills behalten) bleibt `PrestigeMetaStep.NONE`. Respec gibt es nur beim Prestige, nicht mitten im Durchlauf. `PrestigeSummary.respecRefund` zeigt die Erstattung, `GameEngine.respecPreview(state, rebuy)` (`RespecPlan`: Metazustand danach, Erstattung, gekaufte und abgelehnte Wünsche mit Grund) die Vorschau für den Dialog.
   - **Ruhm-Tab (8.2):** `TabUnlockRules` in der App bekommt die Vorschau als Funktion (`GameEngine::canPrestige`).
 
 ### 5.4 Skilltree [MVP: 4 Äste à 4 Knoten + Capstone]
@@ -301,6 +301,12 @@ Datengetriebene Meilensteine (`milestones.json`) mit kleiner Belohnung (Geld ode
   `nodeCost = node.baseCost * balance.skillCostGrowth ^ ownedNodeCount` (Start 1.25).
 - Voraussetzung: der vorige Knoten im selben Ast. `baseCost` nach Tiefe: 1, 2, 3, 5, 8 Ruhm.
 - Kategorie aller Skill-Modifier: `skill` (innerhalb addiert).
+- Präzisierungen (AP-13), Umsetzung `core.engine.SkillTree` (Instanz `GameEngine.skillTree`):
+  - **Preis:** `nodeCost = ceil( node.baseCost * skillCostGrowth ^ ownedNodeCount )`. `ownedNodeCount` zählt alle gekauften, in den Daten bekannten Skills über alle Äste (unbekannte IDs im Spielstand zählen nicht). **Abweichung:** Aufrunden auf ganze Ruhm-Punkte. Begründung: Ruhm entsteht nur ganzzahlig (der Gewinn wird abgerundet) und wird unter 1000 ganzzahlig angezeigt; mit gebrochenen Preisen (z. B. 1,5625) zeigte die UI „Ruhm 2, Preis 2“, obwohl der Kauf scheitert, und danach einen Rest von „0“. Mit Aufrunden bleibt Ruhm immer ganzzahlig. Folge: Der volle Baum (20 Knoten) kostet etwas mehr als ohne Rundung; das Balancing prüft AP-28/29.
+  - **Kauf:** `GameEngine.buySkill(state, skillId): SkillPurchaseResult` (`Success(state, skillId, cost)` bzw. `Failure(reason)`), Prüfreihenfolge `UNKNOWN_SKILL` → `ALREADY_OWNED` → `REQUIREMENTS_MISSING` (alle `requires` müssen gekauft sein) → `NOT_ENOUGH_FAME`. Erfolg: `fame - cost`, `fameSpent + cost`, Skill in `meta.skills`; danach werden die Modifier-Quellen abgeglichen (`skill:<id>`), der Skill wirkt sofort. Start-Skills (`start_teams`, `start_lab_slots`) wirken ab dem nächsten Durchlauf. Skills sind jederzeit kaufbar, nicht nur beim Prestige.
+  - **Abfragen für die UI:** `skillOverview(state)` (`SkillBranchView` je Ast mit Knoten, nur Äste mit Knoten, also ohne `expedition`), `skillNode(state, id)` (`SkillNodeView`: Status `OWNED`/`AVAILABLE`/`LOCKED`, Preis bei Kauf jetzt bzw. `null` wenn gekauft, `affordable`, fehlende Voraussetzungen), `skillPrice(state, id)`. Die Funktionen von `SkillTree` arbeiten auf dem `MetaState`, damit der Prestige-Dialog sie auf `RespecPlan.meta` anwenden kann.
+  - **Erstattung beim Respec:** Bei globalem Wachstum hängt die Summe der gezahlten Preise von der Kaufreihenfolge ab. Deshalb speichert jeder Kauf den gezahlten Betrag in `meta.fameSpent` (Standardwert 0, ältere Spielstände laden ohne Migration; vor AP-13 gab es keinen Skillkauf). Der Respec erstattet genau `fameSpent` (100 % des tatsächlich ausgegebenen Ruhms) und setzt es auf 0. Damit ist die Erstattung eindeutig, exakt und nicht ausnutzbar; im regulären Spielverlauf gilt `fame + fameSpent = fameTotal`.
+  - **Wirkung:** Alle 20 MVP-Knoten wirken ausschließlich über die Quellen `skill:<id>` in den vorhandenen Systemen (Grabung, Präparation, Labor, Rekonstruktion, Museum, Verkauf, Käufe, Startwerte); `SkillEffectsTest` prüft jeden Knoten, je Capstone mit eigener Spielaktion.
 
 | Ast | T1 | T2 | T3 | T4 | Capstone (T5) |
 |---|---|---|---|---|---|
@@ -640,8 +646,8 @@ Ablage: `core/src/main/resources/data/`. Alle IDs in `snake_case`, Texte nur als
   "saveVersion": 1,
   "lastSavedAt": 1762351200000,
   "meta": {
-    "fame": 4, "fameTotal": 19, "prestigeCount": 2,
-    "skills": ["dig_1","dig_2"],
+    "fame": 15, "fameTotal": 19, "prestigeCount": 2,
+    "skills": ["dig_1","dig_2"], "fameSpent": 4,
     "book": { "parasaurolophus:dorsal:_:_": { "quality": 0.83, "reconstructed": false, "zones": [0.9,0.8,0.8,0.82] } },
     "researchedSpecies": ["cave_bear"],
     "milestonesDone": ["first_find"],

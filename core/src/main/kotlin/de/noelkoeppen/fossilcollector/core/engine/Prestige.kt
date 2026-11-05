@@ -53,6 +53,7 @@ data class SkeletonFame(
  * @property bookEntries Eintraege im Sammelbuch (bleiben)
  * @property skills gekaufte Skills (bleiben)
  * @property milestonesDone erreichte Meilensteine (bleiben)
+ * @property respecRefund Ruhm, den ein Respec beim Prestige erstatten wuerde (`meta.fameSpent`, AP-13)
  */
 data class PrestigeSummary(
     val fameGain: GameNumber,
@@ -77,6 +78,7 @@ data class PrestigeSummary(
     val bookEntries: Int,
     val skills: Int,
     val milestonesDone: Int,
+    val respecRefund: GameNumber,
 ) {
     /** Anzahl der vollstaendigen Skelette im aktuellen Durchlauf. */
     val skeletonCount: Int get() = skeletons.size
@@ -120,7 +122,7 @@ fun interface PrestigeMetaStep {
     fun apply(meta: MetaState): MetaState
 
     companion object {
-        /** Kein Eingriff (Standard bis AP-13). */
+        /** Kein Eingriff: Skills bleiben gekauft. Respec siehe [RespecStep]. */
         val NONE: PrestigeMetaStep = PrestigeMetaStep { it }
     }
 }
@@ -207,6 +209,7 @@ class Prestige(
             bookEntries = state.meta.book.size,
             skills = state.meta.skills.size,
             milestonesDone = state.meta.milestonesDone.size,
+            respecRefund = state.meta.fameSpent,
         )
     }
 
