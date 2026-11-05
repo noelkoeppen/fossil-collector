@@ -11,7 +11,7 @@ class ProjectSetupTest {
 
     @Test
     fun dataResourceFolderIsOnClasspath() {
-        val marker = javaClass.classLoader.getResource("data/.gitkeep")
+        val marker = javaClass.classLoader.getResource("data/balance.json")
         assertNotNull(marker, "core/src/main/resources/data fehlt auf dem Klassenpfad")
     }
 }

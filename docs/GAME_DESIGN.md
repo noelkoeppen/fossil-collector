@@ -1,7 +1,7 @@
 # GAME_DESIGN.md – Fossil Collector (Arbeitstitel)
 
 > Zentrales Design-Dokument. Grundlage für die Umsetzung durch Claude-Code-Agenten.
-> Stand: 2026-11-05 · Version 1.0
+> Stand: 2026-11-05 · Version 1.1 (AP-02: Datenwerte festgelegt)
 > Plattform: Android · Stack: Kotlin + Jetpack Compose · Sprachen: Deutsch (Standard) und Englisch
 
 ---
@@ -271,6 +271,11 @@ Buch vollständig, Buch in Museumsreif, voller Skilltree. Später zusätzlich: C
 - **Berechnung:**
   `final(stat) = (base + Σ add) * Π_über Kategorien (1 + Σ mult in dieser Kategorie)`
 - Für Stats mit Untergrenze bzw. Obergrenze (z. B. `lab_speed`, Kosten-Rabatte) gelten Clamps aus `balance.statLimits` (z. B. Rabatt höchstens −90 %).
+- **Semantik einzelner Stats (festgelegt in AP-02):**
+  - `lab_speed` ist ein Tempo-Faktor (Basis 1). Laufzeit = `labDuration / lab_speed`. „Laborzeit −10 %“ wird deshalb als `lab_speed` +0.11 hinterlegt, „−25 %“ als +0.33.
+  - `layer_unlock_cost` und `hall_cost` sind Kostenfaktoren mit Basis 1 (Rabatte als negatives `mult`), Untergrenze 0.1.
+  - `special_exhibit_mult` hat Basis 1 (keine Wirkung). Der Capstone *Sonderausstellung* addiert 4, ergibt also ×5.
+  - `reconstruction_missing_zones` hat Basis 0. Fehlende Zonen werden mit `balance.reconstructionFillQuality` (0.5) ergänzt.
 - **Stat-IDs (MVP):** `dig_rate`, `prep_rate`, `find_chance`, `damage_reduction`, `quality_base_min`, `museum_income`, `skeleton_bonus`, `sell_price`, `lab_speed`, `research_points`, `fame_gain`, `layer_unlock_cost`, `hall_cost`, `start_teams`, `start_lab_slots`, `guaranteed_fossil_chance`, `no_damage_chance`, `reconstruction_missing_zones`, `special_exhibit_mult`, `offline_efficiency`, `offline_cap_hours`.
 - `ModifierEngine` sammelt alle aktiven Modifier (Upgrades, Skills, Buch, Meilensteine) und cached das Ergebnis, bis sich die Quellen ändern.
 
@@ -302,6 +307,8 @@ Buch vollständig, Buch in Museumsreif, voller Skilltree. Später zusätzlich: C
 
 **Globale Werte (`balance.json`)**: `findChance 0.08`, `qualityBaseMin 0.30`, `qualityBaseMax 1.00`, `rockSellFactor 0.5`, `duplicateSellFactor 20`, `labDuration 30`, `labQueuePerSlot 3`, `reconstructionCap 0.89`, `skeletonMult 2.0`, `missingBoneWeight 3`, `tapDigAmount 0.25`, `tapPrepAmount 0.25`, `skillCostGrowth 1.25`, `offlineEfficiency 0.5`, `offlineCapHours 4`, `maxDetailedOfflineFinds 2000`.
 
+In AP-02 ergänzt, damit keine Formelkonstanten im Code stehen: `slotsPerHall 8` (4.6), `damageRollMin 0.5` / `damageRollMax 2.0` (Zufallsfaktor des Schadens, 4.2), `qualityValueOffset 0.5` (Summand in `0.5 + q` bei Einkommen, Verkauf und Ruhm), `teamMilestoneMultiplier 2` (4.1), `reconstructionFillQuality 0.5` (Capstone *Restaurator*), `researchedBonus` (+1 % `museum_income`, Kategorie `book`, 4.7).
+
 **Arten (MVP, Seltenheitsgewicht in Klammern)**
 
 | Quartär | Neogen | Kreide |
@@ -313,7 +320,18 @@ Buch vollständig, Buch in Museumsreif, voller Skilltree. Später zusätzlich: C
 | Säbelzahnkatze (Smilodon) (5) | Terrorvogel (Titanis) (5) | Ankylosaurus (5) |
 | Riesenfaultier (Megatherium) (2) | Thylacosmilus (2) | Tyrannosaurus (2) |
 
-Buch-Boni pro Art werden in AP-02 mit sinnvollen Stats belegt (z. B. Mammut → `dig_rate`, Smilodon → `find_chance`, Tyrannosaurus → `fame_gain`). Basiswerte 1–3 %.
+**Buch-Boni pro Art** (alle `op: mult`, Kategorie `book`; Basiswert, skaliert mit `bookTierFactor`):
+
+| Quartär | Neogen | Kreide |
+|---|---|---|
+| Höhlenbär: `museum_income` 1 % | Hipparion: `dig_rate` 1 % | Psittacosaurus: `research_points` 1 % |
+| Riesenhirsch: `prep_rate` 1 % | Gomphotherium: `museum_income` 1,5 % | Parasaurolophus: `prep_rate` 2 % |
+| Wollnashorn: `sell_price` 1,5 % | Chalicotherium: `research_points` 2 % | Triceratops: `dig_rate` 2 % |
+| Wollhaarmammut: `dig_rate` 2 % | Deinotherium: `prep_rate` 2 % | Velociraptor: `find_chance` 2 % |
+| Smilodon: `find_chance` 2 % | Titanis: `sell_price` 2,5 % | Ankylosaurus: `lab_speed` 2,5 % |
+| Megatherium: `museum_income` 3 % | Thylacosmilus: `find_chance` 3 % | Tyrannosaurus: `fame_gain` 3 % |
+
+Faustregel: seltenere Arten geben etwas mehr. Code-IDs: `cave_bear`, `giant_deer`, `woolly_rhino`, `woolly_mammoth`, `smilodon`, `megatherium`, `hipparion`, `gomphotherium`, `chalicotherium`, `deinotherium`, `titanis`, `thylacosmilus`, `psittacosaurus`, `parasaurolophus`, `triceratops`, `velociraptor`, `ankylosaurus`, `tyrannosaurus`.
 
 ### 6.5 Bekannte Balancing-Risiken
 - **Plateau in der Mitte des Durchlaufs:** Ist eine Schicht fast voll gesammelt, wächst das Museumseinkommen kaum noch. Gegenmittel: Sparziel-Anzeige für die nächste Schicht („Neogen: 62 %“), Prestige-Vorschau als Signal, Verkaufserlöse skalieren mit der Produktion.
@@ -490,13 +508,13 @@ Ablage: `core/src/main/resources/data/`. Alle IDs in `snake_case`, Texte nur als
     "effects": [ { "stat": "no_damage_chance", "op": "add", "value": 0.03, "category": "skill" } ] } ]
 ```
 
-**`milestones.json`**: `{ "id", "condition": { "type": "pieces_found", "value": 1 }, "reward": { "money": 50 } }`
+**`milestones.json`**: `{ "id", "condition": { "type": "pieces_found", "value": 1 }, "reward": { "money": 50 } }`. Bedingungstypen (MVP): `pieces_found`, `skeletons_completed`, `pristine_found`, `teams_total`, `layers_unlocked`, `reconstructions`, `prestige_count`. Belohnung: `money` und/oder `researchPoints`.
 
-**`balance.json`**: alle globalen Konstanten aus Kapitel 6.4 sowie `qualityTiers`, `bookTierFactor`, `teamMilestones`, `statLimits`.
+**`balance.json`**: alle globalen Konstanten aus Kapitel 6.4 sowie `qualityTiers` (`[{ "id": "GOOD", "min": 0.5, "color": "#5FA35F" }, …]`, aufsteigend, Untergrenze inklusive), `bookTierFactor` (gleiche Reihenfolge wie `qualityTiers`), `teamMilestones`, `statLimits` (`{ "hall_cost": { "min": 0.1 } }`).
 
-**`locale/de.json`, `locale/en.json`**: `{ "species.parasaurolophus.name": "Parasaurolophus", "bone.dorsal.name": "Rückenwirbel", "zone.dorsal.centrum": "Wirbelkörper" }`
+**`locale/de.json`, `locale/en.json`**: `{ "species.parasaurolophus.name": "Parasaurolophus", "bone.dorsal.name": "Rückenwirbel", "zone.dorsal.centrum": "Wirbelkörper" }`. Weitere Schlüssel: `layer.<id>.name`, `skill.<id>.name`/`.desc`, `skill_branch.<branch>.name`, `milestone.<id>.name`/`.desc`, `quality.<tier>.name` (Aufbau in `LocaleKeys`).
 
-**Schemas:** `core/src/main/resources/schema/*.schema.json`. Die Validierung läuft über `DataValidationTest`, optional zusätzlich `tools/validate_data.py` in der CI.
+**Schemas:** `core/src/main/resources/schema/*.schema.json`. Die Validierung läuft über `DataValidationTest` (Referenzen, Wertebereiche, Übersetzungen) und `tools/validate_data.py` (Struktur gegen die Schemas, läuft in der CI).
 
 **Spielstand (Auszug)**
 ```json
@@ -633,6 +651,5 @@ Jedes AP ist für eine Claude-Code-Session gedacht. Format: **ID – Titel** (Ab
 
 ## 15. Offene Punkte
 - Endgültiger Name (Arbeitstitel „Fossil Collector“), Paketname z. B. `de.noelkoeppen.fossilcollector`.
-- Konkrete Buch-Bonus-Stats je Art (in AP-02 festlegen und hier nachtragen).
 - Genaue Tipp-Werte (`tapDigAmount`, `tapPrepAmount`) nach dem ersten Playtest.
 - Ob ein kurzes Tutorial nötig ist oder Hinweistexte plus Tab-Freischaltung reichen.

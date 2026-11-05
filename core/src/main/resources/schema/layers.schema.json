@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://noelkoeppen.de/fossilcollector/schema/layers.schema.json",
+  "title": "Schichten (layers.json)",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "id": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9_]*$"
+      },
+      "order": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "unlockCost": {
+        "type": "number",
+        "minimum": 0
+      },
+      "teamBaseCost": {
+        "type": "number",
+        "exclusiveMinimum": 0
+      },
+      "teamGrowth": {
+        "type": "number",
+        "exclusiveMinimum": 1
+      },
+      "teamRate": {
+        "type": "number",
+        "exclusiveMinimum": 0
+      },
+      "value": {
+        "type": "number",
+        "exclusiveMinimum": 0
+      },
+      "fragility": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 1
+      },
+      "fameWeight": {
+        "type": "number",
+        "exclusiveMinimum": 0
+      },
+      "color": {
+        "type": "string",
+        "pattern": "^#[0-9A-Fa-f]{6}$"
+      }
+    },
+    "required": [
+      "id",
+      "order",
+      "unlockCost",
+      "teamBaseCost",
+      "teamGrowth",
+      "teamRate",
+      "value",
+      "fragility",
+      "fameWeight",
+      "color"
+    ]
+  },
+  "minItems": 1
+}

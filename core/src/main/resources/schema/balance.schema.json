@@ -1,0 +1,263 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://noelkoeppen.de/fossilcollector/schema/balance.schema.json",
+  "title": "Globale Konstanten (balance.json)",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "findChance": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "qualityBaseMin": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "qualityBaseMax": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "damageRollMin": {
+      "type": "number",
+      "minimum": 0
+    },
+    "damageRollMax": {
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
+    "qualityValueOffset": {
+      "type": "number",
+      "minimum": 0
+    },
+    "rockSellFactor": {
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
+    "duplicateSellFactor": {
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
+    "labDuration": {
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
+    "labQueuePerSlot": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "reconstructionCap": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "reconstructionFillQuality": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "skeletonMult": {
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
+    "slotsPerHall": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "missingBoneWeight": {
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
+    "tapDigAmount": {
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
+    "tapPrepAmount": {
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
+    "skillCostGrowth": {
+      "type": "number",
+      "minimum": 1
+    },
+    "offlineEfficiency": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "offlineCapHours": {
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
+    "maxDetailedOfflineFinds": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "teamMilestones": {
+      "type": "array",
+      "items": {
+        "type": "integer",
+        "minimum": 1
+      },
+      "uniqueItems": true
+    },
+    "teamMilestoneMultiplier": {
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
+    "researchedBonus": {
+      "$ref": "#/$defs/effect"
+    },
+    "qualityTiers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "enum": [
+              "FRAGMENT",
+              "DAMAGED",
+              "GOOD",
+              "EXCELLENT",
+              "PRISTINE"
+            ]
+          },
+          "min": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "color": {
+            "type": "string",
+            "pattern": "^#[0-9A-Fa-f]{6}$"
+          }
+        },
+        "required": [
+          "id",
+          "min",
+          "color"
+        ]
+      },
+      "minItems": 1
+    },
+    "bookTierFactor": {
+      "type": "array",
+      "items": {
+        "type": "number",
+        "exclusiveMinimum": 0
+      },
+      "minItems": 1
+    },
+    "statLimits": {
+      "type": "object",
+      "propertyNames": {
+        "$ref": "#/$defs/statId"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "min": {
+            "type": "number"
+          },
+          "max": {
+            "type": "number"
+          }
+        },
+        "required": [],
+        "minProperties": 1
+      }
+    }
+  },
+  "required": [
+    "findChance",
+    "qualityBaseMin",
+    "qualityBaseMax",
+    "damageRollMin",
+    "damageRollMax",
+    "qualityValueOffset",
+    "rockSellFactor",
+    "duplicateSellFactor",
+    "labDuration",
+    "labQueuePerSlot",
+    "reconstructionCap",
+    "reconstructionFillQuality",
+    "skeletonMult",
+    "slotsPerHall",
+    "missingBoneWeight",
+    "tapDigAmount",
+    "tapPrepAmount",
+    "skillCostGrowth",
+    "offlineEfficiency",
+    "offlineCapHours",
+    "maxDetailedOfflineFinds",
+    "teamMilestones",
+    "teamMilestoneMultiplier",
+    "researchedBonus",
+    "qualityTiers",
+    "bookTierFactor"
+  ],
+  "$defs": {
+    "statId": {
+      "enum": [
+        "dig_rate",
+        "prep_rate",
+        "find_chance",
+        "damage_reduction",
+        "quality_base_min",
+        "museum_income",
+        "skeleton_bonus",
+        "sell_price",
+        "lab_speed",
+        "research_points",
+        "fame_gain",
+        "layer_unlock_cost",
+        "hall_cost",
+        "start_teams",
+        "start_lab_slots",
+        "guaranteed_fossil_chance",
+        "no_damage_chance",
+        "reconstruction_missing_zones",
+        "special_exhibit_mult",
+        "offline_efficiency",
+        "offline_cap_hours"
+      ]
+    },
+    "effect": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "stat": {
+          "$ref": "#/$defs/statId"
+        },
+        "op": {
+          "enum": [
+            "add",
+            "mult"
+          ]
+        },
+        "value": {
+          "type": "number"
+        },
+        "category": {
+          "enum": [
+            "upgrade",
+            "skill",
+            "book",
+            "milestone",
+            "event"
+          ]
+        }
+      },
+      "required": [
+        "stat",
+        "op",
+        "value",
+        "category"
+      ]
+    }
+  }
+}

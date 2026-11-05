@@ -1,0 +1,398 @@
+[
+  {
+    "id": "cave_bear",
+    "layer": "quaternary",
+    "rarityWeight": 40,
+    "bodyPlan": "quadruped",
+    "bones": [
+      "skull",
+      "jaw",
+      "cervical",
+      "dorsal",
+      "ribs",
+      "pelvis",
+      "forelimb",
+      "hindlimb"
+    ],
+    "art": "skeleton_cave_bear.json",
+    "bookBonus": {
+      "stat": "museum_income",
+      "op": "mult",
+      "value": 0.01
+    }
+  },
+  {
+    "id": "giant_deer",
+    "layer": "quaternary",
+    "rarityWeight": 25,
+    "bodyPlan": "quadruped",
+    "bones": [
+      "skull",
+      "jaw",
+      "cervical",
+      "dorsal",
+      "ribs",
+      "pelvis",
+      "forelimb",
+      "hindlimb"
+    ],
+    "art": "skeleton_giant_deer.json",
+    "bookBonus": {
+      "stat": "prep_rate",
+      "op": "mult",
+      "value": 0.01
+    }
+  },
+  {
+    "id": "woolly_rhino",
+    "layer": "quaternary",
+    "rarityWeight": 15,
+    "bodyPlan": "quadruped",
+    "bones": [
+      "skull",
+      "jaw",
+      "cervical",
+      "dorsal",
+      "ribs",
+      "pelvis",
+      "forelimb",
+      "hindlimb"
+    ],
+    "art": "skeleton_woolly_rhino.json",
+    "bookBonus": {
+      "stat": "sell_price",
+      "op": "mult",
+      "value": 0.015
+    }
+  },
+  {
+    "id": "woolly_mammoth",
+    "layer": "quaternary",
+    "rarityWeight": 10,
+    "bodyPlan": "quadruped",
+    "bones": [
+      "skull",
+      "jaw",
+      "cervical",
+      "dorsal",
+      "ribs",
+      "pelvis",
+      "forelimb",
+      "hindlimb"
+    ],
+    "art": "skeleton_woolly_mammoth.json",
+    "bookBonus": {
+      "stat": "dig_rate",
+      "op": "mult",
+      "value": 0.02
+    }
+  },
+  {
+    "id": "smilodon",
+    "layer": "quaternary",
+    "rarityWeight": 5,
+    "bodyPlan": "quadruped",
+    "bones": [
+      "skull",
+      "jaw",
+      "cervical",
+      "dorsal",
+      "ribs",
+      "pelvis",
+      "forelimb",
+      "hindlimb"
+    ],
+    "art": "skeleton_smilodon.json",
+    "bookBonus": {
+      "stat": "find_chance",
+      "op": "mult",
+      "value": 0.02
+    }
+  },
+  {
+    "id": "megatherium",
+    "layer": "quaternary",
+    "rarityWeight": 2,
+    "bodyPlan": "quadruped",
+    "bones": [
+      "skull",
+      "jaw",
+      "cervical",
+      "dorsal",
+      "ribs",
+      "pelvis",
+      "forelimb",
+      "hindlimb"
+    ],
+    "art": "skeleton_megatherium.json",
+    "bookBonus": {
+      "stat": "museum_income",
+      "op": "mult",
+      "value": 0.03
+    }
+  },
+  {
+    "id": "hipparion",
+    "layer": "neogene",
+    "rarityWeight": 40,
+    "bodyPlan": "quadruped",
+    "bones": [
+      "skull",
+      "jaw",
+      "cervical",
+      "dorsal",
+      "ribs",
+      "pelvis",
+      "forelimb",
+      "hindlimb"
+    ],
+    "art": "skeleton_hipparion.json",
+    "bookBonus": {
+      "stat": "dig_rate",
+      "op": "mult",
+      "value": 0.01
+    }
+  },
+  {
+    "id": "gomphotherium",
+    "layer": "neogene",
+    "rarityWeight": 25,
+    "bodyPlan": "quadruped",
+    "bones": [
+      "skull",
+      "jaw",
+      "cervical",
+      "dorsal",
+      "ribs",
+      "pelvis",
+      "forelimb",
+      "hindlimb"
+    ],
+    "art": "skeleton_gomphotherium.json",
+    "bookBonus": {
+      "stat": "museum_income",
+      "op": "mult",
+      "value": 0.015
+    }
+  },
+  {
+    "id": "chalicotherium",
+    "layer": "neogene",
+    "rarityWeight": 15,
+    "bodyPlan": "quadruped",
+    "bones": [
+      "skull",
+      "jaw",
+      "cervical",
+      "dorsal",
+      "ribs",
+      "pelvis",
+      "forelimb",
+      "hindlimb"
+    ],
+    "art": "skeleton_chalicotherium.json",
+    "bookBonus": {
+      "stat": "research_points",
+      "op": "mult",
+      "value": 0.02
+    }
+  },
+  {
+    "id": "deinotherium",
+    "layer": "neogene",
+    "rarityWeight": 10,
+    "bodyPlan": "quadruped",
+    "bones": [
+      "skull",
+      "jaw",
+      "cervical",
+      "dorsal",
+      "ribs",
+      "pelvis",
+      "forelimb",
+      "hindlimb"
+    ],
+    "art": "skeleton_deinotherium.json",
+    "bookBonus": {
+      "stat": "prep_rate",
+      "op": "mult",
+      "value": 0.02
+    }
+  },
+  {
+    "id": "titanis",
+    "layer": "neogene",
+    "rarityWeight": 5,
+    "bodyPlan": "biped",
+    "bones": [
+      "skull",
+      "jaw",
+      "cervical",
+      "dorsal",
+      "ribs",
+      "pelvis",
+      "forelimb",
+      "hindlimb"
+    ],
+    "art": "skeleton_titanis.json",
+    "bookBonus": {
+      "stat": "sell_price",
+      "op": "mult",
+      "value": 0.025
+    }
+  },
+  {
+    "id": "thylacosmilus",
+    "layer": "neogene",
+    "rarityWeight": 2,
+    "bodyPlan": "quadruped",
+    "bones": [
+      "skull",
+      "jaw",
+      "cervical",
+      "dorsal",
+      "ribs",
+      "pelvis",
+      "forelimb",
+      "hindlimb"
+    ],
+    "art": "skeleton_thylacosmilus.json",
+    "bookBonus": {
+      "stat": "find_chance",
+      "op": "mult",
+      "value": 0.03
+    }
+  },
+  {
+    "id": "psittacosaurus",
+    "layer": "cretaceous",
+    "rarityWeight": 40,
+    "bodyPlan": "biped",
+    "bones": [
+      "skull",
+      "jaw",
+      "cervical",
+      "dorsal",
+      "ribs",
+      "pelvis",
+      "forelimb",
+      "hindlimb"
+    ],
+    "art": "skeleton_psittacosaurus.json",
+    "bookBonus": {
+      "stat": "research_points",
+      "op": "mult",
+      "value": 0.01
+    }
+  },
+  {
+    "id": "parasaurolophus",
+    "layer": "cretaceous",
+    "rarityWeight": 25,
+    "bodyPlan": "biped",
+    "bones": [
+      "skull",
+      "jaw",
+      "cervical",
+      "dorsal",
+      "ribs",
+      "pelvis",
+      "forelimb",
+      "hindlimb"
+    ],
+    "art": "skeleton_parasaurolophus.json",
+    "bookBonus": {
+      "stat": "prep_rate",
+      "op": "mult",
+      "value": 0.02
+    }
+  },
+  {
+    "id": "triceratops",
+    "layer": "cretaceous",
+    "rarityWeight": 15,
+    "bodyPlan": "quadruped",
+    "bones": [
+      "skull",
+      "jaw",
+      "cervical",
+      "dorsal",
+      "ribs",
+      "pelvis",
+      "forelimb",
+      "hindlimb"
+    ],
+    "art": "skeleton_triceratops.json",
+    "bookBonus": {
+      "stat": "dig_rate",
+      "op": "mult",
+      "value": 0.02
+    }
+  },
+  {
+    "id": "velociraptor",
+    "layer": "cretaceous",
+    "rarityWeight": 10,
+    "bodyPlan": "biped",
+    "bones": [
+      "skull",
+      "jaw",
+      "cervical",
+      "dorsal",
+      "ribs",
+      "pelvis",
+      "forelimb",
+      "hindlimb"
+    ],
+    "art": "skeleton_velociraptor.json",
+    "bookBonus": {
+      "stat": "find_chance",
+      "op": "mult",
+      "value": 0.02
+    }
+  },
+  {
+    "id": "ankylosaurus",
+    "layer": "cretaceous",
+    "rarityWeight": 5,
+    "bodyPlan": "quadruped",
+    "bones": [
+      "skull",
+      "jaw",
+      "cervical",
+      "dorsal",
+      "ribs",
+      "pelvis",
+      "forelimb",
+      "hindlimb"
+    ],
+    "art": "skeleton_ankylosaurus.json",
+    "bookBonus": {
+      "stat": "lab_speed",
+      "op": "mult",
+      "value": 0.025
+    }
+  },
+  {
+    "id": "tyrannosaurus",
+    "layer": "cretaceous",
+    "rarityWeight": 2,
+    "bodyPlan": "biped",
+    "bones": [
+      "skull",
+      "jaw",
+      "cervical",
+      "dorsal",
+      "ribs",
+      "pelvis",
+      "forelimb",
+      "hindlimb"
+    ],
+    "art": "skeleton_tyrannosaurus.json",
+    "bookBonus": {
+      "stat": "fame_gain",
+      "op": "mult",
+      "value": 0.03
+    }
+  }
+]

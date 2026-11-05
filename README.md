@@ -33,6 +33,9 @@ Gradle selbst muss nicht installiert sein, der Wrapper (`gradlew`) lädt die pas
 # Tests des Spiellogik-Moduls (laufen ohne Android SDK)
 ./gradlew :core:test
 
+# Spieldaten gegen die JSON-Schemas pruefen (einmalig: pip install jsonschema)
+python3 tools/validate_data.py
+
 # Debug-APK bauen
 ./gradlew :app:assembleDebug
 # Ergebnis: app/build/outputs/apk/debug/app-debug.apk
@@ -46,5 +49,5 @@ Unter Windows `gradlew.bat` statt `./gradlew` verwenden.
 ## CI
 
 GitHub Actions (`.github/workflows/ci.yml`) führt bei jedem Push und Pull Request die
-`core`-Tests aus und baut die Debug-APK. Die APK liegt danach im Workflow-Lauf unter
+Datenvalidierung und die `core`-Tests aus und baut die Debug-APK. Die APK liegt danach im Workflow-Lauf unter
 **Artifacts** (`fossil-collector-debug-apk`) zum Download bereit.

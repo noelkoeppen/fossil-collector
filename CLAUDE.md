@@ -13,6 +13,8 @@ Android-Incremental-Spiel (Kotlin + Jetpack Compose). Die verbindliche Spezifika
 6. Weicht die Umsetzung vom Design ab, `docs/GAME_DESIGN.md` im selben PR anpassen und die
    Abweichung im PR begründen.
 7. Im PR-Text: erledigte Akzeptanzkriterien als Checkliste und offene Punkte.
+8. `progress.md` zu Beginn lesen und im selben PR aktualisieren (Status des AP, neue
+   Entscheidungen, offene Punkte).
 
 ## Harte Regeln (Kurzfassung von Kapitel 0)
 - Keine hartcodierten Spielwerte. Alle Balancing-Zahlen kommen aus `core/src/main/resources/data/*.json`.

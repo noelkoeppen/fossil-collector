@@ -1,0 +1,72 @@
+[
+  {
+    "id": "first_find",
+    "condition": {
+      "type": "pieces_found",
+      "value": 1
+    },
+    "reward": {
+      "money": 50
+    }
+  },
+  {
+    "id": "first_skeleton",
+    "condition": {
+      "type": "skeletons_completed",
+      "value": 1
+    },
+    "reward": {
+      "money": 500
+    }
+  },
+  {
+    "id": "first_pristine",
+    "condition": {
+      "type": "pristine_found",
+      "value": 1
+    },
+    "reward": {
+      "researchPoints": 5
+    }
+  },
+  {
+    "id": "teams_10",
+    "condition": {
+      "type": "teams_total",
+      "value": 10
+    },
+    "reward": {
+      "money": 200
+    }
+  },
+  {
+    "id": "second_layer",
+    "condition": {
+      "type": "layers_unlocked",
+      "value": 2
+    },
+    "reward": {
+      "researchPoints": 5
+    }
+  },
+  {
+    "id": "first_reconstruction",
+    "condition": {
+      "type": "reconstructions",
+      "value": 1
+    },
+    "reward": {
+      "researchPoints": 3
+    }
+  },
+  {
+    "id": "first_prestige",
+    "condition": {
+      "type": "prestige_count",
+      "value": 1
+    },
+    "reward": {
+      "money": 1000
+    }
+  }
+]
