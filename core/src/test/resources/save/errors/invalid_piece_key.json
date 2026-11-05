@@ -1,0 +1,10 @@
+{
+  "saveVersion": 1,
+  "lastSavedAt": 0,
+  "meta": { "book": { "cave_bear:skull": { "quality": 0.5 } } },
+  "run": {
+    "money": 0, "researchPoints": 0, "unlockedLayers": 1,
+    "teams": {}, "preparators": 0, "halls": 1, "labSlots": 1,
+    "toolLevel": 0, "blocks": {}
+  }
+}

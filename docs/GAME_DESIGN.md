@@ -364,6 +364,12 @@ Buch vollständig, Buch in Museumsreif, voller Skilltree. Später zusätzlich: C
 - **Atomares Schreiben:** in `save.json.tmp` schreiben, dann umbenennen. Rotation von 3 Backups (`save.bak1..3`). Ist die Hauptdatei beim Laden defekt, wird das neueste lesbare Backup genommen und der Spieler informiert.
 - **Export/Import** in den Einstellungen: Spielstand als Base64-Text (Zwischenablage). Der Import validiert und migriert, vorher kommt eine Bestätigung.
 - Cloud-Save: [Später/optional].
+- Umsetzung (AP-05): `core.model` (`GameState`, `MetaState`, `RunState`, `Settings`, `Piece`, `BookEntry`, `QueuedPiece`, `LabJob`, `PieceKey`, `SpareZoneKey`) und `core.save` (`SaveCodec`, `SaveMigrator`, `SaveMigration`, `SaveException`).
+  - Laden: JSON parsen → `saveVersion` prüfen → Migrationskette auf `JsonObject`-Ebene → `GameState`. Fehler als `SaveException` (`InvalidJson`, `InvalidEncoding`, `MissingVersion`, `UnsupportedVersion` inkl. „zu neu“, `MigrationFailed`, `InvalidContent`, `NotEncodable`).
+  - Unbekannte Felder werden beim Laden ignoriert (`ignoreUnknownKeys`), fehlende Pflichtfelder und falsche Typen sind Fehler. Beim Schreiben werden alle Felder inkl. Standardwerten geschrieben. `NaN`/`Infinity` sind weder beim Schreiben noch beim Lesen erlaubt.
+  - Laborwarteschlange und Laborjobs speichern die Zonen-Qualitäten des Stücks mit, weil das Labor daraus Ersatzteile gewinnt (4.5).
+  - Qualitäten (0.0–1.0) und die Restdauer von Laborjobs sind `Double`; alle Mengen, Währungen und Zähler sind `GameNumber`.
+  - Der Startzustand (`GameState.newGame`, `RunState.newRun`) legt nur Struktur an; Balancing-Startwerte übergibt der Aufrufer als `RunStartValues`.
 
 ---
 
@@ -530,7 +536,8 @@ Ablage: `core/src/main/resources/data/`. Alle IDs in `snake_case`, Texte nur als
     "toolLevel": 3, "blocks": { "quaternary": 2.4, "neogene": 0.7 },
     "pieces": { "cave_bear:skull:_:_": { "zones": [0.9,0.7,0.8,0.6] } },
     "spareZones": { "cave_bear:skull:_:_:snout": 0.92 },
-    "labQueue": [], "labJobs": [ { "piece": "...", "remaining": 12.0 } ],
+    "labQueue": [ { "piece": "hipparion:ribs:_:_", "zones": [0.1,0.2,0.3,0.4] } ],
+    "labJobs": [ { "piece": "cave_bear:skull:_:_", "zones": [0.92,0.5,0.5,0.5], "remaining": 12.0 } ],
     "specialExhibit": null
   },
   "settings": { "language": "system", "numberFormat": "short" }
