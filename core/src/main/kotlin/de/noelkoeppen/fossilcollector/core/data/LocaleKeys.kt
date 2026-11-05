@@ -1,5 +1,7 @@
 package de.noelkoeppen.fossilcollector.core.data
 
+import de.noelkoeppen.fossilcollector.core.modifier.StatId
+
 /**
  * Schluesselschema fuer Inhaltstexte in `data/locale/<sprache>.json` (Kapitel 12).
  * Einzige Stelle, an der die Schluessel gebildet werden.
@@ -17,6 +19,9 @@ object LocaleKeys {
     fun milestoneName(milestoneId: String) = "milestone.$milestoneId.name"
     fun milestoneDescription(milestoneId: String) = "milestone.$milestoneId.desc"
     fun qualityTierName(tierId: String) = "quality.$tierId.name"
+
+    /** Anzeigename eines Stats (z. B. fuer Buch-Boni im Sammelbuch, AP-20). */
+    fun statName(stat: StatId) = "stat.${stat.serialName}.name"
 
     /** Alle Schluessel, die fuer die gegebenen Daten in jeder Sprache vorhanden sein muessen. */
     fun requiredKeys(data: GameData): Set<String> = buildSet {
@@ -38,5 +43,6 @@ object LocaleKeys {
             add(milestoneDescription(it.id))
         }
         data.balance.qualityTiers.forEach { add(qualityTierName(it.id)) }
+        StatId.entries.forEach { add(statName(it)) }
     }
 }

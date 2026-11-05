@@ -31,6 +31,16 @@ class QualityColorsTest {
     }
 
     @Test
+    fun colorByTierIndexFollowsTierOrder() {
+        assertEquals(colors.forTier("fragment"), colors.forTierIndex(0))
+        assertEquals(colors.forTier("good"), colors.forTierIndex(2))
+        assertEquals(colors.forTier("pristine"), colors.forTierIndex(4))
+        assertNull(colors.forTierIndex(5))
+        assertNull(colors.forTierIndex(-1))
+        assertNull(QualityColors.EMPTY.forTierIndex(0))
+    }
+
+    @Test
     fun invalidHexIsGray() {
         assertEquals(Color.Gray, QualityColors.parseHexColor("#XYZ"))
         assertEquals(Color.Gray, QualityColors.parseHexColor("#12345"))

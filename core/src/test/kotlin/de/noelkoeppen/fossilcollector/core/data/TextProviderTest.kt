@@ -1,6 +1,9 @@
 package de.noelkoeppen.fossilcollector.core.data
 
+import de.noelkoeppen.fossilcollector.core.modifier.StatId
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Test
 
@@ -58,5 +61,21 @@ class TextProviderTest {
         }
         assertEquals("Neogen", TextProvider.fromGameData(data, "de").layerName("neogene"))
         assertEquals("Neogene", TextProvider.fromGameData(data, "en").layerName("neogene"))
+    }
+
+    @Test
+    fun statNamesExistForAllStatsInBothLanguages() {
+        val data = DataRepository().load()
+        for (language in DataRepository.LANGUAGES) {
+            val texts = TextProvider.fromGameData(data, language)
+            for (stat in StatId.entries) {
+                val key = LocaleKeys.statName(stat)
+                assertTrue(key in LocaleKeys.requiredKeys(data), "Pflichtschluessel $key")
+                assertNotEquals(key, texts.statName(stat), "Text fuer $key in $language")
+            }
+        }
+        assertEquals("stat.museum_income.name", LocaleKeys.statName(StatId.MUSEUM_INCOME))
+        assertEquals("Museumseinnahmen", TextProvider.fromGameData(data, "de").statName(StatId.MUSEUM_INCOME))
+        assertEquals("Museum income", TextProvider.fromGameData(data, "en").statName(StatId.MUSEUM_INCOME))
     }
 }

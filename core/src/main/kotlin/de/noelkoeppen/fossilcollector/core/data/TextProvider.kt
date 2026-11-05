@@ -1,5 +1,7 @@
 package de.noelkoeppen.fossilcollector.core.data
 
+import de.noelkoeppen.fossilcollector.core.modifier.StatId
+
 /**
  * Loest Inhaltstexte (Arten, Knochen, Zonen, Schichten, Qualitaetsstufen ...) aus den
  * Locale-Tabellen `data/locale/<sprache>.json` auf (Kapitel 12). Die Schluessel bildet
@@ -41,6 +43,8 @@ class TextProvider(
     fun upgradeName(upgradeId: String): String = text(LocaleKeys.upgradeName(upgradeId))
 
     fun qualityTierName(tierId: String): String = text(LocaleKeys.qualityTierName(tierId))
+
+    fun statName(stat: StatId): String = text(LocaleKeys.statName(stat))
 
     companion object {
         /** Standardsprache der Inhaltstexte (Deutsch, Kapitel 12). */

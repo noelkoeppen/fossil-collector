@@ -24,6 +24,12 @@ class QualityColors private constructor(
     /** Farbe der Stufe von [quality]; `null` ohne Stufen. */
     fun forQuality(quality: Double): Color? = tiers?.let { colors[it.tierOf(quality).id] }
 
+    /**
+     * Farbe der Stufe mit dem Index [index] (Reihenfolge von [QualityTiers.tiers], passend zu
+     * `QualityTiers.indexOf` und `balance.bookTierFactor`); `null`, wenn der Index unbekannt ist.
+     */
+    fun forTierIndex(index: Int): Color? = tiers?.tiers?.getOrNull(index)?.let { colors[it.id] }
+
     companion object {
         /** Ohne Daten (z. B. waehrend des Ladens oder in Vorschauen). */
         val EMPTY: QualityColors = QualityColors(null, emptyMap())

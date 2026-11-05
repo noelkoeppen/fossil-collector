@@ -6,6 +6,7 @@ import de.noelkoeppen.fossilcollector.core.data.TextProvider
 import de.noelkoeppen.fossilcollector.core.engine.ReconstructionFailure
 import de.noelkoeppen.fossilcollector.core.model.Settings
 import de.noelkoeppen.fossilcollector.core.number.GameNumber
+import de.noelkoeppen.fossilcollector.ui.book.BookUiState
 import de.noelkoeppen.fossilcollector.ui.lab.LabUiState
 import de.noelkoeppen.fossilcollector.ui.museum.MuseumUiState
 
@@ -36,6 +37,7 @@ sealed interface GameUiState {
      * @property dig Ausschnitt fuer den Screen Grabung (AP-17)
      * @property museum Ausschnitt fuer den Screen Museum (AP-18, [de.noelkoeppen.fossilcollector.ui.museum.MuseumUiMapper])
      * @property lab Ausschnitt fuer den Screen Labor (AP-19, [de.noelkoeppen.fossilcollector.ui.lab.LabUiMapper])
+     * @property book Ausschnitt fuer den Screen Sammelbuch (AP-20, [de.noelkoeppen.fossilcollector.ui.book.BookUiMapper])
      */
     @Immutable
     data class Ready(
@@ -50,6 +52,7 @@ sealed interface GameUiState {
         val dig: DigUiState = DigUiState.EMPTY,
         val museum: MuseumUiState = MuseumUiState.EMPTY,
         val lab: LabUiState = LabUiState.EMPTY,
+        val book: BookUiState = BookUiState.EMPTY,
     ) : GameUiState
 }
 
