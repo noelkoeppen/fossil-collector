@@ -86,6 +86,9 @@ class GameEngine(
     val milestones: MilestoneSystem =
         systems.filterIsInstance<MilestoneSystem>().firstOrNull() ?: MilestoneSystem(data)
 
+    /** Prestige und Ruhm-Berechnung (Kapitel 5.3). */
+    val prestigeSystem: Prestige = Prestige(data, modifiers)
+
     /**
      * Schreitet [state] um [dt] Sekunden fort. Veraendert [state] nicht.
      *
@@ -222,6 +225,64 @@ class GameEngine(
      */
     fun hallQuote(state: GameState, mode: BuyMode): PurchaseQuote? =
         purchases.quote(state, PurchaseTarget.Halls, mode)
+
+    /**
+     * Ruhm bei Neustart jetzt (Kapitel 5.3, "Ruhm bei Neustart: +7"), siehe [Prestige]. Gleicht
+     * vorher die Modifier-Quellen ab (`fame_gain`).
+     */
+    fun fameGainPreview(state: GameState): GameNumber {
+        syncModifiers(state)
+        return prestigeSystem.fameGainPreview(state)
+    }
+
+    /** `true`, wenn die Prestige-Vorschau mindestens 1 Ruhm zeigt (Button aktiv, Ruhm-Tab sichtbar). */
+    fun canPrestige(state: GameState): Boolean {
+        syncModifiers(state)
+        return prestigeSystem.canPrestige(state)
+    }
+
+    /** Daten fuer den Prestige-Bestaetigungsdialog, siehe [PrestigeSummary]. */
+    fun prestigeSummary(state: GameState): PrestigeSummary {
+        syncModifiers(state)
+        return prestigeSystem.summary(state)
+    }
+
+    /**
+     * Spieleraktion: Prestige (Kapitel 5.3). Ablauf:
+     * 1. Modifier-Quellen mit [state] abgleichen, Ruhm-Vorschau berechnen; unter 1 -> abgelehnt.
+     * 2. Metazustand: `fame` und `fameTotal` + Gewinn, `prestigeCount + 1` (Skills, Buch, erforschte
+     *    Arten, Statistiken, Meilensteine und Einstellungen bleiben).
+     * 3. [metaStep] anwenden (Erweiterungsstelle fuer den Respec aus AP-13, Standard ohne Wirkung).
+     * 4. Modifier-Quellen mit dem neuen Metazustand und einem leeren Durchlauf abgleichen, damit
+     *    `start_teams`/`start_lab_slots` der Skills wirken, dann [RunStart.values] und neuer Durchlauf
+     *    ueber [RunState.newRun] (alles aus dem Run-Zustand wird zurueckgesetzt, inkl.
+     *    Sonderausstellung).
+     * 5. Quellen mit dem Ergebnis abgleichen, Meilensteine pruefen (`first_prestige`, Belohnung landet
+     *    im neuen Durchlauf), Ergebnis auf `NaN`/`Infinity` pruefen.
+     *
+     * @return Erfolg mit neuem Zustand und Ereignissen ([GameEvent.Prestiged] zuerst) oder Fehlgrund
+     */
+    fun prestige(state: GameState, metaStep: PrestigeMetaStep = PrestigeMetaStep.NONE): PrestigeResult {
+        syncModifiers(state)
+        val gain = prestigeSystem.fameGainPreview(state)
+        if (!(gain >= GameNumber.ONE)) return PrestigeResult.Failure(PrestigeFailure.NOT_ENOUGH_FAME)
+
+        val meta = metaStep.apply(prestigeSystem.metaAfterPrestige(state.meta, gain))
+        syncModifiers(state.copy(meta = meta, run = prestigeSystem.emptyRun()))
+        val run = prestigeSystem.newRun(RunStart.values(data, modifiers))
+        val reset = state.copy(meta = meta, run = run)
+        syncModifiers(reset)
+
+        val events = ArrayList<GameEvent>()
+        events += GameEvent.Prestiged(gain)
+        val result = milestones.check(reset) { events += it }
+        StateValidator.findNonFinite(result)?.let {
+            errorHandler.onNonFinite(it)
+            syncModifiers(state)
+            return PrestigeResult.Failure(PrestigeFailure.NON_FINITE_RESULT)
+        }
+        return PrestigeResult.Success(result, events, gain)
+    }
 
     private fun reject(state: GameState, error: NonFiniteValueException): AdvanceResult {
         errorHandler.onNonFinite(error)

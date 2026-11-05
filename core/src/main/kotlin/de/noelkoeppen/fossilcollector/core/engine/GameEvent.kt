@@ -160,4 +160,12 @@ sealed interface GameEvent {
         val money: GameNumber,
         val researchPoints: GameNumber,
     ) : GameEvent
+
+    /**
+     * Prestige ausgefuehrt (Kapitel 5.3): neuer Durchlauf, Ruhm ist bereits gutgeschrieben. Wird vor
+     * den Meilenstein-Ereignissen (z. B. `first_prestige`) gemeldet.
+     *
+     * @property fameGained gutgeschriebener Ruhm
+     */
+    data class Prestiged(val fameGained: GameNumber) : GameEvent
 }
