@@ -29,6 +29,27 @@ data class ExhibitedPiece(
     val specialExhibit: Boolean,
 )
 
+/** Ergebnis von [MuseumSystem.setSpecialExhibit]. Der Eingabe-Zustand wird nie veraendert. */
+sealed interface SpecialExhibitResult {
+    /** Auswahl gesetzt bzw. aufgehoben. */
+    data class Success(val state: GameState) : SpecialExhibitResult
+
+    /** Auswahl abgelehnt; der Spielstand bleibt unveraendert. */
+    data class Failure(val reason: SpecialExhibitFailure) : SpecialExhibitResult
+}
+
+/** Gruende fuer eine abgelehnte Sonderausstellungs-Auswahl. */
+enum class SpecialExhibitFailure {
+    /** Die Art ist unbekannt. */
+    UNKNOWN_SPECIES,
+
+    /** Der Capstone fehlt (`special_exhibit_mult` ist 0). */
+    NOT_UNLOCKED,
+
+    /** Das Skelett der Art ist im Durchlauf nicht vollstaendig. */
+    SKELETON_INCOMPLETE,
+}
+
 /**
  * Museum (GAME_DESIGN.md, Kapitel 4.6). Laeuft in [GameEngine.defaultSystems] nach der
  * Praeparation und schreibt pro `advance` `incomePerSecond * dt` Geld gut.
@@ -46,7 +67,7 @@ data class ExhibitedPiece(
  *   - `layer` ist die Schicht der Art (`species.layer`).
  * - **Gesamt:** `Σ income(piece) * mods(museum_income)` ueber die ausgestellten Stuecke.
  *
- * **Sonderausstellung (Schnittstelle fuer AP-13):** Die Auswahl setzt `run.specialExhibit` auf eine
+ * **Sonderausstellung:** Die Auswahl ([setSpecialExhibit], AP-18) setzt `run.specialExhibit` auf eine
  * Art-ID (oder `null`). Dieses System prueft bei jeder Berechnung selbst, ob die Art vollstaendig
  * ist und der Capstone wirkt ([isSpecialExhibitActive]); eine ungueltige Auswahl hat einfach keine
  * Wirkung.
@@ -91,6 +112,34 @@ class MuseumSystem(
         val speciesId = state.run.specialExhibit ?: return false
         val species = data.speciesById[speciesId] ?: return false
         return specialExhibitFactor() > 0.0 && Skeletons.isCompleteInRun(state.run, species)
+    }
+
+    /**
+     * Spieleraktion Sonderausstellung (Capstone `curator_5`, Kapitel 4.6 und 5.4): setzt
+     * `run.specialExhibit` auf [speciesId] bzw. hebt die Auswahl mit `null` auf.
+     *
+     * Validierung (eine Auswahl ist nur gueltig, wenn sie auch wirkt):
+     * - `null` ist immer erlaubt (Auswahl aufheben).
+     * - [speciesId] muss eine bekannte Art sein ([SpecialExhibitFailure.UNKNOWN_SPECIES]).
+     * - `special_exhibit_mult` muss > 0 sein ([SpecialExhibitFailure.NOT_UNLOCKED]).
+     * - Das Skelett der Art muss im Durchlauf vollstaendig sein ([SpecialExhibitFailure.SKELETON_INCOMPLETE]).
+     *
+     * Nutzt den Stand der Modifier-Quellen; ueber [GameEngine.setSpecialExhibit] werden sie vorher
+     * abgeglichen. Bleibt die Auswahl gleich, wird die Eingabe-Instanz zurueckgegeben.
+     */
+    fun setSpecialExhibit(state: GameState, speciesId: String?): SpecialExhibitResult {
+        if (speciesId != null) {
+            val species = data.speciesById[speciesId]
+                ?: return SpecialExhibitResult.Failure(SpecialExhibitFailure.UNKNOWN_SPECIES)
+            if (specialExhibitFactor() <= 0.0) {
+                return SpecialExhibitResult.Failure(SpecialExhibitFailure.NOT_UNLOCKED)
+            }
+            if (!Skeletons.isCompleteInRun(state.run, species)) {
+                return SpecialExhibitResult.Failure(SpecialExhibitFailure.SKELETON_INCOMPLETE)
+            }
+        }
+        if (state.run.specialExhibit == speciesId) return SpecialExhibitResult.Success(state)
+        return SpecialExhibitResult.Success(state.copy(run = state.run.copy(specialExhibit = speciesId)))
     }
 
     /** Ausgestellte Stuecke, wertvollstes zuerst, Einkommen inkl. `museum_income`. */
