@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://noelkoeppen.de/fossil-collector/schema/common.schema.json",
+  "title": "Gemeinsame Typen der Spieldaten",
+  "$defs": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$",
+      "description": "ID in snake_case"
+    },
+    "color": {
+      "type": "string",
+      "pattern": "^#[0-9A-Fa-f]{6}$"
+    },
+    "statId": {
+      "enum": [
+        "dig_rate",
+        "prep_rate",
+        "find_chance",
+        "damage_reduction",
+        "quality_base_min",
+        "museum_income",
+        "skeleton_bonus",
+        "sell_price",
+        "lab_speed",
+        "research_points",
+        "fame_gain",
+        "layer_unlock_cost",
+        "hall_cost",
+        "start_teams",
+        "start_lab_slots",
+        "guaranteed_fossil_chance",
+        "no_damage_chance",
+        "reconstruction_missing_zones",
+        "special_exhibit_mult",
+        "offline_efficiency",
+        "offline_cap_hours"
+      ],
+      "description": "Stat-IDs aus Kapitel 6.2"
+    },
+    "modifierOp": {
+      "enum": [
+        "add",
+        "mult"
+      ]
+    },
+    "modifierCategory": {
+      "enum": [
+        "upgrade",
+        "skill",
+        "book",
+        "milestone",
+        "event"
+      ]
+    },
+    "currency": {
+      "enum": [
+        "money",
+        "research_points"
+      ]
+    },
+    "modifier": {
+      "type": "object",
+      "description": "Modifier-Definition (Kapitel 6.2)",
+      "properties": {
+        "stat": {
+          "$ref": "common.schema.json#/$defs/statId"
+        },
+        "op": {
+          "$ref": "common.schema.json#/$defs/modifierOp"
+        },
+        "value": {
+          "type": "number"
+        },
+        "category": {
+          "$ref": "common.schema.json#/$defs/modifierCategory"
+        }
+      },
+      "required": [
+        "stat",
+        "op",
+        "value",
+        "category"
+      ],
+      "additionalProperties": false
+    },
+    "modifierList": {
+      "type": "array",
+      "items": {
+        "$ref": "common.schema.json#/$defs/modifier"
+      }
+    }
+  }
+}

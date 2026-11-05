@@ -1,0 +1,191 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://noelkoeppen.de/fossil-collector/schema/balance.schema.json",
+  "title": "balance.json",
+  "type": "object",
+  "properties": {
+    "findChance": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "qualityBaseMin": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "qualityBaseMax": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "damageRollMin": {
+      "type": "number",
+      "minimum": 0
+    },
+    "damageRollMax": {
+      "type": "number",
+      "minimum": 0
+    },
+    "rockSellFactor": {
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
+    "duplicateSellFactor": {
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
+    "labDuration": {
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
+    "labQueuePerSlot": {
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
+    "reconstructionCap": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "reconstructionMissingZoneQuality": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "skeletonMult": {
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
+    "slotsPerHall": {
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
+    "missingBoneWeight": {
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
+    "tapDigAmount": {
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
+    "tapPrepAmount": {
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
+    "skillCostGrowth": {
+      "type": "number",
+      "minimum": 1
+    },
+    "offlineEfficiency": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "offlineCapHours": {
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
+    "maxDetailedOfflineFinds": {
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
+    "teamMilestones": {
+      "type": "array",
+      "items": {
+        "type": "number",
+        "exclusiveMinimum": 0
+      },
+      "uniqueItems": true
+    },
+    "teamMilestoneFactor": {
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
+    "qualityTiers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "$ref": "common.schema.json#/$defs/id"
+          },
+          "minQuality": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "color": {
+            "$ref": "common.schema.json#/$defs/color"
+          }
+        },
+        "required": [
+          "id",
+          "minQuality",
+          "color"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 1
+    },
+    "bookTierFactor": {
+      "type": "array",
+      "items": {
+        "type": "number",
+        "exclusiveMinimum": 0
+      },
+      "minItems": 1
+    },
+    "researchedBonus": {
+      "$ref": "common.schema.json#/$defs/modifier"
+    },
+    "statLimits": {
+      "type": "object",
+      "propertyNames": {
+        "$ref": "common.schema.json#/$defs/statId"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "min": {
+            "type": "number"
+          },
+          "max": {
+            "type": "number"
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "findChance",
+    "qualityBaseMin",
+    "qualityBaseMax",
+    "damageRollMin",
+    "damageRollMax",
+    "rockSellFactor",
+    "duplicateSellFactor",
+    "labDuration",
+    "labQueuePerSlot",
+    "reconstructionCap",
+    "reconstructionMissingZoneQuality",
+    "skeletonMult",
+    "slotsPerHall",
+    "missingBoneWeight",
+    "tapDigAmount",
+    "tapPrepAmount",
+    "skillCostGrowth",
+    "offlineEfficiency",
+    "offlineCapHours",
+    "maxDetailedOfflineFinds",
+    "teamMilestones",
+    "teamMilestoneFactor",
+    "qualityTiers",
+    "bookTierFactor",
+    "researchedBonus",
+    "statLimits"
+  ],
+  "additionalProperties": false
+}

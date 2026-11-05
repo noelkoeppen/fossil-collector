@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://noelkoeppen.de/fossil-collector/schema/bones.schema.json",
+  "title": "bones.json",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "properties": {
+      "id": {
+        "$ref": "common.schema.json#/$defs/id"
+      },
+      "zones": {
+        "type": "array",
+        "items": {
+          "$ref": "common.schema.json#/$defs/id"
+        },
+        "minItems": 1,
+        "uniqueItems": true
+      }
+    },
+    "required": [
+      "id",
+      "zones"
+    ],
+    "additionalProperties": false
+  },
+  "minItems": 1
+}

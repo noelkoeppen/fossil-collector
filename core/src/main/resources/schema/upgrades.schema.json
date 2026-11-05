@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://noelkoeppen.de/fossil-collector/schema/upgrades.schema.json",
+  "title": "upgrades.json",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "properties": {
+      "id": {
+        "$ref": "common.schema.json#/$defs/id"
+      },
+      "currency": {
+        "$ref": "common.schema.json#/$defs/currency"
+      },
+      "baseCost": {
+        "type": "number",
+        "exclusiveMinimum": 0
+      },
+      "growth": {
+        "type": "number",
+        "exclusiveMinimum": 1
+      },
+      "maxLevel": {
+        "type": [
+          "integer",
+          "null"
+        ],
+        "minimum": 1
+      },
+      "effectsPerLevel": {
+        "type": "array",
+        "items": {
+          "$ref": "common.schema.json#/$defs/modifier"
+        },
+        "minItems": 1
+      }
+    },
+    "required": [
+      "id",
+      "currency",
+      "baseCost",
+      "growth",
+      "effectsPerLevel"
+    ],
+    "additionalProperties": false
+  },
+  "minItems": 1
+}

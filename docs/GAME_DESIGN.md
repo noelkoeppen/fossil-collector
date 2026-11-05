@@ -93,7 +93,7 @@ Graben → Präparieren → (Labor) → Rekonstruieren → Ausstellen. Später k
 - Schichten werden mit Geld freigeschaltet (`layers.json: unlockCost`). Die erste ist von Beginn an offen.
 - Jede Schicht hat eigene Grabungsteams. Produktion pro Schicht:
   `blocksPerSec(L) = teams(L) * teamRate * milestoneMult(teams(L)) * mods(stat=dig_rate)`
-- `milestoneMult(n) = 2 ^ (Anzahl erreichter Schwellen aus balance.teamMilestones)`, Standard: [25, 50, 100, 200].
+- `milestoneMult(n) = balance.teamMilestoneFactor ^ (Anzahl erreichter Schwellen aus balance.teamMilestones)`, Standard: Faktor 2, Schwellen [25, 50, 100, 200].
 - **Aktive Phase:** Ein Tipp auf die aktuelle Schicht erzeugt `balance.tapDigAmount` Blöcke (Start 0.25).
 - Blöcke liegen pro Schicht in einem Lager. Die Präparation verarbeitet immer zuerst die **tiefste** Schicht mit verfügbaren Blöcken.
 - Je tiefer die Schicht: höherer `value`, höhere `fragility`, höheres `fameWeight`.
@@ -107,7 +107,7 @@ Graben → Präparieren → (Labor) → Rekonstruieren → Ausstellen. Später k
   4. **Pro Zone** (4 Stück):
      ```
      base   = uniform(qualityBaseMin, qualityBaseMax)        // Start 0.30 .. 1.00, Modifier quality_base_min
-     damage = max(0, layer.fragility - toolReduction) * uniform(0.5, 2.0)
+     damage = max(0, layer.fragility - toolReduction) * uniform(damageRollMin, damageRollMax)   // Start 0.5 .. 2.0
      zoneQ  = clamp(base - damage, 0, 1)
      ```
      `toolReduction` = Summe der Modifier `damage_reduction` (Werkzeugstufen, Skills).
@@ -270,7 +270,8 @@ Buch vollständig, Buch in Museumsreif, voller Skilltree. Später zusätzlich: C
 - `category`: `upgrade`, `skill`, `book`, `milestone`, `event` [Später].
 - **Berechnung:**
   `final(stat) = (base + Σ add) * Π_über Kategorien (1 + Σ mult in dieser Kategorie)`
-- Für Stats mit Untergrenze bzw. Obergrenze (z. B. `lab_speed`, Kosten-Rabatte) gelten Clamps aus `balance.statLimits` (z. B. Rabatt höchstens −90 %).
+- Für Stats mit Untergrenze bzw. Obergrenze (z. B. `lab_speed`, Kosten-Rabatte) gelten Clamps aus `balance.statLimits` (z. B. Rabatt höchstens −90 %). Die Clamps gelten für den Endwert des Stats.
+- **Faktor-Stats** haben die Basis 1.0 und wirken als Faktor auf einen Datenwert: `museum_income`, `sell_price`, `research_points`, `fame_gain`, `layer_unlock_cost`, `hall_cost`, `lab_speed`. `lab_speed` ist der Faktor auf `balance.labDuration`, „Laborzeit −10 %“ ist also `{ "stat": "lab_speed", "op": "mult", "value": -0.10 }`; der Clamp `min 0.1` begrenzt die Verkürzung auf −90 %.
 - **Stat-IDs (MVP):** `dig_rate`, `prep_rate`, `find_chance`, `damage_reduction`, `quality_base_min`, `museum_income`, `skeleton_bonus`, `sell_price`, `lab_speed`, `research_points`, `fame_gain`, `layer_unlock_cost`, `hall_cost`, `start_teams`, `start_lab_slots`, `guaranteed_fossil_chance`, `no_damage_chance`, `reconstruction_missing_zones`, `special_exhibit_mult`, `offline_efficiency`, `offline_cap_hours`.
 - `ModifierEngine` sammelt alle aktiven Modifier (Upgrades, Skills, Buch, Meilensteine) und cached das Ergebnis, bis sich die Quellen ändern.
 
@@ -300,7 +301,7 @@ Buch vollständig, Buch in Museumsreif, voller Skilltree. Später zusätzlich: C
 | Laborplatz | 300 | 4.0 | +1 parallele Forschung (1 gratis) |
 | Werkzeugstufe (FP) | 3 FP | 1.6 | `damage_reduction` +0.03 |
 
-**Globale Werte (`balance.json`)**: `findChance 0.08`, `qualityBaseMin 0.30`, `qualityBaseMax 1.00`, `rockSellFactor 0.5`, `duplicateSellFactor 20`, `labDuration 30`, `labQueuePerSlot 3`, `reconstructionCap 0.89`, `skeletonMult 2.0`, `missingBoneWeight 3`, `tapDigAmount 0.25`, `tapPrepAmount 0.25`, `skillCostGrowth 1.25`, `offlineEfficiency 0.5`, `offlineCapHours 4`, `maxDetailedOfflineFinds 2000`.
+**Globale Werte (`balance.json`)**: `findChance 0.08`, `qualityBaseMin 0.30`, `qualityBaseMax 1.00`, `damageRollMin 0.5`, `damageRollMax 2.0`, `rockSellFactor 0.5`, `duplicateSellFactor 20`, `labDuration 30`, `labQueuePerSlot 3`, `reconstructionCap 0.89`, `reconstructionMissingZoneQuality 0.5`, `skeletonMult 2.0`, `slotsPerHall 8`, `teamMilestoneFactor 2`, `missingBoneWeight 3`, `tapDigAmount 0.25`, `tapPrepAmount 0.25`, `skillCostGrowth 1.25`, `offlineEfficiency 0.5`, `offlineCapHours 4`, `maxDetailedOfflineFinds 2000`.
 
 **Arten (MVP, Seltenheitsgewicht in Klammern)**
 
@@ -313,7 +314,16 @@ Buch vollständig, Buch in Museumsreif, voller Skilltree. Später zusätzlich: C
 | Säbelzahnkatze (Smilodon) (5) | Terrorvogel (Titanis) (5) | Ankylosaurus (5) |
 | Riesenfaultier (Megatherium) (2) | Thylacosmilus (2) | Tyrannosaurus (2) |
 
-Buch-Boni pro Art werden in AP-02 mit sinnvollen Stats belegt (z. B. Mammut → `dig_rate`, Smilodon → `find_chance`, Tyrannosaurus → `fame_gain`). Basiswerte 1–3 %.
+**Buch-Boni pro Art** (`species.json: bookBonus`, Kategorie `book`, wirksamer Wert = Basiswert × `bookTierFactor[minTier]`). Häufige Arten 1 %, seltene bis 3 %; `add`-Stats mit absoluten Werten.
+
+| Quartär | Neogen | Kreide |
+|---|---|---|
+| Höhlenbär: `museum_income` mult 0.01 | Hipparion: `dig_rate` mult 0.01 | Psittacosaurus: `quality_base_min` add 0.01 |
+| Riesenhirsch: `prep_rate` mult 0.01 | Gomphotherium: `museum_income` mult 0.02 | Parasaurolophus: `prep_rate` mult 0.02 |
+| Wollnashorn: `sell_price` mult 0.02 | Chalicotherium: `research_points` mult 0.02 | Triceratops: `damage_reduction` add 0.01 |
+| Wollhaarmammut: `dig_rate` mult 0.02 | Deinotherium: `prep_rate` mult 0.02 | Velociraptor: `skeleton_bonus` add 0.02 |
+| Smilodon: `find_chance` mult 0.02 | Titanis: `sell_price` mult 0.03 | Ankylosaurus: `museum_income` mult 0.03 |
+| Megatherium: `research_points` mult 0.03 | Thylacosmilus: `find_chance` mult 0.03 | Tyrannosaurus: `fame_gain` mult 0.03 |
 
 ### 6.5 Bekannte Balancing-Risiken
 - **Plateau in der Mitte des Durchlaufs:** Ist eine Schicht fast voll gesammelt, wächst das Museumseinkommen kaum noch. Gegenmittel: Sparziel-Anzeige für die nächste Schicht („Neogen: 62 %“), Prestige-Vorschau als Signal, Verkaufserlöse skalieren mit der Produktion.
@@ -492,11 +502,11 @@ Ablage: `core/src/main/resources/data/`. Alle IDs in `snake_case`, Texte nur als
     "effects": [ { "stat": "no_damage_chance", "op": "add", "value": 0.03, "category": "skill" } ] } ]
 ```
 
-**`milestones.json`**: `{ "id", "condition": { "type": "pieces_found", "value": 1 }, "reward": { "money": 50 } }`
+**`milestones.json`**: `{ "id", "condition": { "type": "pieces_found", "value": 1 }, "reward": { "money": 50 } }`. Bedingungstypen: `pieces_found`, `skeletons_completed`, `pristine_found`, `teams_total`, `layers_unlocked`, `research_completed`, `reconstructions`, `prestiges`. Belohnung: `money`, `researchPoints` und optional `effects` (Modifier der Kategorie `milestone`).
 
-**`balance.json`**: alle globalen Konstanten aus Kapitel 6.4 sowie `qualityTiers`, `bookTierFactor`, `teamMilestones`, `statLimits`.
+**`balance.json`**: alle globalen Konstanten aus Kapitel 6.4 sowie `qualityTiers` (`id`, `minQuality`, `color`), `bookTierFactor`, `teamMilestones`, `teamMilestoneFactor`, `researchedBonus` (Modifier), `slotsPerHall`, `skeletonMult`, `statLimits` (`{ "<statId>": { "min", "max" } }`).
 
-**`locale/de.json`, `locale/en.json`**: `{ "species.parasaurolophus.name": "Parasaurolophus", "bone.dorsal.name": "Rückenwirbel", "zone.dorsal.centrum": "Wirbelkörper" }`
+**`locale/de.json`, `locale/en.json`**: `{ "species.parasaurolophus.name": "Parasaurolophus", "bone.dorsal.name": "Rückenwirbel", "zone.dorsal.centrum": "Wirbelkörper" }`. Weitere Schlüssel: `layer.<id>.name`, `generator.<id>.name`, `upgrade.<id>.name`, `skill_branch.<branch>.name`, `skill.<id>.name|desc`, `milestone.<id>.name|desc`, `quality.<tierId>.name` (gebildet in `LocaleKeys`). Beschreibungstexte enthalten keine Zahlenwerte; die UI zeigt Werte aus den Modifiern an.
 
 **Schemas:** `core/src/main/resources/schema/*.schema.json`. Die Validierung läuft über `DataValidationTest`, optional zusätzlich `tools/validate_data.py` in der CI.
 
@@ -635,6 +645,5 @@ Jedes AP ist für eine Claude-Code-Session gedacht. Format: **ID – Titel** (Ab
 
 ## 15. Offene Punkte
 - Endgültiger Name (Arbeitstitel „Fossil Collector“), Paketname z. B. `de.noelkoeppen.fossilcollector`.
-- Konkrete Buch-Bonus-Stats je Art (in AP-02 festlegen und hier nachtragen).
 - Genaue Tipp-Werte (`tapDigAmount`, `tapPrepAmount`) nach dem ersten Playtest.
 - Ob ein kurzes Tutorial nötig ist oder Hinweistexte plus Tab-Freischaltung reichen.

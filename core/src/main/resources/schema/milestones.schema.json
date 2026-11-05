@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://noelkoeppen.de/fossil-collector/schema/milestones.schema.json",
+  "title": "milestones.json",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "properties": {
+      "id": {
+        "$ref": "common.schema.json#/$defs/id"
+      },
+      "condition": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "enum": [
+              "pieces_found",
+              "skeletons_completed",
+              "pristine_found",
+              "teams_total",
+              "layers_unlocked",
+              "research_completed",
+              "reconstructions",
+              "prestiges"
+            ]
+          },
+          "value": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          }
+        },
+        "required": [
+          "type",
+          "value"
+        ],
+        "additionalProperties": false
+      },
+      "reward": {
+        "type": "object",
+        "description": "Mindestens eine Belohnung",
+        "properties": {
+          "money": {
+            "type": "number",
+            "minimum": 0
+          },
+          "researchPoints": {
+            "type": "number",
+            "minimum": 0
+          },
+          "effects": {
+            "$ref": "common.schema.json#/$defs/modifierList"
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "required": [
+      "id",
+      "condition",
+      "reward"
+    ],
+    "additionalProperties": false
+  },
+  "minItems": 1
+}

@@ -1,0 +1,38 @@
+[
+  {
+    "id": "quaternary",
+    "order": 0,
+    "unlockCost": 0,
+    "teamBaseCost": 10,
+    "teamGrowth": 1.12,
+    "teamRate": 0.1,
+    "value": 1,
+    "fragility": 0.15,
+    "fameWeight": 1,
+    "color": "#B9A27A"
+  },
+  {
+    "id": "neogene",
+    "order": 1,
+    "unlockCost": 6000,
+    "teamBaseCost": 2000,
+    "teamGrowth": 1.12,
+    "teamRate": 0.1,
+    "value": 8,
+    "fragility": 0.3,
+    "fameWeight": 3,
+    "color": "#9C7A54"
+  },
+  {
+    "id": "cretaceous",
+    "order": 2,
+    "unlockCost": 250000,
+    "teamBaseCost": 60000,
+    "teamGrowth": 1.12,
+    "teamRate": 0.1,
+    "value": 60,
+    "fragility": 0.45,
+    "fameWeight": 10,
+    "color": "#6E5A4A"
+  }
+]
