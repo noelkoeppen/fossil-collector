@@ -1,0 +1,102 @@
+package de.noelkoeppen.fossilcollector.core.engine
+
+import de.noelkoeppen.fossilcollector.core.data.GameData
+import de.noelkoeppen.fossilcollector.core.model.GameState
+import de.noelkoeppen.fossilcollector.core.modifier.ModifierEngine
+import de.noelkoeppen.fossilcollector.core.number.GameNumber
+import de.noelkoeppen.fossilcollector.core.random.GameRandom
+
+/**
+ * Zentrale Simulation (GAME_DESIGN.md, Kapitel 0 Regel 5 und Kapitel 10.3).
+ *
+ * [advance] ist der **einzige** Ort, an dem Zeit den Spielzustand veraendert. Online-Tick
+ * (`dt = 0.1`) und Offline-Fortschritt (AP-14) rufen dieselbe Funktion auf. Spieleraktionen
+ * (z. B. [tapDig]) sind eigene Funktionen, die einen neuen Zustand zurueckgeben.
+ *
+ * Ablauf von [advance]:
+ * 1. `dt` pruefen: nicht endlich -> [NumericErrorHandler]; `dt <= 0` -> keine Aenderung.
+ * 2. Modifier-Quellen mit dem Eingabe-Zustand abgleichen ([ModifierSources.sync]).
+ * 3. Alle [systems] nacheinander ausfuehren (Teilschritte, siehe [defaultSystems]).
+ * 4. Ergebnis auf `NaN`/`Infinity` pruefen ([StateValidator]); bei Fund -> [NumericErrorHandler]
+ *    und Tick verwerfen.
+ *
+ * **Erweiterungsstelle:** Neue Spielsysteme (Praeparation AP-08, Funde/Museum AP-09, Labor AP-10,
+ * Meilensteine AP-11 ...) werden als [AdvanceSystem] implementiert und in [defaultSystems] an der
+ * passenden Stelle eingefuegt. An [advance] selbst muss dafuer nichts geaendert werden.
+ *
+ * Grosse `dt` sind erlaubt und werden in einem Schritt gerechnet. Die Aufteilung der
+ * Offline-Zeit in 1-Sekunden-Schritte (Kapitel 7.1) ist Sache des Aufrufers (AP-14).
+ *
+ * Die Engine ist wie die [ModifierEngine] nicht thread-safe (Nutzung nur aus der Spielschleife).
+ *
+ * @param data Spieldefinitionen
+ * @param modifiers Modifier-Engine; wird in [advance] mit dem Zustand synchronisiert
+ * @param systems Teilschritte von [advance] in Ausfuehrungsreihenfolge
+ * @param errorHandler Reaktion auf nicht endliche Werte, Standard wirft
+ * @param modifierSources Abgleich zwischen Spielstand und [modifiers]
+ */
+class GameEngine(
+    private val data: GameData,
+    private val modifiers: ModifierEngine,
+    private val systems: List<AdvanceSystem> = defaultSystems(data, modifiers),
+    private val errorHandler: NumericErrorHandler = NumericErrorHandler.THROW,
+    private val modifierSources: ModifierSources = ModifierSources.DEFAULT,
+) {
+    /** Grabung fuer Abfragen der UI und Spieleraktionen (eigene Instanz, zustandslos). */
+    val dig: DigSystem = DigSystem(data, modifiers)
+
+    /**
+     * Schreitet [state] um [dt] Sekunden fort. Veraendert [state] nicht.
+     *
+     * @return neuer Zustand und Ereignisse; bei `dt <= 0` die Eingabe-Instanz ohne Ereignisse
+     * @throws NonFiniteValueException mit dem Standard-Handler, wenn `dt` oder ein Wert im
+     *   Ergebnis `NaN`/unendlich ist
+     */
+    fun advance(state: GameState, dt: Double, rng: GameRandom): AdvanceResult {
+        if (!dt.isFinite()) return reject(state, NonFiniteValueException("dt", dt))
+        if (dt <= 0.0) return AdvanceResult(state, emptyList())
+
+        syncModifiers(state)
+        val context = AdvanceContext(rng)
+        var current = state
+        for (system in systems) current = system.advance(current, dt, context)
+
+        StateValidator.findNonFinite(current)?.let { return reject(state, it) }
+        return AdvanceResult(current, context.events)
+    }
+
+    /** Gleicht die Modifier-Quellen mit [state] ab (z. B. nach dem Laden fuer UI-Abfragen). */
+    fun syncModifiers(state: GameState) {
+        modifierSources.sync(modifiers, state, data)
+    }
+
+    /** Spieleraktion: Tippen auf die Grabung in [layerId], siehe [DigSystem.tapDig]. */
+    fun tapDig(state: GameState, layerId: String): GameState = dig.tapDig(state, layerId)
+
+    /**
+     * Aktuelle Produktion der Schicht [layerId] in Bloecken pro Sekunde (fuer die UI). Nutzt den
+     * Stand der Modifier-Quellen nach dem letzten [advance] bzw. [syncModifiers].
+     */
+    fun blocksPerSecond(state: GameState, layerId: String): GameNumber = dig.blocksPerSecond(state.run, layerId)
+
+    private fun reject(state: GameState, error: NonFiniteValueException): AdvanceResult {
+        errorHandler.onNonFinite(error)
+        return AdvanceResult(state, emptyList())
+    }
+
+    companion object {
+        /**
+         * Standard-Reihenfolge der Teilschritte. Stand AP-07: nur Grabung.
+         *
+         * Geplante Reihenfolge (spaetere APs fuegen ihr System hier ein):
+         * 1. Grabung ([DigSystem], AP-07)
+         * 2. Praeparation (AP-08) verbraucht die Bloecke aus Schritt 1
+         * 3. Funde einordnen und Museumseinnahmen (AP-09)
+         * 4. Labor (AP-10)
+         * 5. Meilensteine (AP-11)
+         */
+        fun defaultSystems(data: GameData, modifiers: ModifierEngine): List<AdvanceSystem> = listOf(
+            DigSystem(data, modifiers),
+        )
+    }
+}

@@ -97,6 +97,11 @@ Graben → Präparieren → (Labor) → Rekonstruieren → Ausstellen. Später k
 - **Aktive Phase:** Ein Tipp auf die aktuelle Schicht erzeugt `balance.tapDigAmount` Blöcke (Start 0.25).
 - Blöcke liegen pro Schicht in einem Lager. Die Präparation verarbeitet immer zuerst die **tiefste** Schicht mit verfügbaren Blöcken.
 - Je tiefer die Schicht: höherer `value`, höhere `fragility`, höheres `fameWeight`.
+- Präzisierungen (AP-07):
+  - `dig_rate` ist die Rate **je Team** mit Basiswert `layer.teamRate`: `blocksPerSec(L) = teams(L) * mods(dig_rate, Basis teamRate) * milestoneMult(teams(L))`. Für `mult`-Modifier (Skill `dig_2`, Buch-Boni) ist das identisch mit der Formel oben; `add`-Modifier würden die Rate je Team erhöhen.
+  - Eine Schwelle gilt ab `teams >= Schwelle` als erreicht (25 Teams → ×2, 50 → ×4).
+  - **Tippen** (`tapDig(state, layerId)`) erzeugt genau `balance.tapDigAmount` Blöcke in einer beliebigen freigeschalteten Schicht. `dig_rate` wirkt **nicht** auf das Tippen (Begründung: der Skill heißt „Teamrate +15 %“, und die Referenzsimulation rechnet das Tippen ebenfalls ohne Bonus). Gesperrte oder unbekannte Schichten: keine Änderung.
+  - Gesperrte Schichten produzieren nichts, auch wenn im Spielstand Teams für sie stehen.
 
 ### 4.2 Präparation und Qualität [MVP]
 - Präparatoren verarbeiten `prepRate` Blöcke/s, Tippen auf „Freilegen“ verarbeitet `balance.tapPrepAmount` (Start 0.25).
@@ -462,6 +467,12 @@ Keine. Das Spiel ist ein Hobbyprojekt. Keine Werbung, keine In-App-Käufe, keine
 - `GameViewModel` startet eine Coroutine mit 10 Ticks/s: `engine.advance(state, dt = 0.1, rng)`. Danach wird ein unveränderlicher UI-State per `StateFlow` veröffentlicht.
 - `advance()` ist der **einzige** Ort, an dem Zeit Spielzustand verändert. Spieleraktionen (kaufen, tippen, rekonstruieren, Prestige) sind eigene Engine-Funktionen, die den State zurückgeben.
 - `advance()` gibt eine Liste von `GameEvent` zurück (Fund, Forschung fertig, Meilenstein …), die die UI für Popups und Badges nutzt.
+- Umsetzung (AP-07): `core.engine.GameEngine(data, modifiers, systems, errorHandler)` mit `advance(state, dt, rng): AdvanceResult(state, events)`. Ablauf: `dt` prüfen → Modifier-Quellen per `ModifierSources.sync` abgleichen → alle `AdvanceSystem`s nacheinander (jedes bekommt den Zustand des vorigen, Ereignisse über `AdvanceContext.emit`, Zufall über `AdvanceContext.rng`) → Ergebnis auf `NaN`/`Infinity` prüfen (`StateValidator`).
+  - **Erweiterungsstelle:** Spätere APs implementieren ein `AdvanceSystem` und fügen es in `GameEngine.defaultSystems` ein (geplant: Grabung → Präparation → Funde/Museum → Labor → Meilensteine). `advance` selbst bleibt unverändert.
+  - `dt <= 0`: keine Änderung (Eingabe-Instanz, keine Ereignisse). Große `dt` werden in einem Schritt gerechnet; die Aufteilung der Offline-Zeit (7.1) übernimmt AP-14.
+  - `NaN`/`Infinity` (in `dt` oder im Ergebnis): Aufruf von `NumericErrorHandler`. Standard `THROW` wirft `NonFiniteValueException` (Tests, Debug). Ein nicht werfender Handler (Release: loggen) führt dazu, dass der Tick verworfen wird: `advance` gibt den unveränderten Eingabe-Zustand ohne Ereignisse zurück.
+  - Ereignisse in AP-07: `GameEvent.BlocksDug(layerId, amount)` je produzierender Schicht und Aufruf. Weitere Ereignisse ergänzen die jeweiligen APs.
+  - Zufall: `core.random.GameRandom` (`nextDouble()`, `nextDouble(from, until)` mit `from == until` → `from`, `nextInt(bound)`) und `SeededRandom(seed)` auf Basis von `kotlin.random.Random`.
 
 ### 10.4 Tests [MVP]
 - Pro Engine-System Unit-Tests mit festem Seed.
