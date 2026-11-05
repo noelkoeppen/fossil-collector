@@ -53,6 +53,12 @@ class GameEngine(
     val prep: PrepSystem = systems.filterIsInstance<PrepSystem>().firstOrNull() ?: PrepSystem(data, modifiers)
 
     /**
+     * Museum fuer Abfragen der UI (Einnahmen, ausgestellte Stuecke). Enthaelt [systems] ein
+     * [MuseumSystem], wird genau diese Instanz genutzt (gemeinsamer Cache), sonst eine eigene.
+     */
+    val museum: MuseumSystem = systems.filterIsInstance<MuseumSystem>().firstOrNull() ?: MuseumSystem(data, modifiers)
+
+    /**
      * Schreitet [state] um [dt] Sekunden fort. Veraendert [state] nicht.
      *
      * @return neuer Zustand und Ereignisse; bei `dt <= 0` die Eingabe-Instanz ohne Ereignisse
@@ -102,6 +108,15 @@ class GameEngine(
      */
     fun blocksPerSecond(state: GameState, layerId: String): GameNumber = dig.blocksPerSecond(state.run, layerId)
 
+    /**
+     * Museumseinnahmen pro Sekunde fuer [state] (fuer die UI, Kapitel 4.6). Nutzt den Stand der
+     * Modifier-Quellen nach dem letzten [advance] bzw. [syncModifiers].
+     */
+    fun incomePerSecond(state: GameState): GameNumber = museum.incomePerSecond(state)
+
+    /** Ausgestellte Stuecke, wertvollstes zuerst (fuer die UI), siehe [MuseumSystem.exhibitedPieces]. */
+    fun exhibitedPieces(state: GameState): List<ExhibitedPiece> = museum.exhibitedPieces(state)
+
     private fun reject(state: GameState, error: NonFiniteValueException): AdvanceResult {
         errorHandler.onNonFinite(error)
         return AdvanceResult(state, emptyList())
@@ -109,7 +124,8 @@ class GameEngine(
 
     companion object {
         /**
-         * Standard-Reihenfolge der Teilschritte. Stand AP-08: Grabung und Praeparation.
+         * Standard-Reihenfolge der Teilschritte. Stand AP-09: Grabung, Praeparation mit Einordnen
+         * der Funde ([FindClassifier]) und Museum ([MuseumSystem]).
          *
          * Geplante Reihenfolge (spaetere APs fuegen ihr System hier ein):
          * 1. Grabung ([DigSystem], AP-07)
@@ -120,7 +136,8 @@ class GameEngine(
          */
         fun defaultSystems(data: GameData, modifiers: ModifierEngine): List<AdvanceSystem> = listOf(
             DigSystem(data, modifiers),
-            PrepSystem(data, modifiers),
+            PrepSystem(data, modifiers, FindClassifier(data, modifiers)),
+            MuseumSystem(data, modifiers),
         )
     }
 }

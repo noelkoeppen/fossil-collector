@@ -138,7 +138,7 @@ Graben → Präparieren → (Labor) → Rekonstruieren → Ausstellen. Später k
   - `quality_base_min` hat die Basis `balance.qualityBaseMin` und wird auf `qualityBaseMax` begrenzt. `damage_reduction` ist additiv mit Basis 0. Die Zonenanzahl kommt aus `bones.json`.
   - Würfelreihenfolge je Block: Fund → Art → Knochen → (Schadensfreiheit) → je Zone Grundqualität und Schaden.
   - Stufen: `QualityTiers.tierOf(q)` bzw. `indexOf(q)` (Index passend zu `bookTierFactor`); eine Grenze gehört zur höheren Stufe (`q >= minQuality`).
-  - **Ergebnis eines Fossils:** `Find(pieceKey, layerId, zones, undamaged)` (transient, nicht gespeichert). Die Präparation zählt `meta.stats.piecesFound` hoch, meldet `GameEvent.FossilFound(find, tierId)` und übergibt den Fund **sofort** an den `FindHandler` des `PrepSystem` (`onFind(state, find, context) -> GameState`). Stand AP-08: `FindHandler.NONE` (keine Einordnung). **AP-09** implementiert das Einordnen aus 4.4 als `FindHandler` und trägt ihn in `GameEngine.defaultSystems` ein (`PrepSystem(data, modifiers, handler)`); `GameEngine.tapPrep` nutzt automatisch dieselbe Instanz. Weil der Handler den Zustand pro Fund aktualisiert, sieht der nächste Wurf den neuen `run.pieces` (Pech-Schutz auch bei großem `dt`).
+  - **Ergebnis eines Fossils:** `Find(pieceKey, layerId, zones, undamaged)` (transient, nicht gespeichert). Die Präparation zählt `meta.stats.piecesFound` hoch, meldet `GameEvent.FossilFound(find, tierId)` und übergibt den Fund **sofort** an den `FindHandler` des `PrepSystem` (`onFind(state, find, context) -> GameState`). Standard des Konstruktors ist `FindHandler.NONE` (keine Einordnung). **AP-09** implementiert das Einordnen aus 4.4 als `FindClassifier` und trägt ihn in `GameEngine.defaultSystems` ein (`PrepSystem(data, modifiers, FindClassifier(data, modifiers))`); `GameEngine.tapPrep` nutzt automatisch dieselbe Instanz. Weil der Handler den Zustand pro Fund aktualisiert, sieht der nächste Wurf den neuen `run.pieces` (Pech-Schutz auch bei großem `dt`).
   - Je Schicht und Aufruf zusätzlich `GameEvent.BlocksPrepared(layerId, blocks, fossils, rockMoney)` nach den Fund-Ereignissen dieser Schicht.
 
 ### 4.3 Zonen [MVP]
@@ -163,6 +163,13 @@ Für jeden Fossilfund mit Schlüssel `pieceKey = speciesId:boneId:age:sex` (im M
 3. Sonst ist der Fund ein **Duplikat**: Er geht in die Laborwarteschlange, falls dort Platz ist (`labQueueMax = labSlots * balance.labQueuePerSlot`, Start 3), andernfalls wird er sofort verkauft:
    `sellValue = layer.value * (0.5 + q) * balance.duplicateSellFactor` (Start 20) `* mods(sell_price)`.
 - **Speicher:** Es werden keine einzelnen Exemplare dauerhaft gespeichert, nur bester Run-Fund pro Knochen, bester Buch-Fund pro Knochen, bestes Ersatzteil pro Zone und die (gedeckelte) Laborwarteschlange.
+- Präzisierungen (AP-09), Umsetzung `core.engine.FindClassifier` (der `FindHandler` des `PrepSystem` in `GameEngine.defaultSystems`):
+  - „Höher“ heißt **echt größer**; gleiche Qualität ersetzt weder Buch noch Run-Fund (der Fund ist dann Duplikat).
+  - Buch und Run-Bestand werden **unabhängig** verglichen: Ein Fund kann das Buch verbessern und trotzdem Duplikat sein (Run-Fund besser), oder den Run-Fund ersetzen, ohne das Buch zu ändern (Buch aus früherem Durchlauf besser). Ein neuer Bucheintrag aus einem echten Fund hat `reconstructed = false` und speichert die Zonen (`BookEntry.zones`, für die Zonen-Balken in 8.3).
+  - Ein erster Fund eines Schlüssels im Durchlauf ist nie Duplikat. Bei Ersetzung ist das **ersetzte** Stück das Duplikat (mit seinen Zonen bzw. seiner Qualität für Warteschlange oder Verkaufspreis).
+  - Warteschlange: Platz, solange `labQueue.size < labSlots * labQueuePerSlot`. Ohne Laborplatz wird jedes Duplikat verkauft.
+  - `layer` im Verkaufspreis ist die Schicht der Art (`species.layer`). Verkaufserlöse werden sofort gutgeschrieben. `sell_price` ist ein Faktor-Stat (Skill `curator_4`: ×1.6).
+  - Ereignisse in dieser Reihenfolge je Fund: `BookUpdated` (falls Buch verbessert), dann `NewPiece` (+ `SkeletonCompleted`, wenn damit erstmals alle Knochen der Art im Durchlauf vorhanden sind) **oder** `PieceImproved`, dann ggf. `DuplicateQueued` bzw. `DuplicateSold`.
 
 ### 4.5 Labor [MVP – einfache Version]
 - `labSlots` parallele Forschungen (Start 1, kaufbar). Jede dauert `balance.labDuration` Sekunden (Start 30, Modifier `lab_speed`).
@@ -183,6 +190,13 @@ Für jeden Fossilfund mit Schlüssel `pieceKey = speciesId:boneId:age:sex` (im M
   `skeletonMult` Start 2.0 (Modifier `skeleton_bonus`, additiv auf den Faktor).
 - Gesamteinnahmen: `Σ income(piece) * mods(museum_income)`.
 - Hallen werden mit Geld gekauft (Kapitel 6.3).
+- Präzisierungen (AP-09), Umsetzung `core.engine.MuseumSystem` (`AdvanceSystem` direkt nach der Präparation, schreibt `incomePerSecond * dt` Geld gut):
+  - Plätze `= floor(halls) * slotsPerHall`. Die „wertvollsten“ Run-Funde sind die mit dem höchsten `income(piece)` **inklusive** Skelett- und Sonderausstellungsfaktor (absteigend, Gleichstand nach Schlüsseltext). `layer` ist die Schicht der Art.
+  - `skeletonComplete(species)`: Für jeden Knochen aus `species.bones` gibt es einen Run-Fund mit diesem `speciesId:boneId`, Alter/Geschlecht egal (`core.engine.Skeletons`). Ein vollständiges Skelett muss nicht vollständig ausgestellt sein.
+  - Skelett-Faktor `= mods(skeleton_bonus, Basis skeletonMult)`; für `add`-Modifier (Skill `curator_3` +0.5, Buch-Bonus Velociraptor) ist das genau `skeletonMult + skeleton_bonus`.
+  - **Sonderausstellung** (Capstone `curator_5`): `run.specialExhibit` enthält die gewählte Art-ID oder `null`. Ist die Art im Durchlauf vollständig und `special_exhibit_mult` (additiv, Basis 0) > 0, wird das Einkommen ihrer Stücke **zusätzlich** zum Skelett-Faktor mit `special_exhibit_mult` multipliziert (mit allen Kurator-Skills also ×2.5 ×5). Sonst wirkt die Auswahl nicht (kein Fehler). Die Auswahlaktion selbst gehört zu AP-13 und muss nur `run.specialExhibit` setzen; `MuseumSystem.isSpecialExhibitActive(state)` zeigt, ob sie wirkt.
+  - Abfragen für die UI: `incomePerSecond(state)`, `exhibitedPieces(state)` (Liste `ExhibitedPiece` mit Schlüssel, Stück, Einkommen/s inkl. `museum_income`, Flags Skelett und Sonderausstellung), `slots(run)`; auch über `GameEngine.incomePerSecond`/`exhibitedPieces`/`museum`.
+  - Performance: Die Rangfolge wird nur neu berechnet, wenn sich `run.pieces` (Instanz), `halls`, `specialExhibit`, der Skelett- oder Sonderausstellungsfaktor ändern; `museum_income` wird bei jeder Abfrage angewandt. Eine Neuberechnung kostet `O(n log n)` und ist bei 10 Ticks/s und < 200 Stücken unkritisch.
 
 ### 4.7 Sammelbuch und Completion [MVP: Stufe 1–2]
 - Das Buch listet pro Schicht alle Arten und pro Art alle 8 Knochen mit ihrer besten Qualität (Farbe der Stufe) sowie dem Flag „rekonstruiert“.
@@ -195,6 +209,7 @@ Für jeden Fossilfund mit Schlüssel `pieceKey = speciesId:boneId:age:sex` (im M
 | 3 Konsistentes Skelett | Alle Knochen von derselben Kombination aus Alter und Geschlecht | [Später] |
 | 4 Vollständige Population | Jede Kombination aus Alter und Geschlecht als konsistentes Skelett | [Später] |
 
+- Hilfsfunktionen (AP-09, für AP-11): `Skeletons.isCompleteInBook(book, species)`, `completeSpeciesInBook(book, data)`, `missingBones(keys, species)` sowie die Run-Varianten `isCompleteInRun`/`completeSpeciesInRun`. „Vorhanden“ heißt: ein Eintrag mit `speciesId:boneId`, Alter/Geschlecht egal.
 - **Buch-Boni:** Jede Art definiert in `species.json` einen Bonus (`bookBonus`: Stat und Basiswert). Er wirkt, sobald Stufe 2 erreicht ist, skaliert mit der **niedrigsten** Qualitätsstufe ihrer Knochen:
   `bookBonusValue = baseValue * balance.bookTierFactor[minTier]`, Standard-Faktoren [1, 2, 3, 5, 8] für Fragment … Museumsreif.
   Stufe 1 gibt pauschal `balance.researchedBonus` (+1 % `museum_income`).
@@ -486,6 +501,7 @@ Keine. Das Spiel ist ein Hobbyprojekt. Keine Werbung, keine In-App-Käufe, keine
   - `NaN`/`Infinity` (in `dt` oder im Ergebnis): Aufruf von `NumericErrorHandler`. Standard `THROW` wirft `NonFiniteValueException` (Tests, Debug). Ein nicht werfender Handler (Release: loggen) führt dazu, dass der Tick verworfen wird: `advance` gibt den unveränderten Eingabe-Zustand ohne Ereignisse zurück.
   - Ereignisse in AP-07: `GameEvent.BlocksDug(layerId, amount)` je produzierender Schicht und Aufruf. Weitere Ereignisse ergänzen die jeweiligen APs.
   - Ereignisse in AP-08: `GameEvent.FossilFound(find, tierId)` je Fund und `GameEvent.BlocksPrepared(layerId, blocks, fossils, rockMoney)` je Schicht und Aufruf (Kapitel 4.2). Spieleraktion `GameEngine.tapPrep(state, rng): AdvanceResult` gleicht die Modifier ab und prüft das Ergebnis wie `advance`.
+  - Ereignisse in AP-09: `BookUpdated(pieceKey, quality, previousQuality?)`, `NewPiece(pieceKey, quality)`, `PieceImproved(pieceKey, quality, previousQuality)`, `DuplicateQueued(pieceKey, quality)`, `DuplicateSold(pieceKey, quality, money)`, `SkeletonCompleted(speciesId)` (Kapitel 4.4). `defaultSystems`: `DigSystem` → `PrepSystem` mit `FindClassifier` → `MuseumSystem`.
   - Zufall: `core.random.GameRandom` (`nextDouble()`, `nextDouble(from, until)` mit `from == until` → `from`, `nextInt(bound)`) und `SeededRandom(seed)` auf Basis von `kotlin.random.Random`.
 
 ### 10.4 Tests [MVP]
@@ -554,6 +570,9 @@ Ablage: `core/src/main/resources/data/`. Alle IDs in `snake_case`, Texte nur als
 **Schemas:** `core/src/main/resources/schema/*.schema.json`. Die Validierung läuft über `DataValidationTest`, optional zusätzlich `tools/validate_data.py` in der CI.
 
 **Spielstand (Auszug)**
+
+`book`-Einträge enthalten seit AP-09 zusätzlich `zones` (Zonen-Qualitäten des Buch-Fundes für die Zonen-Balken im Art-Detail, 8.3). Das Feld hat den Standardwert `[]`, ältere Spielstände laden ohne Migration; leer heißt „unbekannt“, maßgeblich ist `quality`. Rekonstruierte Einträge (AP-10) sollten die Zonen der Rekonstruktion speichern.
+
 ```json
 {
   "saveVersion": 1,
@@ -561,7 +580,7 @@ Ablage: `core/src/main/resources/data/`. Alle IDs in `snake_case`, Texte nur als
   "meta": {
     "fame": 4, "fameTotal": 19, "prestigeCount": 2,
     "skills": ["dig_1","dig_2"],
-    "book": { "parasaurolophus:dorsal:_:_": { "quality": 0.83, "reconstructed": false } },
+    "book": { "parasaurolophus:dorsal:_:_": { "quality": 0.83, "reconstructed": false, "zones": [0.9,0.8,0.8,0.82] } },
     "researchedSpecies": ["cave_bear"],
     "milestonesDone": ["first_find"],
     "stats": { "piecesFound": 1520 }

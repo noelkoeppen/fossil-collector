@@ -1,5 +1,6 @@
 package de.noelkoeppen.fossilcollector.core.save
 
+import de.noelkoeppen.fossilcollector.core.model.BookEntry
 import de.noelkoeppen.fossilcollector.core.model.GameState
 import de.noelkoeppen.fossilcollector.core.model.LanguageSetting
 import de.noelkoeppen.fossilcollector.core.model.MetaState
@@ -47,6 +48,17 @@ class SaveRoundTripTest {
         )
         val state = GameState.newGame("quaternary", start, now = 42L)
         assertEquals(state, codec.decode(codec.encode(state)))
+    }
+
+    @Test
+    fun bookEntryZonesRoundTripAndDefaultToEmpty() {
+        val key = PieceKey("cave_bear", "skull")
+        val entry = BookEntry(0.5, reconstructed = false, zones = listOf(0.4, 0.6, 0.5, 0.5))
+        val state = SaveFixtures.rich.let { it.copy(meta = it.meta.copy(book = mapOf(key to entry))) }
+        assertEquals(entry, codec.decode(codec.encode(state)).meta.book[key])
+        // Aeltere Spielstaende ohne "zones" laden ohne Migration mit leerer Liste (AP-09).
+        val legacy = codec.decode(SaveFixtures.read("v1_full.json"))
+        assertTrue(legacy.meta.book.values.all { it.zones.isEmpty() })
     }
 
     @Test

@@ -25,11 +25,15 @@ data class Piece(
  *
  * @property quality beste Qualitaet dieses Knochens (0.0 bis 1.0)
  * @property reconstructed `true`, wenn der Eintrag aus einer Rekonstruktion stammt (Kapitel 4.5)
+ * @property zones Zonen-Qualitaeten des Buch-Fundes in der Reihenfolge aus `bones.json` (fuer die
+ *   Zonen-Balken im Art-Detail, Kapitel 8.3). Standardwert leer, damit aeltere Spielstaende ohne
+ *   Migration laden; leer heisst "unbekannt", massgeblich ist immer [quality] (AP-09).
  */
 @Serializable
 data class BookEntry(
     val quality: Double,
     val reconstructed: Boolean = false,
+    val zones: List<Double> = emptyList(),
 )
 
 /**
