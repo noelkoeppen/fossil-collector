@@ -50,6 +50,9 @@ data class GameState(
  * @property fameTotal insgesamt verdienter Ruhm
  * @property prestigeCount Anzahl der Prestiges
  * @property skills IDs der gekauften Skills (`skilltree.json`)
+ * @property fameSpent fuer die aktuell gekauften Skills tatsaechlich bezahlter Ruhm (AP-13); wird beim
+ *   Respec zu 100 % erstattet und dabei auf 0 gesetzt. Standardwert 0, aeltere Spielstaende laden
+ *   ohne Migration (vor AP-13 gab es keinen Skillkauf).
  * @property book Sammelbuch: bester Fund je [PieceKey]
  * @property researchedSpecies Arten mit Completion-Stufe 1 (Kapitel 4.7)
  * @property milestonesDone IDs erreichter Meilensteine
@@ -61,6 +64,7 @@ data class MetaState(
     val fameTotal: GameNumber = GameNumber.ZERO,
     val prestigeCount: GameNumber = GameNumber.ZERO,
     val skills: Set<String> = emptySet(),
+    val fameSpent: GameNumber = GameNumber.ZERO,
     val book: Map<PieceKey, BookEntry> = emptyMap(),
     val researchedSpecies: Set<String> = emptySet(),
     val milestonesDone: Set<String> = emptySet(),

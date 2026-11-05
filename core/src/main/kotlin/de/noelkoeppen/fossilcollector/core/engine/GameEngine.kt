@@ -98,6 +98,9 @@ class GameEngine(
     /** Prestige und Ruhm-Berechnung (Kapitel 5.3). */
     val prestigeSystem: Prestige = Prestige(data, modifiers)
 
+    /** Skilltree: Preise, Voraussetzungen, Kauf und Respec (Kapitel 5.4, AP-13). */
+    val skillTree: SkillTree = SkillTree(data)
+
     /**
      * Schreitet [state] um [dt] Sekunden fort. Veraendert [state] nicht.
      *
@@ -261,7 +264,7 @@ class GameEngine(
      * 1. Modifier-Quellen mit [state] abgleichen, Ruhm-Vorschau berechnen; unter 1 -> abgelehnt.
      * 2. Metazustand: `fame` und `fameTotal` + Gewinn, `prestigeCount + 1` (Skills, Buch, erforschte
      *    Arten, Statistiken, Meilensteine und Einstellungen bleiben).
-     * 3. [metaStep] anwenden (Erweiterungsstelle fuer den Respec aus AP-13, Standard ohne Wirkung).
+     * 3. [metaStep] anwenden, z. B. [respecStep] (Respec aus AP-13); Standard ohne Wirkung.
      * 4. Modifier-Quellen mit dem neuen Metazustand und einem leeren Durchlauf abgleichen, damit
      *    `start_teams`/`start_lab_slots` der Skills wirken, dann [RunStart.values] und neuer Durchlauf
      *    ueber [RunState.newRun] (alles aus dem Run-Zustand wird zurueckgesetzt, inkl.
@@ -343,6 +346,45 @@ class GameEngine(
         val maxLength = classifier.labQueueMax(state.run)
         if (!maxLength.isFinite()) return if (maxLength > 0.0) Int.MAX_VALUE else 0
         return max(0.0, ceil(maxLength)).coerceAtMost(Int.MAX_VALUE.toDouble()).toInt()
+    }
+
+    /**
+     * Spieleraktion: kauft den Skill [skillId] mit Ruhm (Kapitel 5.4), siehe [SkillTree.check] fuer
+     * die Fehlgruende. Gleicht danach die Modifier-Quellen mit dem neuen Zustand ab, damit der Skill
+     * sofort wirkt (Quelle `skill:<id>`). Start-Skills (`start_teams`, `start_lab_slots`) wirken erst
+     * ab dem naechsten Durchlauf.
+     */
+    fun buySkill(state: GameState, skillId: String): SkillPurchaseResult {
+        skillTree.check(state.meta, skillId)?.let { return SkillPurchaseResult.Failure(it) }
+        val (meta, cost) = skillTree.buy(state.meta, skillId)!!
+        val result = state.copy(meta = meta)
+        syncModifiers(result)
+        return SkillPurchaseResult.Success(result, skillId, cost)
+    }
+
+    /** Uebersicht aller Aeste fuer den Ruhm-Screen, siehe [SkillTree.overview]. */
+    fun skillOverview(state: GameState): List<SkillBranchView> = skillTree.overview(state.meta)
+
+    /** Sicht auf einen Skill-Knoten (Status, Preis, kaufbar), siehe [SkillTree.node]. */
+    fun skillNode(state: GameState, skillId: String): SkillNodeView = skillTree.node(state.meta, skillId)
+
+    /** Preis des Skills [skillId] bei Kauf jetzt. */
+    fun skillPrice(state: GameState, skillId: String): GameNumber = skillTree.price(state.meta, skillId)
+
+    /**
+     * Respec-Schritt fuer [prestige]: alle Skills zurueck, 100 % Erstattung, danach Neukauf von
+     * [rebuy] in dieser Reihenfolge. Aufruf: `engine.prestige(state, engine.respecStep(listOf(...)))`.
+     */
+    fun respecStep(rebuy: List<String> = emptyList()): RespecStep = RespecStep(skillTree, rebuy)
+
+    /**
+     * Vorschau fuer den Prestige-Dialog: Metazustand nach Prestige (Ruhm-Gewinn wie
+     * [fameGainPreview]) und Respec mit Neukauf von [rebuy]. Fuer die Auswahl einzelner Knoten kann
+     * die UI auf [RespecPlan.meta] weiter [SkillTree.node] bzw. [SkillTree.overview] abfragen.
+     */
+    fun respecPreview(state: GameState, rebuy: List<String> = emptyList()): RespecPlan {
+        val gain = fameGainPreview(state)
+        return skillTree.planRespec(prestigeSystem.metaAfterPrestige(state.meta, gain), rebuy)
     }
 
     private fun reject(state: GameState, error: NonFiniteValueException): AdvanceResult {
