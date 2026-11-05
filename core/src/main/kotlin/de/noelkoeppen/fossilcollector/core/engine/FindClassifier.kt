@@ -1,6 +1,7 @@
 package de.noelkoeppen.fossilcollector.core.engine
 
 import de.noelkoeppen.fossilcollector.core.data.GameData
+import de.noelkoeppen.fossilcollector.core.data.LayerDefinition
 import de.noelkoeppen.fossilcollector.core.model.BookEntry
 import de.noelkoeppen.fossilcollector.core.model.GameState
 import de.noelkoeppen.fossilcollector.core.model.Piece
@@ -45,11 +46,35 @@ class FindClassifier(
      * Verkaufserloes eines Duplikats mit Schluessel [key] und Qualitaet [quality]:
      * `layer.value * (0.5 + q) * balance.duplicateSellFactor * mods(sell_price)`.
      */
-    fun sellValue(key: PieceKey, quality: Double): GameNumber {
-        val layer = data.layer(data.species(key.speciesId).layer)
+    fun sellValue(key: PieceKey, quality: Double): GameNumber =
+        sellValue(data.layer(data.species(key.speciesId).layer), quality)
+
+    /** Verkaufserloes eines Duplikats einer Art aus [layer] mit Qualitaet [quality] (Formel wie oben). */
+    fun sellValue(layer: LayerDefinition, quality: Double): GameNumber {
         val value = layer.value * (QUALITY_OFFSET + quality) * data.balance.duplicateSellFactor *
             modifiers.factor(StatId.SELL_PRICE)
         return GameNumber(value)
+    }
+
+    /**
+     * Offline-Aggregation (Kapitel 7.1, AP-14): Die [count] Funde gelten als Duplikate und werden
+     * sofort zum Erwartungswert verkauft: `count * sellValue(layer, expectedQuality)`. Buch,
+     * Run-Bestand und Laborwarteschlange bleiben unveraendert (Naeherung, siehe Kapitel 7.1). Die
+     * Arten einer Schicht liegen alle in dieser Schicht, deshalb ist `layer.value` fuer jede gezogene
+     * Art derselbe und der Erloes linear in der Qualitaet, also exakt der Erwartungswert eines
+     * verkauften Duplikats.
+     */
+    override fun onAggregatedFinds(
+        state: GameState,
+        layer: LayerDefinition,
+        count: Long,
+        expectedQuality: Double,
+        context: AdvanceContext,
+    ): GameState {
+        if (count <= 0L) return state
+        val money = sellValue(layer, expectedQuality) * count.toDouble()
+        context.emit(GameEvent.FindsAggregated(layer.id, GameNumber(count.toDouble()), expectedQuality, money))
+        return state.copy(run = state.run.copy(money = state.run.money + money))
     }
 
     override fun onFind(state: GameState, find: Find, context: AdvanceContext): GameState {

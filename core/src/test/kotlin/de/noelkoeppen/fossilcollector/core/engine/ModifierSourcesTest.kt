@@ -3,6 +3,8 @@ package de.noelkoeppen.fossilcollector.core.engine
 import de.noelkoeppen.fossilcollector.core.data.DataRepository
 import de.noelkoeppen.fossilcollector.core.data.DefinitionIds
 import de.noelkoeppen.fossilcollector.core.data.GameData
+import de.noelkoeppen.fossilcollector.core.model.BookEntry
+import de.noelkoeppen.fossilcollector.core.model.PieceKey
 import de.noelkoeppen.fossilcollector.core.model.GameState
 import de.noelkoeppen.fossilcollector.core.modifier.Modifier
 import de.noelkoeppen.fossilcollector.core.modifier.ModifierCategory
@@ -13,6 +15,7 @@ import de.noelkoeppen.fossilcollector.core.number.GameNumber
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -39,6 +42,51 @@ class ModifierSourcesTest {
         val engine = ModifierEngine.fromGameData(data)
         ModifierSources.sync(engine, newState(), data)
         assertTrue(engine.sourceIds.isEmpty())
+    }
+
+    /** Zustand mit vollstaendigem Buch fuer [speciesId] (Qualitaet 0.6) und Praeparatoren. */
+    private fun stateWithBook(speciesId: String): GameState {
+        val species = data.species(speciesId)
+        val book = species.bones.associate { PieceKey(species.id, it) to BookEntry(0.6, reconstructed = false) }
+        val s = newState().withRun(preparators = 2.0)
+        return s.copy(meta = s.meta.copy(book = book, researchedSpecies = setOf(speciesId)))
+    }
+
+    @Test
+    fun `BookSources liefert bei unveraendertem Buch dieselbe Instanz`() {
+        val state = stateWithBook("cave_bear")
+        val first = BookSources.sources(state, data)
+        assertSame(first, BookSources.sources(state.copy(run = state.run.copy(money = n(5.0))), data))
+        val other = state.copy(meta = state.meta.copy(book = state.meta.book.toMap()))
+        assertEquals(first, BookSources.sources(other, data))
+    }
+
+    @Test
+    fun `Abgleich wird nach fremder Aenderung der Engine trotz gleichem Zustand wiederholt`() {
+        val engine = ModifierEngine.fromGameData(data)
+        val state = stateWithBook("cave_bear")
+        ModifierSources.sync(engine, state, data)
+        val expected = engine.sourceIds
+        assertTrue("book:cave_bear" in expected)
+
+        engine.clearSources()
+        ModifierSources.sync(engine, state, data)
+        assertEquals(expected, engine.sourceIds)
+
+        engine.removeSource("book:cave_bear")
+        ModifierSources.sync(engine, state, data)
+        assertEquals(expected, engine.sourceIds)
+    }
+
+    @Test
+    fun `Abgleich mit gleichem Zustand fuer eine zweite Engine setzt alle Quellen`() {
+        val state = stateWithBook("cave_bear")
+        val first = ModifierEngine.fromGameData(data)
+        val second = ModifierEngine.fromGameData(data)
+        ModifierSources.sync(first, state, data)
+        ModifierSources.sync(second, state, data)
+        assertEquals(first.sourceIds, second.sourceIds)
+        assertEquals(first.factor(StatId.MUSEUM_INCOME), second.factor(StatId.MUSEUM_INCOME), EPS)
     }
 
     @Test

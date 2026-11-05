@@ -30,6 +30,21 @@ import kotlin.math.min
 fun interface FindHandler {
     fun onFind(state: GameState, find: Find, context: AdvanceContext): GameState
 
+    /**
+     * Offline-Aggregation (Kapitel 7.1, AP-14): [count] Fossilien aus [layer], die nicht mehr einzeln
+     * gewuerfelt wurden, weil die [DetailedFindLimit] erschoepft ist. [expectedQuality] ist der
+     * Erwartungswert der Stueckqualitaet ([PrepSystem.expectedQuality]). Der Handler rechnet sie
+     * pauschal um (AP-14: [FindClassifier] verkauft sie als Duplikate zum Erwartungswert). Standard:
+     * keine Wirkung.
+     */
+    fun onAggregatedFinds(
+        state: GameState,
+        layer: LayerDefinition,
+        count: Long,
+        expectedQuality: Double,
+        context: AdvanceContext,
+    ): GameState = state
+
     companion object {
         /** Stand AP-08: Funde werden nur gemeldet, nicht eingeordnet. */
         val NONE: FindHandler = FindHandler { state, _, _ -> state }
@@ -71,6 +86,13 @@ fun interface FindHandler {
  *    uniform(damageRollMin, damageRollMax)`, `zoneQ = clamp(base - damage, 0, 1)`.
  *    `quality_base_min` hat die Basis `balance.qualityBaseMin` und wird auf `qualityBaseMax`
  *    begrenzt.
+ *
+ * **Offline-Aggregation** (Kapitel 7.1, AP-14): Hat der Kontext eine [DetailedFindLimit] und ist sie
+ * erschoepft, wird nach dem Fundwurf (Schritt 1, er bleibt ein echter Wurf) nicht mehr Art, Knochen
+ * und Zonen gewuerfelt. Diese Fossilien zaehlen in `meta.stats.piecesFound` und
+ * [GameEvent.BlocksPrepared], werden aber je Schicht und Aufruf gesammelt an
+ * [FindHandler.onAggregatedFinds] uebergeben (mit [expectedQuality]); es gibt fuer sie kein
+ * [GameEvent.FossilFound].
  *
  * **Ergebnis eines Fossils:** ein [Find]. Die Praeparation zaehlt `meta.stats.piecesFound` hoch
  * (bei der hoechsten Qualitaetsstufe zusaetzlich `meta.stats.pristineFound`, AP-11), meldet [GameEvent.FossilFound] und uebergibt den Fund an den [findHandler] (AP-09).
@@ -163,10 +185,18 @@ class PrepSystem(
         var current = state.copy(run = state.run.copy(blocks = state.run.blocks + (layer.id to left)))
 
         val chance = fossilChance()
+        val limit = context.detailedFinds
+        val hasSpecies = data.speciesByLayer[layer.id].orEmpty().isNotEmpty()
         var rocks = 0L
         var fossils = 0L
+        var aggregated = 0L
         for (i in 0 until count) {
-            val find = if (context.rng.nextDouble() < chance) rollFind(current.run, layer, context.rng) else null
+            val isFossil = context.rng.nextDouble() < chance
+            if (isFossil && hasSpecies && limit != null && !limit.tryTakeDetailed()) {
+                aggregated++
+                continue
+            }
+            val find = if (isFossil) rollFind(current.run, layer, context.rng) else null
             if (find == null) {
                 rocks++
                 continue
@@ -187,13 +217,22 @@ class PrepSystem(
             current = findHandler.onFind(current, find, context)
         }
 
+        if (aggregated > 0L) {
+            limit?.addAggregated(aggregated)
+            val meta = current.meta
+            current = current.copy(
+                meta = meta.copy(stats = meta.stats.copy(piecesFound = meta.stats.piecesFound + aggregated.toDouble())),
+            )
+            current = findHandler.onAggregatedFinds(current, layer, aggregated, expectedQuality(layer), context)
+        }
+
         val money = GameNumber(rocks.toDouble() * rockValue(layer))
         if (rocks > 0L) current = current.copy(run = current.run.copy(money = current.run.money + money))
         context.emit(
             GameEvent.BlocksPrepared(
                 layerId = layer.id,
                 blocks = GameNumber(count.toDouble()),
-                fossils = GameNumber(fossils.toDouble()),
+                fossils = GameNumber((fossils + aggregated).toDouble()),
                 rockMoney = money,
             ),
         )
@@ -243,7 +282,49 @@ class PrepSystem(
         }
     }
 
+    /** Zwischenspeicher fuer [expectedQuality]: Schicht-ID -> (Eingabewerte, Ergebnis). */
+    private val expectedQualityCache = HashMap<String, Pair<List<Double>, Double>>()
+
+    /**
+     * Erwartungswert der Stueckqualitaet eines Fundes aus [layer] beim aktuellen Stand der Modifier
+     * (Offline-Aggregation, Kapitel 7.1). Weil die Qualitaet der Mittelwert gleich verteilter Zonen
+     * ist, ist ihr Erwartungswert der einer Zone:
+     * `E[q] = (1 - no_damage) * E[clamp(base - f * d, 0, 1)] + no_damage * E[clamp(base, 0, 1)]` mit
+     * `base ~ U(quality_base_min, qualityBaseMax)`, `d ~ U(damageRollMin, damageRollMax)` und
+     * `f = max(0, fragility - damage_reduction)`. Der Erwartungswert der begrenzten Differenz wird
+     * numerisch ueber ein Mittelpunktgitter berechnet (Fehler < 0.001) und je Schicht zwischengespeichert,
+     * solange sich die Eingabewerte nicht aendern.
+     */
+    fun expectedQuality(layer: LayerDefinition): Double {
+        val balance = data.balance
+        val baseMax = balance.qualityBaseMax
+        val baseMin = min(modifiers.value(StatId.QUALITY_BASE_MIN, balance.qualityBaseMin), baseMax)
+        val fragility = max(0.0, layer.fragility - modifiers.additive(StatId.DAMAGE_REDUCTION))
+        val noDamage = modifiers.additive(StatId.NO_DAMAGE_CHANCE).coerceIn(0.0, 1.0)
+        val inputs = listOf(baseMin, baseMax, fragility, noDamage, balance.damageRollMin, balance.damageRollMax)
+        expectedQualityCache[layer.id]?.let { (cachedInputs, value) -> if (cachedInputs == inputs) return value }
+
+        var damaged = 0.0
+        var undamaged = 0.0
+        for (i in 0 until EXPECTATION_GRID) {
+            val base = baseMin + (baseMax - baseMin) * (i + 0.5) / EXPECTATION_GRID
+            undamaged += base.coerceIn(0.0, 1.0)
+            for (j in 0 until EXPECTATION_GRID) {
+                val roll = balance.damageRollMin + (balance.damageRollMax - balance.damageRollMin) * (j + 0.5) / EXPECTATION_GRID
+                damaged += (base - fragility * roll).coerceIn(0.0, 1.0)
+            }
+        }
+        damaged /= EXPECTATION_GRID.toDouble() * EXPECTATION_GRID
+        undamaged /= EXPECTATION_GRID.toDouble()
+        val result = (1.0 - noDamage) * damaged + noDamage * undamaged
+        expectedQualityCache[layer.id] = inputs to result
+        return result
+    }
+
     companion object {
+        /** Stuetzstellen je Achse fuer [expectedQuality] (numerische Genauigkeit, kein Spielwert). */
+        private const val EXPECTATION_GRID: Int = 64
+
         /** Gewicht vorhandener Knochen beim Pech-Schutz (Kapitel 4.9: "vorhandene das Gewicht 1"). */
         private const val EXISTING_BONE_WEIGHT: Double = 1.0
 

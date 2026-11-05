@@ -20,6 +20,25 @@ class ModifierEngineTest {
     private fun mult(stat: StatId, value: Double, category: ModifierCategory) =
         Modifier(stat, ModifierOp.MULT, value, category)
 
+    // --- Revision (AP-14) ---
+
+    @Test
+    fun `revision steigt bei jeder Aenderung der Quellen`() {
+        val engine = ModifierEngine()
+        assertEquals(0L, engine.revision)
+        engine.setSource("a", listOf(add(StatId.DIG_RATE, 1.0)))
+        assertEquals(1L, engine.revision)
+        assertFalse(engine.removeSource("unbekannt"))
+        assertEquals(1L, engine.revision)
+        assertTrue(engine.removeSource("a"))
+        assertEquals(2L, engine.revision)
+        engine.clearSources()
+        assertEquals(2L, engine.revision, "leeres clearSources aendert nichts")
+        engine.setSource("b", emptyList())
+        engine.clearSources()
+        assertEquals(4L, engine.revision)
+    }
+
     // --- Formel ---
 
     @Test
