@@ -47,12 +47,15 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.flow.emptyFlow
 import de.noelkoeppen.fossilcollector.R
 import de.noelkoeppen.fossilcollector.core.model.Settings
 import de.noelkoeppen.fossilcollector.core.number.GameNumber
+import de.noelkoeppen.fossilcollector.ui.dig.DigScreen
 import de.noelkoeppen.fossilcollector.ui.rememberGameNumberFormat
 import de.noelkoeppen.fossilcollector.ui.theme.FossilCollectorTheme
 import de.noelkoeppen.fossilcollector.ui.theme.QualityColors
+import de.noelkoeppen.fossilcollector.vm.DigActions
 import de.noelkoeppen.fossilcollector.vm.GameMessage
 import de.noelkoeppen.fossilcollector.vm.GameTab
 import de.noelkoeppen.fossilcollector.vm.GameUiState
@@ -81,7 +84,7 @@ fun AppShell(viewModel: GameViewModel) {
         when (val state = uiState) {
             GameUiState.Loading -> LoadingScreen()
             GameUiState.DataError -> DataErrorScreen()
-            is GameUiState.Ready -> GameShell(state, snackbarHostState)
+            is GameUiState.Ready -> GameShell(state, snackbarHostState, viewModel)
         }
     }
 }
@@ -92,9 +95,17 @@ private fun messageText(message: GameMessage, context: android.content.Context):
     GameMessage.SaveFailed -> context.getString(R.string.message_save_failed)
 }
 
-/** Laufendes Spiel: obere Leiste, Inhalt, untere Navigation. */
+/**
+ * Laufendes Spiel: obere Leiste, Inhalt, untere Navigation.
+ *
+ * @param viewModel Quelle der Aktionen und Popups fuer die Screens; `null` in Vorschauen (keine Wirkung)
+ */
 @Composable
-fun GameShell(state: GameUiState.Ready, snackbarHostState: SnackbarHostState = remember { SnackbarHostState() }) {
+fun GameShell(
+    state: GameUiState.Ready,
+    snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
+    viewModel: GameViewModel? = null,
+) {
     var selectedTab by rememberSaveable { mutableStateOf(GameTab.DIG) }
     var showSettings by rememberSaveable { mutableStateOf(false) }
     // Ein Tab, der (z. B. nach einem Neustart) nicht sichtbar ist, faellt auf die Grabung zurueck.
@@ -129,19 +140,26 @@ fun GameShell(state: GameUiState.Ready, snackbarHostState: SnackbarHostState = r
                     text = stringResource(R.string.placeholder_settings),
                 )
             } else {
-                TabContent(currentTab)
+                TabContent(currentTab, state, viewModel)
             }
         }
     }
 }
 
-/** Inhalt eines Tabs. Stand AP-16: Platzhalter; AP-17 ff. setzen hier ihre Screens ein. */
+/** Inhalt eines Tabs. Grabung seit AP-17; die uebrigen Tabs sind Platzhalter, bis AP-18 ff. sie ersetzen. */
 @Composable
-private fun TabContent(tab: GameTab) {
-    PlaceholderScreen(
-        title = stringResource(tab.titleRes),
-        text = stringResource(tab.placeholderRes),
-    )
+private fun TabContent(tab: GameTab, state: GameUiState.Ready, viewModel: GameViewModel?) {
+    when (tab) {
+        GameTab.DIG -> DigScreen(
+            state = state,
+            actions = viewModel ?: DigActions.NONE,
+            findPopups = viewModel?.findPopups ?: emptyFlow(),
+        )
+        else -> PlaceholderScreen(
+            title = stringResource(tab.titleRes),
+            text = stringResource(tab.placeholderRes),
+        )
+    }
 }
 
 /** Obere Leiste: Geld (+ $/s), FP, Ruhm und Zahnrad (Kapitel 8.1). */
