@@ -7,7 +7,7 @@ import kotlinx.serialization.Serializable
  * Datengetriebener Bonus in Definitionsform (GAME_DESIGN.md, Kapitel 6.2), z. B.
  * `{ "stat": "museum_income", "op": "mult", "value": 0.10, "category": "skill" }`.
  *
- * Die Verrechnung (`ModifierEngine`) ist nicht Teil dieser Klasse (AP-04).
+ * Die Verrechnung uebernimmt [ModifierEngine].
  */
 @Serializable
 data class Modifier(
