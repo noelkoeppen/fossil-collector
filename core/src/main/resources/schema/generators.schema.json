@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://noelkoeppen.de/fossil-collector/schema/generators.schema.json",
+  "title": "generators.json",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "properties": {
+      "id": {
+        "$ref": "common.schema.json#/$defs/id"
+      },
+      "baseCost": {
+        "type": "number",
+        "exclusiveMinimum": 0
+      },
+      "growth": {
+        "type": "number",
+        "exclusiveMinimum": 1
+      },
+      "currency": {
+        "$ref": "common.schema.json#/$defs/currency"
+      },
+      "free": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "effects": {
+        "$ref": "common.schema.json#/$defs/modifierList"
+      }
+    },
+    "required": [
+      "id",
+      "baseCost",
+      "growth",
+      "currency"
+    ],
+    "additionalProperties": false
+  },
+  "minItems": 1
+}

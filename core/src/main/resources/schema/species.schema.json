@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://noelkoeppen.de/fossil-collector/schema/species.schema.json",
+  "title": "species.json",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "properties": {
+      "id": {
+        "$ref": "common.schema.json#/$defs/id"
+      },
+      "layer": {
+        "$ref": "common.schema.json#/$defs/id"
+      },
+      "rarityWeight": {
+        "type": "number",
+        "exclusiveMinimum": 0
+      },
+      "bodyPlan": {
+        "enum": [
+          "biped",
+          "quadruped"
+        ]
+      },
+      "bones": {
+        "type": "array",
+        "items": {
+          "$ref": "common.schema.json#/$defs/id"
+        },
+        "minItems": 1,
+        "uniqueItems": true
+      },
+      "art": {
+        "type": "string",
+        "minLength": 1
+      },
+      "bookBonus": {
+        "type": "object",
+        "description": "Buch-Bonus, Kategorie immer book",
+        "properties": {
+          "stat": {
+            "$ref": "common.schema.json#/$defs/statId"
+          },
+          "op": {
+            "$ref": "common.schema.json#/$defs/modifierOp"
+          },
+          "value": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          }
+        },
+        "required": [
+          "stat",
+          "op",
+          "value"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "required": [
+      "id",
+      "layer",
+      "rarityWeight",
+      "bodyPlan",
+      "bones",
+      "art",
+      "bookBonus"
+    ],
+    "additionalProperties": false
+  },
+  "minItems": 1
+}
