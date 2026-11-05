@@ -10,10 +10,16 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import de.noelkoeppen.fossilcollector.core.data.DataRepository
 import de.noelkoeppen.fossilcollector.core.data.DataValidationException
 import de.noelkoeppen.fossilcollector.core.data.GameData
+import de.noelkoeppen.fossilcollector.core.data.TextProvider
+import de.noelkoeppen.fossilcollector.core.engine.AdvanceResult
 import de.noelkoeppen.fossilcollector.core.engine.GameEngine
 import de.noelkoeppen.fossilcollector.core.engine.GameEvent
 import de.noelkoeppen.fossilcollector.core.engine.NumericErrorHandler
+import de.noelkoeppen.fossilcollector.core.engine.QualityTiers
 import de.noelkoeppen.fossilcollector.core.engine.RunStart
+import de.noelkoeppen.fossilcollector.core.engine.purchase.BuyMode
+import de.noelkoeppen.fossilcollector.core.engine.purchase.PurchaseResult
+import de.noelkoeppen.fossilcollector.core.engine.purchase.Purchases
 import de.noelkoeppen.fossilcollector.core.model.GameState
 import de.noelkoeppen.fossilcollector.core.modifier.ModifierEngine
 import de.noelkoeppen.fossilcollector.core.random.GameRandom
@@ -77,7 +83,7 @@ class GameViewModel(
     private val rng: GameRandom = SeededRandom(time.currentTimeMillis()),
     private val gameDispatcher: CoroutineDispatcher = Dispatchers.Default.limitedParallelism(1),
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
-) : ViewModel() {
+) : ViewModel(), DigActions {
 
     private val _uiState = MutableStateFlow<GameUiState>(GameUiState.Loading)
 
@@ -101,6 +107,17 @@ class GameViewModel(
     /** Einmalige Hinweise (Backup geladen, Speichern fehlgeschlagen ...); werden genau einmal zugestellt. */
     val messages: Flow<GameMessage> = messageChannel.receiveAsFlow()
 
+    private val _findPopups = MutableSharedFlow<FindPopup>(
+        extraBufferCapacity = POPUP_BUFFER,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST,
+    )
+
+    /**
+     * Fund-Popups fuer den Screen Grabung (Kapitel 8.3), bereits gebuendelt ([FindPopupBundler]:
+     * hoechstens eines pro Sekunde, bessere Stufe zuerst). Heisser Flow ohne Wiederholung.
+     */
+    val findPopups: SharedFlow<FindPopup> = _findPopups.asSharedFlow()
+
     // --- Nur auf gameDispatcher ---
     private var data: GameData? = null
     private var engine: GameEngine? = null
@@ -108,6 +125,10 @@ class GameViewModel(
     private var lastSavedState: GameState? = null
     private var revealedTabs: Set<GameTab> = emptySet()
     private val moneyRate = RateTracker()
+    private var purchases: Purchases? = null
+    private var qualityTiers: QualityTiers? = null
+    private var texts: TextProvider = TextProvider.EMPTY
+    private val popupBundler = FindPopupBundler()
 
     private val foreground = MutableStateFlow(false)
     private val saveMutex = Mutex()
@@ -141,8 +162,48 @@ class GameViewModel(
         viewModelScope.launch(gameDispatcher) {
             val currentEngine = engine ?: return@launch
             val current = state ?: return@launch
-            state = action(currentEngine, current)
+            val newState = action(currentEngine, current)
+            state = newState
+            // Kaeufe aendern ggf. Modifier-Quellen (z. B. Praeparatoren); Abfragen der UI sollen sie sofort sehen.
+            if (newState !== current) currentEngine.syncModifiers(newState)
             publish()
+        }
+    }
+
+    /**
+     * Wie [perform], fuer Aktionen mit Ereignissen (z. B. `tapPrep`): Die Ereignisse gehen wie die
+     * aus `advance` an [events] und an die Fund-Popups.
+     */
+    fun performWithEvents(action: (GameEngine, GameState) -> AdvanceResult) {
+        viewModelScope.launch(gameDispatcher) {
+            val currentEngine = engine ?: return@launch
+            val current = state ?: return@launch
+            val result = action(currentEngine, current)
+            state = result.state
+            if (result.state !== current) currentEngine.syncModifiers(result.state)
+            dispatchEvents(result.events)
+            publish()
+        }
+    }
+
+    // --- Aktionen des Screens Grabung (AP-17) ---
+
+    override fun tapDig(layerId: String) = perform { engine, state -> engine.tapDig(state, layerId) }
+
+    override fun tapPrep() = performWithEvents { engine, state -> engine.tapPrep(state, rng) }
+
+    override fun buyTeams(layerId: String, mode: BuyMode) = purchase { p, state -> p.buyTeams(state, layerId, mode) }
+
+    override fun buyPreparators(mode: BuyMode) = purchase { p, state -> p.buyPreparators(state, mode) }
+
+    override fun unlockLayer(layerId: String) = purchase { p, state -> p.unlockLayer(state, layerId) }
+
+    /** Kauf ueber [Purchases]; bei Fehlschlag (z. B. Geld reicht nicht mehr) bleibt der Zustand unveraendert. */
+    private fun purchase(action: (Purchases, GameState) -> PurchaseResult) = perform { _, current ->
+        val p = purchases ?: return@perform current
+        when (val result = action(p, current)) {
+            is PurchaseResult.Success -> result.state
+            is PurchaseResult.Failure -> current
         }
     }
 
@@ -184,6 +245,10 @@ class GameViewModel(
 
         data = loadedData
         engine = loadedEngine
+        purchases = Purchases(loadedData, modifiers)
+        qualityTiers = QualityTiers.fromGameData(loadedData)
+        texts = TextProvider.fromGameData(loadedData)
+        popupBundler.reset()
         state = loadedState
         lastSavedState = if (needsInitialSave) null else loadedState
         revealedTabs = emptySet()
@@ -232,8 +297,18 @@ class GameViewModel(
             moneyRate.record(result.state.run.money - current.run.money, TICK_SECONDS)
         }
         state = result.state
-        for (event in result.events) _events.tryEmit(event)
+        dispatchEvents(result.events)
         publish()
+    }
+
+    /** Verteilt Ereignisse an [events] und die Fund-Popups. Muss auf [gameDispatcher] laufen. */
+    private fun dispatchEvents(events: List<GameEvent>) {
+        val tiers = qualityTiers
+        for (event in events) {
+            _events.tryEmit(event)
+            if (tiers != null) FindPopup.fromEvent(event, tiers)?.let(popupBundler::offer)
+        }
+        popupBundler.poll(time.monotonicNanos())?.let { _findPopups.tryEmit(it) }
     }
 
     /** Veroeffentlicht den UI-Zustand aus dem aktuellen Spielstand. */
@@ -249,6 +324,9 @@ class GameViewModel(
             visibleTabs = revealedTabs.toList(),
             settings = current.settings,
             qualityTiers = gameData.balance.qualityTiers,
+            texts = texts,
+            dig = engine?.let { e -> purchases?.let { p -> DigStateMapper.map(gameData, e, p, current) } }
+                ?: DigUiState.EMPTY,
         )
     }
 
@@ -290,6 +368,7 @@ class GameViewModel(
         const val AUTOSAVE_INTERVAL_NANOS: Long = 30_000 * NANOS_PER_MILLI
 
         private const val EVENT_BUFFER = 64
+        private const val POPUP_BUFFER = 4
 
         /** Factory fuer `viewModel(factory = GameViewModel.Factory)`. */
         val Factory = viewModelFactory {

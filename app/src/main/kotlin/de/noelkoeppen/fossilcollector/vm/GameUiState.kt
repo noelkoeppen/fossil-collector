@@ -2,6 +2,7 @@ package de.noelkoeppen.fossilcollector.vm
 
 import androidx.compose.runtime.Immutable
 import de.noelkoeppen.fossilcollector.core.data.QualityTierDefinition
+import de.noelkoeppen.fossilcollector.core.data.TextProvider
 import de.noelkoeppen.fossilcollector.core.model.Settings
 import de.noelkoeppen.fossilcollector.core.number.GameNumber
 
@@ -28,6 +29,8 @@ sealed interface GameUiState {
      * @property visibleTabs sichtbare Tabs in Anzeigereihenfolge ([TabUnlockRules])
      * @property settings Einstellungen des Spielstands (Sprache, Zahlenformat)
      * @property qualityTiers Qualitaetsstufen aus den Spieldaten (fuer die Qualitaetsfarben)
+     * @property texts Inhaltstexte (Standardsprache); die UI waehlt die Sprache per `TextProvider.withLanguage`
+     * @property dig Ausschnitt fuer den Screen Grabung (AP-17)
      */
     @Immutable
     data class Ready(
@@ -38,6 +41,8 @@ sealed interface GameUiState {
         val visibleTabs: List<GameTab>,
         val settings: Settings,
         val qualityTiers: List<QualityTierDefinition>,
+        val texts: TextProvider = TextProvider.EMPTY,
+        val dig: DigUiState = DigUiState.EMPTY,
     ) : GameUiState
 }
 

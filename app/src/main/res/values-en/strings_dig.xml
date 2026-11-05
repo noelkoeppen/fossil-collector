@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Dig screen (AP-17, chapter 8.3) -->
+<resources>
+    <string name="dig_tap_hint">Tap to dig</string>
+    <string name="dig_layer_blocks">Storage: %1$s blocks</string>
+    <string name="dig_layer_rate_teams">%1$s blocks/s · %2$s teams</string>
+    <string name="dig_buy_teams">Teams</string>
+    <string name="dig_locked_cost">Unlock: $%1$s</string>
+    <string name="dig_locked_progress">Saved: %1$d%%</string>
+    <string name="dig_locked_not_next">Unlock the layer above first</string>
+    <string name="dig_unlock">Unlock</string>
+    <string name="dig_prep_title">Preparation</string>
+    <string name="dig_prep_rate">Processing: %1$s blocks/s</string>
+    <string name="dig_prep_preparators">Preparators: %1$s</string>
+    <string name="dig_prep_available">Ready: %1$s blocks</string>
+    <string name="dig_buy_preparators">Preparators</string>
+    <string name="dig_prep_button">Uncover</string>
+    <string name="dig_prep_no_blocks">No whole blocks in storage</string>
+    <string name="dig_popup_new">New find</string>
+    <string name="dig_popup_improved">Better find</string>
+    <string name="dig_popup_piece">%1$s · %2$s</string>
+    <string name="dig_popup_quality">%1$s (%2$d%%)</string>
+</resources>
