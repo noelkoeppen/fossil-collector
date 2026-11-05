@@ -3,8 +3,10 @@ package de.noelkoeppen.fossilcollector.vm
 import androidx.compose.runtime.Immutable
 import de.noelkoeppen.fossilcollector.core.data.QualityTierDefinition
 import de.noelkoeppen.fossilcollector.core.data.TextProvider
+import de.noelkoeppen.fossilcollector.core.engine.ReconstructionFailure
 import de.noelkoeppen.fossilcollector.core.model.Settings
 import de.noelkoeppen.fossilcollector.core.number.GameNumber
+import de.noelkoeppen.fossilcollector.ui.lab.LabUiState
 import de.noelkoeppen.fossilcollector.ui.museum.MuseumUiState
 
 /**
@@ -33,6 +35,7 @@ sealed interface GameUiState {
      * @property texts Inhaltstexte (Standardsprache); die UI waehlt die Sprache per `TextProvider.withLanguage`
      * @property dig Ausschnitt fuer den Screen Grabung (AP-17)
      * @property museum Ausschnitt fuer den Screen Museum (AP-18, [de.noelkoeppen.fossilcollector.ui.museum.MuseumUiMapper])
+     * @property lab Ausschnitt fuer den Screen Labor (AP-19, [de.noelkoeppen.fossilcollector.ui.lab.LabUiMapper])
      */
     @Immutable
     data class Ready(
@@ -46,6 +49,7 @@ sealed interface GameUiState {
         val texts: TextProvider = TextProvider.EMPTY,
         val dig: DigUiState = DigUiState.EMPTY,
         val museum: MuseumUiState = MuseumUiState.EMPTY,
+        val lab: LabUiState = LabUiState.EMPTY,
     ) : GameUiState
 }
 
@@ -60,4 +64,7 @@ sealed interface GameMessage {
 
     /** Speichern ist fehlgeschlagen (wird beim naechsten Autosave erneut versucht). */
     data object SaveFailed : GameMessage
+
+    /** Eine Rekonstruktion wurde abgelehnt (AP-19); der Spielstand ist unveraendert. */
+    data class ReconstructionFailed(val reason: ReconstructionFailure) : GameMessage
 }

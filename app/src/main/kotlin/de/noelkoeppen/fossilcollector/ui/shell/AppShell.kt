@@ -49,9 +49,13 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.flow.emptyFlow
 import de.noelkoeppen.fossilcollector.R
+import de.noelkoeppen.fossilcollector.core.engine.ReconstructionFailure
 import de.noelkoeppen.fossilcollector.core.model.Settings
 import de.noelkoeppen.fossilcollector.core.number.GameNumber
 import de.noelkoeppen.fossilcollector.ui.dig.DigScreen
+import de.noelkoeppen.fossilcollector.ui.lab.LabActions
+import de.noelkoeppen.fossilcollector.ui.lab.LabScreen
+import de.noelkoeppen.fossilcollector.ui.lab.labActions
 import de.noelkoeppen.fossilcollector.ui.museum.MuseumActions
 import de.noelkoeppen.fossilcollector.ui.museum.MuseumScreen
 import de.noelkoeppen.fossilcollector.ui.museum.museumActions
@@ -96,6 +100,14 @@ private fun messageText(message: GameMessage, context: android.content.Context):
     is GameMessage.LoadedFromBackup -> context.getString(R.string.message_loaded_from_backup, message.backupIndex)
     GameMessage.SaveUnreadableNewGame -> context.getString(R.string.message_save_unreadable)
     GameMessage.SaveFailed -> context.getString(R.string.message_save_failed)
+    is GameMessage.ReconstructionFailed -> context.getString(
+        when (message.reason) {
+            ReconstructionFailure.NO_IMPROVEMENT -> R.string.lab_message_recon_no_improvement
+            ReconstructionFailure.MISSING_SPARE_ZONES -> R.string.lab_message_recon_missing_zones
+            ReconstructionFailure.UNKNOWN_PIECE -> R.string.lab_message_recon_unknown
+            ReconstructionFailure.NON_FINITE_RESULT -> R.string.lab_message_recon_error
+        },
+    )
 }
 
 /**
@@ -149,7 +161,7 @@ fun GameShell(
     }
 }
 
-/** Inhalt eines Tabs. Grabung seit AP-17, Museum seit AP-18; die uebrigen Tabs sind Platzhalter, bis AP-19 ff. sie ersetzen. */
+/** Inhalt eines Tabs. Grabung seit AP-17, Museum seit AP-18, Labor seit AP-19; die uebrigen Tabs sind Platzhalter, bis AP-20 ff. sie ersetzen. */
 @Composable
 private fun TabContent(tab: GameTab, state: GameUiState.Ready, viewModel: GameViewModel?) {
     when (tab) {
@@ -157,6 +169,12 @@ private fun TabContent(tab: GameTab, state: GameUiState.Ready, viewModel: GameVi
             state = state,
             actions = viewModel ?: DigActions.NONE,
             findPopups = viewModel?.findPopups ?: emptyFlow(),
+        )
+        GameTab.LAB -> LabScreen(
+            state = state.lab,
+            settings = state.settings,
+            texts = state.texts,
+            actions = remember(viewModel) { viewModel?.let(::labActions) ?: LabActions.NONE },
         )
         GameTab.MUSEUM -> MuseumScreen(
             state = state.museum,

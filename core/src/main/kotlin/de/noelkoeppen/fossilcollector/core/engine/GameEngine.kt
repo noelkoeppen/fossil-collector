@@ -9,8 +9,11 @@ import de.noelkoeppen.fossilcollector.core.engine.purchase.Purchases
 import de.noelkoeppen.fossilcollector.core.model.GameState
 import de.noelkoeppen.fossilcollector.core.model.PieceKey
 import de.noelkoeppen.fossilcollector.core.modifier.ModifierEngine
+import de.noelkoeppen.fossilcollector.core.modifier.StatId
 import de.noelkoeppen.fossilcollector.core.number.GameNumber
 import de.noelkoeppen.fossilcollector.core.random.GameRandom
+import kotlin.math.ceil
+import kotlin.math.max
 
 /**
  * Zentrale Simulation (GAME_DESIGN.md, Kapitel 0 Regel 5 und Kapitel 10.3).
@@ -64,7 +67,10 @@ class GameEngine(
      */
     val museum: MuseumSystem = systems.filterIsInstance<MuseumSystem>().firstOrNull() ?: MuseumSystem(data, modifiers)
 
-    /** Kaufaktionen (zustandslos); Hallenkauf ueber [buyHalls] bzw. [hallQuote]. */
+    /**
+     * Kaufaktionen (zustandslos); Hallenkauf ueber [buyHalls] bzw. [hallQuote], Laborplaetze ueber
+     * [buyLabSlots] bzw. [labSlotQuote], Werkzeugstufen ueber [buyToolLevel] bzw. [toolLevelQuote].
+     */
     private val purchases: Purchases = Purchases(data, modifiers)
 
     /**
@@ -75,6 +81,9 @@ class GameEngine(
 
     /** Rekonstruktion aus Ersatzteilen (Spieleraktion und Abfragen, Kapitel 4.5). */
     val reconstruction: Reconstruction = Reconstruction(data, modifiers)
+
+    /** Einordnen von Funden, hier nur fuer Abfragen der UI (Laenge der Laborwarteschlange). */
+    private val classifier: FindClassifier = FindClassifier(data, modifiers)
 
     /** Sammelbuch-Completion und Buch-Boni (Abfragen fuer die UI, Kapitel 4.7). */
     val completion: Completion = Completion(data)
@@ -282,6 +291,58 @@ class GameEngine(
             return PrestigeResult.Failure(PrestigeFailure.NON_FINITE_RESULT)
         }
         return PrestigeResult.Success(result, events, gain)
+    }
+
+    /**
+     * Spieleraktion: Laborplaetze kaufen (Kapitel 4.5, 6.3), siehe [Purchases.buyLabSlots]. Gleicht
+     * vorher die Modifier-Quellen ab.
+     */
+    fun buyLabSlots(state: GameState, mode: BuyMode): PurchaseResult {
+        syncModifiers(state)
+        return purchases.buyLabSlots(state, mode)
+    }
+
+    /**
+     * Vorschau fuer den Kauf von Laborplaetzen im Modus [mode] (fuer die UI), siehe [Purchases.quote].
+     * Nutzt den Stand der Modifier-Quellen nach dem letzten [advance] bzw. [syncModifiers].
+     */
+    fun labSlotQuote(state: GameState, mode: BuyMode): PurchaseQuote? =
+        purchases.quote(state, PurchaseTarget.LabSlots, mode)
+
+    /**
+     * Spieleraktion: Werkzeugstufen mit FP kaufen (Kapitel 6.3), siehe [Purchases.buyToolLevel].
+     * Gleicht vorher die Modifier-Quellen ab; der Kauf aendert die Quelle `upgrade:tools`, die beim
+     * naechsten Abgleich ([advance] bzw. [syncModifiers]) wirkt.
+     */
+    fun buyToolLevel(state: GameState, mode: BuyMode): PurchaseResult {
+        syncModifiers(state)
+        return purchases.buyToolLevel(state, mode)
+    }
+
+    /**
+     * Vorschau fuer den Kauf von Werkzeugstufen im Modus [mode] (fuer die UI), `null` bei erreichter
+     * Maximalstufe, siehe [Purchases.quote]. Nutzt den Stand der Modifier-Quellen nach dem letzten
+     * [advance] bzw. [syncModifiers].
+     */
+    fun toolLevelQuote(state: GameState, mode: BuyMode): PurchaseQuote? =
+        purchases.quote(state, PurchaseTarget.ToolLevel, mode)
+
+    /**
+     * Aktueller Wert von `damage_reduction` (additiver Stat, Basis 0, inkl. Clamp) aus allen Quellen
+     * (Werkzeugstufen, Buch-Boni ...), fuer die UI. Nutzt den Stand der Modifier-Quellen nach dem
+     * letzten [advance] bzw. [syncModifiers].
+     */
+    fun damageReduction(): Double = modifiers.additive(StatId.DAMAGE_REDUCTION)
+
+    /**
+     * Wie viele Stuecke die Laborwarteschlange hoechstens aufnimmt (fuer die UI): Ein Duplikat kommt
+     * in die Warteschlange, solange `labQueue.size < FindClassifier.labQueueMax` gilt, also passen
+     * `ceil(labQueueMax)` Stuecke hinein (nie negativ).
+     */
+    fun labQueueCapacity(state: GameState): Int {
+        val maxLength = classifier.labQueueMax(state.run)
+        if (!maxLength.isFinite()) return if (maxLength > 0.0) Int.MAX_VALUE else 0
+        return max(0.0, ceil(maxLength)).coerceAtMost(Int.MAX_VALUE.toDouble()).toInt()
     }
 
     private fun reject(state: GameState, error: NonFiniteValueException): AdvanceResult {
