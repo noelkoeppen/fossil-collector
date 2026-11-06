@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Hints shown the first time a tab appears, one sentence each (AP-25, chapter 8.2) -->
+<resources>
+    <string name="hint_tab_dig">Tap a layer to dig blocks, then prepare them to find fossils.</string>
+    <string name="hint_tab_museum">New: The museum exhibits your best finds and earns money every second.</string>
+    <string name="hint_tab_book">New: The collection lists every species, and complete skeletons in it grant permanent bonuses.</string>
+    <string name="hint_tab_lab">New: The lab researches duplicate finds for research points and spare parts.</string>
+    <string name="hint_tab_fame">New: Restarting turns complete skeletons into fame, which buys permanent skills.</string>
+</resources>

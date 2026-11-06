@@ -46,6 +46,8 @@ class TextProvider(
 
     fun statName(stat: StatId): String = text(LocaleKeys.statName(stat))
 
+    fun milestoneName(milestoneId: String): String = text(LocaleKeys.milestoneName(milestoneId))
+
     companion object {
         /** Standardsprache der Inhaltstexte (Deutsch, Kapitel 12). */
         val DEFAULT_LANGUAGE: String = DataRepository.LANGUAGES.first()

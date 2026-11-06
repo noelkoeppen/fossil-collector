@@ -3,7 +3,6 @@ package de.noelkoeppen.fossilcollector.ui.museum
 import androidx.compose.runtime.Immutable
 import de.noelkoeppen.fossilcollector.core.engine.SpecialExhibitResult
 import de.noelkoeppen.fossilcollector.core.engine.purchase.BuyMode
-import de.noelkoeppen.fossilcollector.core.engine.purchase.PurchaseResult
 import de.noelkoeppen.fossilcollector.vm.GameViewModel
 
 /**
@@ -22,18 +21,12 @@ data class MuseumActions(
 }
 
 /**
- * Aktionen ueber `GameViewModel.perform` (beide Aktionen erzeugen keine Ereignisse, daher nicht `performWithEvents`). Abgelehnte Aktionen (zu wenig Geld, ungueltige Auswahl)
+ * Hallenkauf ueber `GameViewModel.purchase` (wie alle Kaeufe, AP-25), Sonderausstellung ueber
+ * `GameViewModel.perform` (keine Ereignisse, daher nicht `performWithEvents`). Abgelehnte Aktionen (zu wenig Geld, ungueltige Auswahl)
  * lassen den Spielstand unveraendert; die UI verhindert sie ohnehin ueber deaktivierte Buttons.
  */
 fun museumActions(viewModel: GameViewModel): MuseumActions = MuseumActions(
-    onBuyHalls = { mode ->
-        viewModel.perform { engine, state ->
-            when (val result = engine.buyHalls(state, mode)) {
-                is PurchaseResult.Success -> result.state
-                is PurchaseResult.Failure -> state
-            }
-        }
-    },
+    onBuyHalls = { mode -> viewModel.purchase { engine, state -> engine.buyHalls(state, mode) } },
     onSelectSpecialExhibit = { speciesId ->
         viewModel.perform { engine, state ->
             when (val result = engine.setSpecialExhibit(state, speciesId)) {

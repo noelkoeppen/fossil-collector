@@ -11,6 +11,7 @@ import de.noelkoeppen.fossilcollector.core.model.GameState
 import de.noelkoeppen.fossilcollector.core.model.PieceKey
 import de.noelkoeppen.fossilcollector.core.modifier.ModifierEngine
 import de.noelkoeppen.fossilcollector.core.modifier.ModifierOp
+import de.noelkoeppen.fossilcollector.core.modifier.StatId
 import de.noelkoeppen.fossilcollector.core.number.GameNumber
 import de.noelkoeppen.fossilcollector.core.number.NumberLanguage
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -184,11 +185,31 @@ class BookUiMapperTest {
 
     @Test
     fun `Bonuszahlen mit Vorzeichen, Prozent bei mult`() {
-        assertEquals("+1", formatBonusNumber(0.01, ModifierOp.MULT, NumberLanguage.DE))
-        assertEquals("+2,5", formatBonusNumber(0.025, ModifierOp.MULT, NumberLanguage.DE))
-        assertEquals("+2.5", formatBonusNumber(0.025, ModifierOp.MULT, NumberLanguage.EN))
-        assertEquals("+7", formatBonusNumber(0.07, ModifierOp.MULT, NumberLanguage.EN))
-        assertEquals("+0,02", formatBonusNumber(0.02, ModifierOp.ADD, NumberLanguage.DE))
-        assertEquals("-10", formatBonusNumber(-0.1, ModifierOp.MULT, NumberLanguage.EN))
+        val stat = StatId.MUSEUM_INCOME
+        assertEquals("+1", formatBonusNumber(0.01, ModifierOp.MULT, stat, NumberLanguage.DE))
+        assertEquals("+2,5", formatBonusNumber(0.025, ModifierOp.MULT, stat, NumberLanguage.DE))
+        assertEquals("+2.5", formatBonusNumber(0.025, ModifierOp.MULT, stat, NumberLanguage.EN))
+        assertEquals("+7", formatBonusNumber(0.07, ModifierOp.MULT, stat, NumberLanguage.EN))
+        assertEquals("+0,02", formatBonusNumber(0.02, ModifierOp.ADD, StatId.SKELETON_BONUS, NumberLanguage.DE))
+        assertEquals("-10", formatBonusNumber(-0.1, ModifierOp.MULT, stat, NumberLanguage.EN))
+    }
+
+    @Test
+    fun `add auf Anteile und Wahrscheinlichkeiten als Prozent (AP-25)`() {
+        assertTrue(bonusShownAsPercent(ModifierOp.ADD, StatId.GUARANTEED_FOSSIL_CHANCE))
+        assertEquals("+2", formatBonusNumber(0.02, ModifierOp.ADD, StatId.GUARANTEED_FOSSIL_CHANCE, NumberLanguage.DE))
+        assertEquals("+3", formatBonusNumber(0.03, ModifierOp.ADD, StatId.NO_DAMAGE_CHANCE, NumberLanguage.EN))
+        assertEquals("+1", formatBonusNumber(0.01, ModifierOp.ADD, StatId.QUALITY_BASE_MIN, NumberLanguage.DE))
+        // Kein Anteil: bleibt eine Zahl.
+        assertFalse(bonusShownAsPercent(ModifierOp.ADD, StatId.START_TEAMS))
+        assertEquals("+2", formatBonusNumber(2.0, ModifierOp.ADD, StatId.START_TEAMS, NumberLanguage.DE))
+        assertTrue(bonusShownAsPercent(ModifierOp.MULT, StatId.START_TEAMS))
+    }
+
+    @Test
+    fun `Anteil als Prozentzahl ohne Vorzeichen (AP-25)`() {
+        assertEquals("7", formatFractionPercent(0.07, NumberLanguage.DE))
+        assertEquals("2,5", formatFractionPercent(0.025, NumberLanguage.DE))
+        assertEquals("0", formatFractionPercent(0.0, NumberLanguage.EN))
     }
 }

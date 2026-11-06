@@ -134,6 +134,30 @@ class LabSystemTest {
         assertEquals(1.0, lab(s).progress(LabJob(skull, listOf(0.5), -1.0)), EPS)
     }
 
+    @Test
+    fun `Start speichert die Dauer im Job (AP-25)`() {
+        val s = state(queue = listOf(queued(skull)), skills = setOf("lab_1", "lab_4"))
+        val job = run(s, 1.0).state.run.labJobs.single()
+        assertEquals(19.5, job.duration!!, EPS)
+        assertEquals(18.5, job.remaining, EPS)
+    }
+
+    @Test
+    fun `Fortschritt nutzt die gespeicherte Dauer, nicht die aktuelle (AP-25)`() {
+        // Job mit 30 s gestartet, danach verkuerzen Skills die Dauer neuer Jobs auf 19,5 s.
+        val s = state(skills = setOf("lab_1", "lab_4"))
+        val job = LabJob(skull, listOf(0.5), remaining = 15.0, duration = 30.0)
+        assertEquals(0.5, lab(s).progress(job), EPS)
+    }
+
+    @Test
+    fun `Fortschritt alter Jobs ohne Dauer nutzt die aktuelle Dauer und wird nie negativ (AP-25)`() {
+        val s = state(skills = setOf("lab_1", "lab_4"))
+        assertEquals(0.5, lab(s).progress(LabJob(skull, listOf(0.5), remaining = 9.75)), EPS)
+        // Restzeit groesser als die aktuelle Dauer (z. B. nach dem Respec): Balken bei 0.
+        assertEquals(0.0, lab(s).progress(LabJob(skull, listOf(0.5), remaining = 30.0)), EPS)
+    }
+
     // --- grosse dt ---
 
     @Test

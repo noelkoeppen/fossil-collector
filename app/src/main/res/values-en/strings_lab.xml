@@ -26,7 +26,7 @@
     <!-- Tool levels -->
     <string name="lab_tools_title">Tools</string>
     <string name="lab_tools_level">Level %1$s</string>
-    <string name="lab_tools_effect">Damage reduction: %1$s (+%2$s per level)</string>
+    <string name="lab_tools_effect">Damage reduction: %1$s%% (+%2$s%% per level)</string>
     <string name="lab_tools_max">Maximum level reached.</string>
 
     <!-- Reconstruction -->

@@ -52,10 +52,14 @@ data class QueuedPiece(
  * @property piece Schluessel des erforschten Stuecks
  * @property zones Zonen-Qualitaeten des Stuecks (Quelle fuer Ersatzteile)
  * @property remaining verbleibende Dauer in Sekunden
+ * @property duration Gesamtdauer der Forschung in Sekunden, festgelegt beim Start (AP-25, fuer den
+ *   Fortschrittsbalken). Standardwert `null` = unbekannt, damit aeltere Spielstaende ohne Migration
+ *   laden; dann rechnet `LabSystem.progress` mit der aktuellen Dauer.
  */
 @Serializable
 data class LabJob(
     val piece: PieceKey,
     val zones: List<Double>,
     val remaining: Double,
+    val duration: Double? = null,
 )

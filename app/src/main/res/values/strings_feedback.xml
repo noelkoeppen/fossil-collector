@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Feinschliff Feedback: Meilenstein-Toasts und Badges (AP-25, Kapitel 5.2 und 8.1) -->
+<resources>
+    <!-- Meilensteine -->
+    <string name="feedback_milestone">Meilenstein erreicht: %1$s</string>
+    <string name="feedback_milestone_with_reward">Meilenstein erreicht: %1$s (%2$s)</string>
+    <string name="feedback_reward_money">+%1$s $</string>
+    <string name="feedback_reward_research">+%1$s FP</string>
+    <string name="feedback_reward_money_research">+%1$s $, +%2$s FP</string>
+
+    <!-- Badges (Bedienungshilfen) -->
+    <string name="feedback_badge_research_done">Forschung fertig</string>
+    <string name="feedback_badge_new_book_entry">Neuer Bucheintrag</string>
+    <string name="feedback_badge_affordable">Kauf möglich</string>
+    <string name="feedback_badge_prestige">Prestige verfügbar</string>
+</resources>

@@ -12,14 +12,18 @@ import kotlinx.serialization.Serializable
  * `hall_cost` und `lab_speed`. `lab_speed` ist der Faktor auf `balance.labDuration`;
  * negative `mult`-Werte verkuerzen also die Laborzeit. Clamps aus `balance.statLimits`
  * gelten fuer den Endwert eines Stats.
+ *
+ * [isFraction] (AP-25, nur Anzeige): Der Stat ist ein Anteil bzw. eine Wahrscheinlichkeit im
+ * Bereich 0..1 (Chancen, Qualitaet, Bruchanfaelligkeit, Offline-Effizienz). Die UI zeigt auch
+ * additive Boni darauf als Prozent (`+0.02` -> `+2 %`) statt als Zahl.
  */
 @Serializable
-enum class StatId(val serialName: String) {
+enum class StatId(val serialName: String, val isFraction: Boolean = false) {
     @SerialName("dig_rate") DIG_RATE("dig_rate"),
     @SerialName("prep_rate") PREP_RATE("prep_rate"),
-    @SerialName("find_chance") FIND_CHANCE("find_chance"),
-    @SerialName("damage_reduction") DAMAGE_REDUCTION("damage_reduction"),
-    @SerialName("quality_base_min") QUALITY_BASE_MIN("quality_base_min"),
+    @SerialName("find_chance") FIND_CHANCE("find_chance", isFraction = true),
+    @SerialName("damage_reduction") DAMAGE_REDUCTION("damage_reduction", isFraction = true),
+    @SerialName("quality_base_min") QUALITY_BASE_MIN("quality_base_min", isFraction = true),
     @SerialName("museum_income") MUSEUM_INCOME("museum_income"),
     @SerialName("skeleton_bonus") SKELETON_BONUS("skeleton_bonus"),
     @SerialName("sell_price") SELL_PRICE("sell_price"),
@@ -30,11 +34,11 @@ enum class StatId(val serialName: String) {
     @SerialName("hall_cost") HALL_COST("hall_cost"),
     @SerialName("start_teams") START_TEAMS("start_teams"),
     @SerialName("start_lab_slots") START_LAB_SLOTS("start_lab_slots"),
-    @SerialName("guaranteed_fossil_chance") GUARANTEED_FOSSIL_CHANCE("guaranteed_fossil_chance"),
-    @SerialName("no_damage_chance") NO_DAMAGE_CHANCE("no_damage_chance"),
+    @SerialName("guaranteed_fossil_chance") GUARANTEED_FOSSIL_CHANCE("guaranteed_fossil_chance", isFraction = true),
+    @SerialName("no_damage_chance") NO_DAMAGE_CHANCE("no_damage_chance", isFraction = true),
     @SerialName("reconstruction_missing_zones") RECONSTRUCTION_MISSING_ZONES("reconstruction_missing_zones"),
     @SerialName("special_exhibit_mult") SPECIAL_EXHIBIT_MULT("special_exhibit_mult"),
-    @SerialName("offline_efficiency") OFFLINE_EFFICIENCY("offline_efficiency"),
+    @SerialName("offline_efficiency") OFFLINE_EFFICIENCY("offline_efficiency", isFraction = true),
     @SerialName("offline_cap_hours") OFFLINE_CAP_HOURS("offline_cap_hours");
 
     companion object {

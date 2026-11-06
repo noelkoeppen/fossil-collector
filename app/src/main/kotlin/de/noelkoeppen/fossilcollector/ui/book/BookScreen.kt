@@ -65,6 +65,7 @@ import de.noelkoeppen.fossilcollector.core.model.PieceKey
 import de.noelkoeppen.fossilcollector.core.model.Settings
 import de.noelkoeppen.fossilcollector.core.modifier.ModifierEngine
 import de.noelkoeppen.fossilcollector.core.modifier.ModifierOp
+import de.noelkoeppen.fossilcollector.core.modifier.StatId
 import de.noelkoeppen.fossilcollector.core.number.GameNumber
 import de.noelkoeppen.fossilcollector.core.number.NumberLanguage
 import de.noelkoeppen.fossilcollector.ui.museum.formatFactor
@@ -358,7 +359,7 @@ private fun BonusCard(species: BookSpeciesUi, texts: TextProvider, language: Num
             val statName = texts.statName(bonus.stat)
             if (bonus.active && bonus.value != null) {
                 Text(
-                    text = stringResource(R.string.book_bonus_stat_value, statName, bonusText(bonus.value, bonus.op, language)),
+                    text = stringResource(R.string.book_bonus_stat_value, statName, bonusText(bonus.value, bonus.op, bonus.stat, language)),
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.primary,
                 )
@@ -379,8 +380,8 @@ private fun BonusCard(species: BookSpeciesUi, texts: TextProvider, language: Num
                 Text(
                     text = stringResource(
                         R.string.book_bonus_inactive,
-                        bonusText(bonus.minValue, bonus.op, language),
-                        bonusText(bonus.maxValue, bonus.op, language),
+                        bonusText(bonus.minValue, bonus.op, bonus.stat, language),
+                        bonusText(bonus.maxValue, bonus.op, bonus.stat, language),
                     ),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -393,7 +394,7 @@ private fun BonusCard(species: BookSpeciesUi, texts: TextProvider, language: Num
                 text = stringResource(
                     R.string.book_bonus_stat_value,
                     texts.statName(researched.stat),
-                    bonusText(researched.value, researched.op, language),
+                    bonusText(researched.value, researched.op, researched.stat, language),
                 ),
                 style = MaterialTheme.typography.bodyLarge,
                 color = if (researched.active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
@@ -422,11 +423,12 @@ private fun BonusTitle(title: String, active: Boolean) {
 }
 
 @Composable
-private fun bonusText(value: Double, op: ModifierOp, language: NumberLanguage): String {
-    val number = formatBonusNumber(value, op, language)
-    return when (op) {
-        ModifierOp.MULT -> stringResource(R.string.book_bonus_percent, number)
-        ModifierOp.ADD -> stringResource(R.string.book_bonus_add, number)
+private fun bonusText(value: Double, op: ModifierOp, stat: StatId, language: NumberLanguage): String {
+    val number = formatBonusNumber(value, op, stat, language)
+    return if (bonusShownAsPercent(op, stat)) {
+        stringResource(R.string.book_bonus_percent, number)
+    } else {
+        stringResource(R.string.book_bonus_add, number)
     }
 }
 

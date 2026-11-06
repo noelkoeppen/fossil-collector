@@ -42,9 +42,7 @@ import de.noelkoeppen.fossilcollector.ui.fame.FameUiMapper
 import de.noelkoeppen.fossilcollector.ui.fame.FameUiState
 import de.noelkoeppen.fossilcollector.ui.fame.PrestigeDialogState
 import de.noelkoeppen.fossilcollector.ui.lab.LabUiMapper
-import de.noelkoeppen.fossilcollector.ui.lab.LabUiState
 import de.noelkoeppen.fossilcollector.ui.museum.MuseumUiMapper
-import de.noelkoeppen.fossilcollector.ui.museum.MuseumUiState
 import de.noelkoeppen.fossilcollector.ui.welcome.WelcomeUiMapper
 import de.noelkoeppen.fossilcollector.ui.welcome.WelcomeUiState
 import kotlinx.coroutines.CoroutineDispatcher
@@ -92,6 +90,11 @@ import java.io.IOException
  *   werden sofort gespeichert. Export, Import und "Spielstand loeschen" laufen ueber [SaveTransfer];
  *   ein importierter bzw. neuer Stand ersetzt den aktuellen ueber [replaceState] (Modifier-Abgleich,
  *   UI-Zwischenstaende zuruecksetzen, sofort speichern).
+ * - **Feedback (AP-25, Kapitel 5.2, 8.1, 8.2):** Badges der Tabs ([TabBadges], "seit letztem
+ *   Besuch" als [UnseenUpdates] nur im Speicher, gemeldet ueber [onTabShown]), Meilenstein-Toasts
+ *   ([GameMessage.MilestoneReached]) und Hinweistexte beim ersten Erscheinen eines Tabs
+ *   ([GameMessage.TabHint], gezeigte Tabs dauerhaft in `meta.revealedTabs`, [TabReveal]).
+ * - **Kaeufe** laufen einheitlich ueber [purchase] mit den Kauf-Funktionen der [GameEngine].
  *
  * Threading: Spielstand, Engine und [ModifierEngine] werden ausschliesslich auf [gameDispatcher]
  * (Parallelitaet 1) angefasst. Dateizugriffe laufen auf [ioDispatcher] unter einem Mutex.
@@ -153,6 +156,8 @@ class GameViewModel(
     private var state: GameState? = null
     private var lastSavedState: GameState? = null
     private var revealedTabs: Set<GameTab> = emptySet()
+    private var activeTab: GameTab? = null
+    private var unseen: UnseenUpdates = UnseenUpdates.NONE
     private val moneyRate = RateTracker()
     private var purchases: Purchases? = null
     private var qualityTiers: QualityTiers? = null
@@ -245,11 +250,26 @@ class GameViewModel(
 
     override fun tapPrep() = performWithEvents { engine, state -> engine.tapPrep(state, rng) }
 
-    override fun buyTeams(layerId: String, mode: BuyMode) = purchase { p, state -> p.buyTeams(state, layerId, mode) }
+    override fun buyTeams(layerId: String, mode: BuyMode) = purchase { engine, state -> engine.buyTeams(state, layerId, mode) }
 
-    override fun buyPreparators(mode: BuyMode) = purchase { p, state -> p.buyPreparators(state, mode) }
+    override fun buyPreparators(mode: BuyMode) = purchase { engine, state -> engine.buyPreparators(state, mode) }
 
-    override fun unlockLayer(layerId: String) = purchase { p, state -> p.unlockLayer(state, layerId) }
+    override fun unlockLayer(layerId: String) = purchase { engine, state -> engine.unlockLayer(state, layerId) }
+
+    // --- Feedback (AP-25) ---
+
+    /**
+     * Die UI meldet den gerade angezeigten Tab (`null`: keiner, z. B. Einstellungen offen). Ein
+     * besuchter Tab verliert sein Badge "Forschung fertig" bzw. "neuer Bucheintrag"; solange er
+     * offen ist, bekommt er keine Badges.
+     */
+    fun onTabShown(tab: GameTab?) {
+        viewModelScope.launch(gameDispatcher) {
+            activeTab = tab
+            unseen = unseen.visited(tab)
+            publish()
+        }
+    }
 
     // --- Aktionen des Screens Labor (AP-19) ---
 
@@ -423,7 +443,8 @@ class GameViewModel(
         currentEngine.syncModifiers(newState)
         moneyRate.reset()
         popupBundler.reset()
-        revealedTabs = emptySet()
+        revealedTabs = TabReveal.fromIds(newState.meta.revealedTabs)
+        unseen = UnseenUpdates.NONE
         prestigeDialog = null
         welcome = null
         publish()
@@ -440,10 +461,13 @@ class GameViewModel(
         }
     }
 
-    /** Kauf ueber [Purchases]; bei Fehlschlag (z. B. Geld reicht nicht mehr) bleibt der Zustand unveraendert. */
-    private fun purchase(action: (Purchases, GameState) -> PurchaseResult) = perform { _, current ->
-        val p = purchases ?: return@perform current
-        when (val result = action(p, current)) {
+    /**
+     * Kaufaktion ueber eine Kauf-Funktion der [GameEngine] (z. B. `{ e, s -> e.buyHalls(s, mode) }`;
+     * AP-25: alle Screens kaufen so). Bei Fehlschlag (z. B. Geld reicht nicht mehr) bleibt der
+     * Zustand unveraendert; die UI verhindert das ohnehin ueber deaktivierte Buttons.
+     */
+    fun purchase(action: (GameEngine, GameState) -> PurchaseResult) = perform { engine, current ->
+        when (val result = action(engine, current)) {
             is PurchaseResult.Success -> result.state
             is PurchaseResult.Failure -> current
         }
@@ -495,7 +519,8 @@ class GameViewModel(
         popupBundler.reset()
         state = loadedState
         lastSavedState = if (needsInitialSave) null else loadedState
-        revealedTabs = emptySet()
+        revealedTabs = TabReveal.fromIds(loadedState.meta.revealedTabs)
+        unseen = UnseenUpdates.NONE
         prestigeDialog = null
         welcome = null
         moneyRate.reset()
@@ -581,39 +606,72 @@ class GameViewModel(
         publish()
     }
 
-    /** Verteilt Ereignisse an [events] und die Fund-Popups. Muss auf [gameDispatcher] laufen. */
+    /**
+     * Verteilt Ereignisse an [events], die Fund-Popups, die Badges ([UnseenUpdates]) und die
+     * Meilenstein-Toasts ([GameMessage.MilestoneReached]). Muss auf [gameDispatcher] laufen.
+     */
     private fun dispatchEvents(events: List<GameEvent>) {
         val tiers = qualityTiers
         for (event in events) {
             _events.tryEmit(event)
             if (tiers != null) FindPopup.fromEvent(event, tiers)?.let(popupBundler::offer)
+            if (event is GameEvent.MilestoneReached) {
+                messageChannel.trySend(GameMessage.MilestoneReached(event.milestoneId, event.money, event.researchPoints))
+            }
         }
+        unseen = unseen.afterEvents(events, activeTab)
         popupBundler.poll(time.monotonicNanos())?.let { _findPopups.tryEmit(it) }
+    }
+
+    /**
+     * Gleicht die gezeigten Tabs ab (AP-25): Neue Tabs werden in `meta.revealedTabs` geschrieben
+     * (gespeichert mit dem naechsten Speichern) und ihre Hinweistexte als [GameMessage.TabHint]
+     * gemeldet. Gibt den ggf. geaenderten Spielstand zurueck.
+     */
+    private fun updateRevealedTabs(current: GameState, currentEngine: GameEngine): GameState {
+        if (revealedTabs.size == GameTab.entries.size) return current
+        val update = TabReveal.update(revealedTabs, TabUnlockRules.visibleTabs(current, currentEngine::canPrestige))
+        if (update.revealed === revealedTabs) return current
+        revealedTabs = update.revealed
+        update.hints.forEach { messageChannel.trySend(GameMessage.TabHint(it)) }
+        val updated = current.copy(meta = current.meta.copy(revealedTabs = TabReveal.toIds(update.revealed)))
+        state = updated
+        return updated
     }
 
     /** Veroeffentlicht den UI-Zustand aus dem aktuellen Spielstand. */
     private fun publish() {
-        val current = state ?: return
         val gameData = data ?: return
         val currentEngine = engine ?: return
-        revealedTabs = TabUnlockRules.revealTabs(revealedTabs, current, currentEngine::canPrestige)
+        val current = updateRevealedTabs(state ?: return, currentEngine)
+        val dig = purchases?.let { p -> DigStateMapper.map(gameData, currentEngine, p, current) } ?: DigUiState.EMPTY
+        val museum = MuseumUiMapper.map(currentEngine, current, gameData)
+        val lab = LabUiMapper.map(currentEngine, current, gameData)
+        val fameScreen = FameUiMapper.map(currentEngine, current, prestigeDialog)
+        val visibleTabs = revealedTabs.toList()
         _uiState.value = GameUiState.Ready(
             money = current.run.money,
             moneyPerSecond = moneyRate.perSecond(),
             researchPoints = current.run.researchPoints,
             fame = current.meta.fame,
-            visibleTabs = revealedTabs.toList(),
+            visibleTabs = visibleTabs,
             settings = current.settings,
             qualityTiers = gameData.balance.qualityTiers,
             texts = texts,
-            dig = engine?.let { e -> purchases?.let { p -> DigStateMapper.map(gameData, e, p, current) } }
-                ?: DigUiState.EMPTY,
-            museum = engine?.let { e -> MuseumUiMapper.map(e, current, gameData) } ?: MuseumUiState.EMPTY,
-            lab = engine?.let { e -> LabUiMapper.map(e, current, gameData) } ?: LabUiState.EMPTY,
+            dig = dig,
+            museum = museum,
+            lab = lab,
             // Gecacht: neu gebaut nur bei geaendertem Buch, erforschten Arten oder Schichten.
             book = bookMapper?.map(currentEngine, current) ?: BookUiState.EMPTY,
-            fameScreen = FameUiMapper.map(currentEngine, current, prestigeDialog),
+            fameScreen = fameScreen,
             welcome = welcome,
+            badges = TabBadges.badges(
+                visibleTabs = visibleTabs,
+                activeTab = activeTab,
+                unseen = unseen,
+                affordable = TabBadges.affordableTabs(dig, museum, lab),
+                canPrestige = fameScreen.canPrestige,
+            ),
         )
     }
 

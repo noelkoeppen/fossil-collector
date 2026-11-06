@@ -72,6 +72,7 @@ object StateValidator {
         for ((i, job) in run.labJobs.withIndex()) {
             doubles(job.zones) { "run.labJobs[$i].zones" }?.let { return it }
             double(job.remaining) { "run.labJobs[$i].remaining" }?.let { return it }
+            job.duration?.let { d -> double(d) { "run.labJobs[$i].duration" }?.let { return it } }
         }
         return null
     }
