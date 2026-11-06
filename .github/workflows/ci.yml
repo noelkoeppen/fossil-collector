@@ -29,6 +29,9 @@ jobs:
       - name: Skelett-Grafiken pruefen (svg2json)
         run: python3 tools/test_svg2json.py && python3 tools/svg2json.py --check
 
+      - name: Balancing-Simulation pruefen (fossil_sim)
+        run: python3 tools/sim/test_fossil_sim.py && python3 tools/sim/fossil_sim.py --seeds 1-3 --quiet
+
       - name: Core-Tests
         run: ./gradlew :core:test --stacktrace
 

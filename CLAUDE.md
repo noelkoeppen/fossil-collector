@@ -27,5 +27,5 @@ Android-Incremental-Spiel (Kotlin + Jetpack Compose). Die verbindliche Spezifika
 - Keine Emojis im Code.
 
 ## Nützliches
-- Balancing-Simulation: `python3 tools/sim/fossil_sim.py [seed]` (Referenzstand aus der
-  Design-Phase, wird in AP-28 an die JSON-Daten angebunden).
+- Balancing-Simulation: `python3 tools/sim/fossil_sim.py --seeds 1-3` (liest die JSON-Daten,
+  bildet Engine und Kauf-KI des `PacingTest` nach; Optionen in `tools/sim/README.md`).
