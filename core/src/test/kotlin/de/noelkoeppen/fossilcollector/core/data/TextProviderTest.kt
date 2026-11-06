@@ -43,6 +43,18 @@ class TextProviderTest {
     }
 
     @Test
+    fun milestoneNamesExistInBothLanguages() {
+        // AP-25: Meilenstein-Toasts zeigen den Namen ueber TextProvider.milestoneName.
+        val data = DataRepository().load()
+        for (language in DataRepository.LANGUAGES) {
+            val texts = TextProvider.fromGameData(data, language)
+            data.milestones.forEach {
+                assertEquals(data.locales.getValue(language).getValue(LocaleKeys.milestoneName(it.id)), texts.milestoneName(it.id))
+            }
+        }
+    }
+
+    @Test
     fun emptyProviderReturnsKeys() {
         assertEquals(LocaleKeys.layerName("neogene"), TextProvider.EMPTY.layerName("neogene"))
     }

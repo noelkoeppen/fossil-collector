@@ -69,10 +69,10 @@ import de.noelkoeppen.fossilcollector.core.model.PieceKey
 import de.noelkoeppen.fossilcollector.core.model.Settings
 import de.noelkoeppen.fossilcollector.core.modifier.Modifier as SkillModifier
 import de.noelkoeppen.fossilcollector.core.modifier.ModifierEngine
-import de.noelkoeppen.fossilcollector.core.modifier.ModifierOp
 import de.noelkoeppen.fossilcollector.core.number.GameNumber
 import de.noelkoeppen.fossilcollector.core.number.NumberLanguage
 import de.noelkoeppen.fossilcollector.ui.GameNumberFormat
+import de.noelkoeppen.fossilcollector.ui.book.bonusShownAsPercent
 import de.noelkoeppen.fossilcollector.ui.book.formatBonusNumber
 import de.noelkoeppen.fossilcollector.ui.rememberGameNumberFormat
 import de.noelkoeppen.fossilcollector.ui.rememberTextProvider
@@ -404,13 +404,14 @@ private fun SkillDetailDialog(
     )
 }
 
-/** Wirkung eines Skills, z. B. "Fundchance: +5 %" (`mult` als Prozent, `add` als Zahl wie im Sammelbuch). */
+/** Wirkung eines Skills, z. B. "Fundchance: +5 %" (`mult` und `add` auf Anteile als Prozent, sonst Zahl, wie im Sammelbuch). */
 @Composable
 private fun effectText(effect: SkillModifier, texts: TextProvider, language: NumberLanguage): String {
-    val number = formatBonusNumber(effect.value, effect.op, language)
-    val value = when (effect.op) {
-        ModifierOp.MULT -> stringResource(R.string.fame_effect_percent, number)
-        ModifierOp.ADD -> stringResource(R.string.fame_effect_add, number)
+    val number = formatBonusNumber(effect.value, effect.op, effect.stat, language)
+    val value = if (bonusShownAsPercent(effect.op, effect.stat)) {
+        stringResource(R.string.fame_effect_percent, number)
+    } else {
+        stringResource(R.string.fame_effect_add, number)
     }
     return stringResource(R.string.fame_effect_line, texts.statName(effect.stat), value)
 }

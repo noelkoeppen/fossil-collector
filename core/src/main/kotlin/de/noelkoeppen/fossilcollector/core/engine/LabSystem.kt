@@ -46,7 +46,7 @@ class LabSystem(
     /** Anzahl paralleler Forschungen: `floor(run.labSlots)`, nie negativ. */
     fun slots(state: GameState): Int = max(0.0, floor(state.run.labSlots.toDouble())).toInt()
 
-    /** Dauer einer neuen Forschung in Sekunden: `balance.labDuration * mods(lab_speed)`. */
+    /** Dauer einer neuen Forschung in Sekunden: `balance.labDuration * mods(lab_speed)`; wird beim Start als `LabJob.duration` gespeichert. */
     fun jobDuration(): Double = data.balance.labDuration * modifiers.factor(StatId.LAB_SPEED)
 
     /** FP fuer den Abschluss einer Forschung an [key]: `(layer.order + 1) * mods(research_points)`. */
@@ -56,9 +56,14 @@ class LabSystem(
         return GameNumber((layer.order + 1).toDouble() * modifiers.factor(StatId.RESEARCH_POINTS))
     }
 
-    /** Fortschritt eines Jobs von 0 bis 1 bei der aktuellen Dauer (fuer Fortschrittsbalken der UI). */
+    /**
+     * Fortschritt eines Jobs von 0 bis 1 (fuer Fortschrittsbalken der UI) bezogen auf die beim Start
+     * gespeicherte Dauer `job.duration` (AP-25). Fehlt sie (Spielstand vor AP-25), gilt die aktuelle
+     * Dauer [jobDuration]; ist die Restzeit groesser als diese (z. B. nach einem Respec), zaehlt die
+     * Restzeit als Gesamtdauer, der Balken steht dann bei 0 statt negativ.
+     */
     fun progress(job: LabJob): Double {
-        val duration = jobDuration()
+        val duration = job.duration ?: max(jobDuration(), job.remaining)
         if (duration <= 0.0) return 1.0
         return (1.0 - job.remaining / duration).coerceIn(0.0, 1.0)
     }
@@ -94,7 +99,7 @@ class LabSystem(
         if (free <= 0 || run.labQueue.isEmpty()) return state
         val starting = run.labQueue.take(free)
         val duration = jobDuration()
-        val newJobs = starting.map { LabJob(it.piece, it.zones, duration) }
+        val newJobs = starting.map { LabJob(it.piece, it.zones, remaining = duration, duration = duration) }
         newJobs.forEach { context.emit(GameEvent.LabJobStarted(it.piece, duration)) }
         return state.copy(
             run = run.copy(

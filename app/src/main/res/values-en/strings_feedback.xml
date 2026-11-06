@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Polish and feedback: milestone toasts and badges (AP-25, chapters 5.2 and 8.1) -->
+<resources>
+    <!-- Milestones -->
+    <string name="feedback_milestone">Milestone reached: %1$s</string>
+    <string name="feedback_milestone_with_reward">Milestone reached: %1$s (%2$s)</string>
+    <string name="feedback_reward_money">+$%1$s</string>
+    <string name="feedback_reward_research">+%1$s RP</string>
+    <string name="feedback_reward_money_research">+$%1$s, +%2$s RP</string>
+
+    <!-- Badges (accessibility) -->
+    <string name="feedback_badge_research_done">Research finished</string>
+    <string name="feedback_badge_new_book_entry">New collection entry</string>
+    <string name="feedback_badge_affordable">Purchase available</string>
+    <string name="feedback_badge_prestige">Prestige available</string>
+</resources>

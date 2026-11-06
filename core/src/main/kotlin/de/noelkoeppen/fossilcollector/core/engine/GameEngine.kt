@@ -68,7 +68,8 @@ class GameEngine(
     val museum: MuseumSystem = systems.filterIsInstance<MuseumSystem>().firstOrNull() ?: MuseumSystem(data, modifiers)
 
     /**
-     * Kaufaktionen (zustandslos); Hallenkauf ueber [buyHalls] bzw. [hallQuote], Laborplaetze ueber
+     * Kaufaktionen (zustandslos); Teams, Praeparatoren und Schichten ueber [buyTeams],
+     * [buyPreparators] und [unlockLayer], Hallenkauf ueber [buyHalls] bzw. [hallQuote], Laborplaetze ueber
      * [buyLabSlots] bzw. [labSlotQuote], Werkzeugstufen ueber [buyToolLevel] bzw. [toolLevelQuote].
      */
     private val purchases: Purchases = Purchases(data, modifiers)
@@ -239,6 +240,31 @@ class GameEngine(
     fun setSpecialExhibit(state: GameState, speciesId: String?): SpecialExhibitResult {
         syncModifiers(state)
         return museum.setSpecialExhibit(state, speciesId)
+    }
+
+    /**
+     * Spieleraktion: Grabungsteams fuer [layerId] kaufen (Kapitel 4.1, 6.3), siehe
+     * [Purchases.buyTeams]. Gleicht vorher die Modifier-Quellen ab (AP-25: alle Kaeufe der UI laufen
+     * einheitlich ueber die Engine).
+     */
+    fun buyTeams(state: GameState, layerId: String, mode: BuyMode): PurchaseResult {
+        syncModifiers(state)
+        return purchases.buyTeams(state, layerId, mode)
+    }
+
+    /** Spieleraktion: Praeparatoren kaufen (Kapitel 4.2, 6.3), siehe [Purchases.buyPreparators]. Gleicht vorher die Modifier-Quellen ab. */
+    fun buyPreparators(state: GameState, mode: BuyMode): PurchaseResult {
+        syncModifiers(state)
+        return purchases.buyPreparators(state, mode)
+    }
+
+    /**
+     * Spieleraktion: die Schicht [layerId] freischalten (nur die naechste), siehe
+     * [Purchases.unlockLayer]. Gleicht vorher die Modifier-Quellen ab (Rabatt `layer_unlock_cost`).
+     */
+    fun unlockLayer(state: GameState, layerId: String): PurchaseResult {
+        syncModifiers(state)
+        return purchases.unlockLayer(state, layerId)
     }
 
     /**

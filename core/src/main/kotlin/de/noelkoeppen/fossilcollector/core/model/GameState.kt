@@ -57,6 +57,10 @@ data class GameState(
  * @property researchedSpecies Arten mit Completion-Stufe 1 (Kapitel 4.7)
  * @property milestonesDone IDs erreichter Meilensteine
  * @property stats Statistiken
+ * @property revealedTabs IDs der bereits gezeigten Tabs der unteren Navigation (AP-25, Kapitel 8.2),
+ *   z. B. `dig`, `museum`. Reiner UI-Fortschritt ohne Spielwirkung: Tabs bleiben nach einem Neustart
+ *   sichtbar und ihr Hinweistext erscheint nur einmal. Bleibt beim Prestige erhalten. Standardwert
+ *   leer, aeltere Spielstaende laden ohne Migration. Die Bedeutung der IDs kennt nur die App.
  */
 @Serializable
 data class MetaState(
@@ -69,6 +73,7 @@ data class MetaState(
     val researchedSpecies: Set<String> = emptySet(),
     val milestonesDone: Set<String> = emptySet(),
     val stats: Stats = Stats(),
+    val revealedTabs: Set<String> = emptySet(),
 )
 
 /**

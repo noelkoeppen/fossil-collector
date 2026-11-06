@@ -41,6 +41,7 @@ import de.noelkoeppen.fossilcollector.core.engine.purchase.PurchaseQuote
 import de.noelkoeppen.fossilcollector.core.model.PieceKey
 import de.noelkoeppen.fossilcollector.core.model.Settings
 import de.noelkoeppen.fossilcollector.core.number.GameNumber
+import de.noelkoeppen.fossilcollector.ui.book.formatFractionPercent
 import de.noelkoeppen.fossilcollector.ui.GameNumberFormat
 import de.noelkoeppen.fossilcollector.ui.components.BuyButton
 import de.noelkoeppen.fossilcollector.ui.components.BuyModeSelector
@@ -300,8 +301,8 @@ private fun ToolsCard(
             Text(
                 text = stringResource(
                     R.string.lab_tools_effect,
-                    format.formatPrecise(GameNumber(state.damageReduction)),
-                    format.formatPrecise(GameNumber(state.damageReductionPerLevel)),
+                    formatFractionPercent(state.damageReduction, format.language),
+                    formatFractionPercent(state.damageReductionPerLevel, format.language),
                 ),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.primary,

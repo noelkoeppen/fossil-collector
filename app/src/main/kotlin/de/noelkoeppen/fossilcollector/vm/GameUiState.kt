@@ -45,6 +45,7 @@ sealed interface GameUiState {
      *   heisst nicht `fame`, weil [fame] schon der Ruhm der oberen Leiste ist
      * @property welcome Willkommen-zurueck-Dialog (AP-23, [de.noelkoeppen.fossilcollector.ui.welcome.WelcomeUiMapper]);
      *   `null` = kein Dialog
+     * @property badges Badges der Tabs (AP-25, [TabBadges]); Tabs ohne Badge fehlen
      */
     @Immutable
     data class Ready(
@@ -62,6 +63,7 @@ sealed interface GameUiState {
         val book: BookUiState = BookUiState.EMPTY,
         val fameScreen: FameUiState = FameUiState.EMPTY,
         val welcome: WelcomeUiState? = null,
+        val badges: Map<GameTab, TabBadge> = emptyMap(),
     ) : GameUiState
 }
 
@@ -97,4 +99,18 @@ sealed interface GameMessage {
 
     /** Neues Spiel gestartet, aber alte Spielstand-Dateien konnten nicht alle geloescht werden (AP-24). */
     data object SaveDeletedIncomplete : GameMessage
+
+    /**
+     * Meilenstein erreicht (AP-25, Kapitel 5.2): Toast mit Name und Belohnung (bereits gutgeschrieben).
+     *
+     * @property milestoneId ID aus `milestones.json`
+     */
+    data class MilestoneReached(
+        val milestoneId: String,
+        val money: GameNumber,
+        val researchPoints: GameNumber,
+    ) : GameMessage
+
+    /** Der Tab [tab] ist zum ersten Mal erschienen (AP-25, Kapitel 8.2): ein Satz Hinweistext. */
+    data class TabHint(val tab: GameTab) : GameMessage
 }

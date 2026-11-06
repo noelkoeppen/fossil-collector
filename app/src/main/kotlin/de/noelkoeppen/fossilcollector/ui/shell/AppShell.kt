@@ -19,6 +19,8 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -27,6 +29,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
@@ -45,6 +48,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -53,6 +58,7 @@ import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.launch
 import de.noelkoeppen.fossilcollector.BuildConfig
 import de.noelkoeppen.fossilcollector.R
+import de.noelkoeppen.fossilcollector.core.data.TextProvider
 import de.noelkoeppen.fossilcollector.core.engine.PrestigeFailure
 import de.noelkoeppen.fossilcollector.core.engine.ReconstructionFailure
 import de.noelkoeppen.fossilcollector.core.model.Settings
@@ -69,6 +75,9 @@ import de.noelkoeppen.fossilcollector.ui.museum.MuseumActions
 import de.noelkoeppen.fossilcollector.ui.museum.MuseumScreen
 import de.noelkoeppen.fossilcollector.ui.museum.museumActions
 import de.noelkoeppen.fossilcollector.ui.GameNumberFormat
+import de.noelkoeppen.fossilcollector.ui.feedback.FeedbackTexts
+import de.noelkoeppen.fossilcollector.ui.feedback.animatedGameNumber
+import de.noelkoeppen.fossilcollector.ui.resolveContentLanguage
 import de.noelkoeppen.fossilcollector.ui.rememberGameNumberFormat
 import de.noelkoeppen.fossilcollector.ui.resolveNumberLanguage
 import de.noelkoeppen.fossilcollector.ui.theme.FossilCollectorTheme
@@ -83,11 +92,13 @@ import de.noelkoeppen.fossilcollector.vm.GameMessage
 import de.noelkoeppen.fossilcollector.vm.GameTab
 import de.noelkoeppen.fossilcollector.vm.GameUiState
 import de.noelkoeppen.fossilcollector.vm.GameViewModel
+import de.noelkoeppen.fossilcollector.vm.TabBadge
 
 /**
  * App-Shell (AP-16, Kapitel 8.1): Theme, obere Leiste, untere Navigation mit den sichtbaren Tabs
  * (Kapitel 8.2) und den Screens in [TabContent] (seit AP-22 alle Tabs). Seit AP-23 zusaetzlich der
- * Willkommen-zurueck-Dialog als Overlay, seit AP-24 der Einstellungs-Screen (Zahnrad, Zurueck schliesst).
+ * Willkommen-zurueck-Dialog als Overlay, seit AP-24 der Einstellungs-Screen (Zahnrad, Zurueck schliesst),
+ * seit AP-25 Badges, Meilenstein-Toasts, Hinweistexte und Zahlen-Animationen der oberen Leiste.
  */
 @Composable
 fun AppShell(viewModel: GameViewModel) {
@@ -97,9 +108,17 @@ fun AppShell(viewModel: GameViewModel) {
 
     LaunchedEffect(viewModel) {
         viewModel.messages.collect { message ->
-            // Zahlen im Hinweis im aktuellen Zahlenformat des Spielstands.
-            val settings = (viewModel.uiState.value as? GameUiState.Ready)?.settings ?: Settings()
-            snackbarHostState.showSnackbar(messageText(message, context, settings))
+            // Zahlen und Inhaltstexte im Hinweis in Zahlenformat und Sprache des Spielstands.
+            val ready = viewModel.uiState.value as? GameUiState.Ready
+            val settings = ready?.settings ?: Settings()
+            val texts = ready?.texts ?: TextProvider.EMPTY
+            val hint = message is GameMessage.TabHint
+            snackbarHostState.showSnackbar(
+                message = messageText(message, context, settings, texts),
+                withDismissAction = hint,
+                // Hinweistexte (AP-25) bleiben laenger stehen, alles andere ist ein kurzer Toast.
+                duration = if (hint) SnackbarDuration.Long else SnackbarDuration.Short,
+            )
         }
     }
 
@@ -114,7 +133,12 @@ fun AppShell(viewModel: GameViewModel) {
     }
 }
 
-private fun messageText(message: GameMessage, context: android.content.Context, settings: Settings): String = when (message) {
+private fun messageText(
+    message: GameMessage,
+    context: android.content.Context,
+    settings: Settings,
+    texts: TextProvider,
+): String = when (message) {
     is GameMessage.LoadedFromBackup -> context.getString(R.string.message_loaded_from_backup, message.backupIndex)
     GameMessage.SaveUnreadableNewGame -> context.getString(R.string.message_save_unreadable)
     GameMessage.SaveFailed -> context.getString(R.string.message_save_failed)
@@ -126,11 +150,7 @@ private fun messageText(message: GameMessage, context: android.content.Context, 
             ReconstructionFailure.NON_FINITE_RESULT -> R.string.lab_message_recon_error
         },
     )
-    is GameMessage.Prestiged -> {
-        val systemLanguage = context.resources.configuration.locales[0]?.language.orEmpty()
-        val format = GameNumberFormat(resolveNumberLanguage(settings.language, systemLanguage), settings.numberFormat)
-        context.getString(R.string.fame_message_prestiged, format.format(message.fameGained))
-    }
+    is GameMessage.Prestiged -> context.getString(R.string.fame_message_prestiged, numberFormat(context, settings).format(message.fameGained))
     is GameMessage.PrestigeFailed -> context.getString(
         when (message.reason) {
             PrestigeFailure.NOT_ENOUGH_FAME -> R.string.fame_message_prestige_not_enough
@@ -141,7 +161,23 @@ private fun messageText(message: GameMessage, context: android.content.Context, 
     is GameMessage.ImportFailed -> context.getString(SettingsLogic.importErrorText(message.error))
     GameMessage.SaveDeleted -> context.getString(R.string.settings_deleted)
     GameMessage.SaveDeletedIncomplete -> context.getString(R.string.settings_deleted_incomplete)
+    is GameMessage.MilestoneReached -> FeedbackTexts.milestoneText(
+        context = context,
+        milestoneId = message.milestoneId,
+        money = message.money,
+        researchPoints = message.researchPoints,
+        texts = texts.withLanguage(resolveContentLanguage(settings.language, systemLanguage(context))),
+        format = numberFormat(context, settings),
+    )
+    is GameMessage.TabHint -> context.getString(FeedbackTexts.hintRes(message.tab))
 }
+
+private fun systemLanguage(context: android.content.Context): String =
+    context.resources.configuration.locales[0]?.language.orEmpty()
+
+/** Zahlenformat fuer Hinweise ausserhalb von Composables (Sprache und Format aus [settings]). */
+private fun numberFormat(context: android.content.Context, settings: Settings): GameNumberFormat =
+    GameNumberFormat(resolveNumberLanguage(settings.language, systemLanguage(context)), settings.numberFormat)
 
 /**
  * Laufendes Spiel: obere Leiste, Inhalt, untere Navigation.
@@ -162,6 +198,11 @@ fun GameShell(
 
     BackHandler(enabled = showSettings) { showSettings = false }
 
+    // Angezeigten Tab fuer die Badges melden (AP-25); Einstellungen offen = kein Tab.
+    LaunchedEffect(viewModel, currentTab, showSettings) {
+        viewModel?.onTabShown(if (showSettings) null else currentTab)
+    }
+
     Scaffold(
         topBar = {
             TopResourceBar(
@@ -175,6 +216,7 @@ fun GameShell(
             if (!showSettings) {
                 GameNavigationBar(
                     visibleTabs = state.visibleTabs,
+                    badges = state.badges,
                     selected = currentTab,
                     onSelect = { selectedTab = it },
                 )
@@ -251,6 +293,10 @@ private fun TopResourceBar(
     onBackClick: () -> Unit,
 ) {
     val format = rememberGameNumberFormat(state.settings)
+    // Weiche Zahlen-Animation (AP-25), bei grossen Spruengen und Kaeufen sofort.
+    val money = animatedGameNumber(state.money)
+    val researchPoints = animatedGameNumber(state.researchPoints)
+    val fame = animatedGameNumber(state.fame)
     Surface(color = MaterialTheme.colorScheme.surfaceContainer) {
         Column(modifier = Modifier.statusBarsPadding()) {
             Row(
@@ -265,18 +311,18 @@ private fun TopResourceBar(
                 }
                 ResourceValue(
                     label = stringResource(R.string.top_bar_money_label),
-                    value = stringResource(R.string.top_bar_money_value, format.format(state.money)),
+                    value = stringResource(R.string.top_bar_money_value, format.format(money)),
                     detail = stringResource(R.string.top_bar_money_rate, format.format(state.moneyPerSecond)),
                     modifier = Modifier.weight(1.4f),
                 )
                 ResourceValue(
                     label = stringResource(R.string.top_bar_research_label),
-                    value = format.format(state.researchPoints),
+                    value = format.format(researchPoints),
                     modifier = Modifier.weight(1f),
                 )
                 ResourceValue(
                     label = stringResource(R.string.top_bar_fame_label),
-                    value = format.format(state.fame),
+                    value = format.format(fame),
                     modifier = Modifier.weight(1f),
                 )
                 if (!settingsOpen) {
@@ -316,16 +362,44 @@ private fun ResourceValue(label: String, value: String, modifier: Modifier = Mod
     }
 }
 
-/** Untere Navigation mit den sichtbaren Tabs (Kapitel 8.1 und 8.2). Badges folgen in AP-25. */
+/**
+ * Untere Navigation mit den sichtbaren Tabs (Kapitel 8.1 und 8.2) und Badges (AP-25): Ereignisse
+ * (Forschung fertig, neuer Bucheintrag, Prestige verfuegbar) als roter Punkt, "Kauf moeglich" als
+ * dezenter Punkt in der Akzentfarbe.
+ */
 @Composable
-private fun GameNavigationBar(visibleTabs: List<GameTab>, selected: GameTab, onSelect: (GameTab) -> Unit) {
+private fun GameNavigationBar(
+    visibleTabs: List<GameTab>,
+    badges: Map<GameTab, TabBadge>,
+    selected: GameTab,
+    onSelect: (GameTab) -> Unit,
+) {
     NavigationBar {
         for (tab in visibleTabs) {
             val label = stringResource(tab.titleRes)
+            val badge = badges[tab]
             NavigationBarItem(
                 selected = tab == selected,
                 onClick = { onSelect(tab) },
-                icon = { Icon(tab.icon, contentDescription = null) },
+                icon = {
+                    BadgedBox(
+                        badge = {
+                            if (badge != null) {
+                                val description = stringResource(FeedbackTexts.badgeDescriptionRes(badge))
+                                Badge(
+                                    modifier = Modifier.semantics { contentDescription = description },
+                                    containerColor = if (badge == TabBadge.AFFORDABLE) {
+                                        MaterialTheme.colorScheme.tertiary
+                                    } else {
+                                        MaterialTheme.colorScheme.error
+                                    },
+                                )
+                            }
+                        },
+                    ) {
+                        Icon(tab.icon, contentDescription = null)
+                    }
+                },
                 label = { Text(label, maxLines = 1) },
             )
         }

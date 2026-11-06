@@ -2,6 +2,7 @@ package de.noelkoeppen.fossilcollector.core.save
 
 import de.noelkoeppen.fossilcollector.core.model.BookEntry
 import de.noelkoeppen.fossilcollector.core.model.GameState
+import de.noelkoeppen.fossilcollector.core.model.LabJob
 import de.noelkoeppen.fossilcollector.core.model.LanguageSetting
 import de.noelkoeppen.fossilcollector.core.model.MetaState
 import de.noelkoeppen.fossilcollector.core.model.PieceKey
@@ -60,6 +61,25 @@ class SaveRoundTripTest {
         // Aeltere Spielstaende ohne "zones" laden ohne Migration mit leerer Liste (AP-09).
         val legacy = codec.decode(SaveFixtures.read("v1_full.json"))
         assertTrue(legacy.meta.book.values.all { it.zones.isEmpty() })
+    }
+
+    @Test
+    fun revealedTabsRoundTripAndDefaultToEmpty() {
+        // AP-25: gezeigte Tabs im Metazustand; aeltere Spielstaende laden ohne Migration mit leerer Menge.
+        val state = SaveFixtures.rich.let { it.copy(meta = it.meta.copy(revealedTabs = setOf("dig", "museum"))) }
+        assertEquals(setOf("dig", "museum"), codec.decode(codec.encode(state)).meta.revealedTabs)
+        assertTrue(codec.decode(SaveFixtures.read("v1_full.json")).meta.revealedTabs.isEmpty())
+    }
+
+    @Test
+    fun labJobDurationRoundTripAndDefaultToNull() {
+        // AP-25: Gesamtdauer im Laborjob; aeltere Spielstaende laden ohne Migration mit null.
+        val job = LabJob(PieceKey("cave_bear", "skull"), listOf(0.5, 0.5, 0.5, 0.5), remaining = 12.0, duration = 19.5)
+        val state = SaveFixtures.rich.let { it.copy(run = it.run.copy(labJobs = listOf(job))) }
+        assertEquals(listOf(job), codec.decode(codec.encode(state)).run.labJobs)
+        val legacy = codec.decode(SaveFixtures.read("v1_full.json"))
+        assertTrue(legacy.run.labJobs.isNotEmpty())
+        assertTrue(legacy.run.labJobs.all { it.duration == null })
     }
 
     @Test
