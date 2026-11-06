@@ -11,6 +11,7 @@ import de.noelkoeppen.fossilcollector.ui.book.BookUiState
 import de.noelkoeppen.fossilcollector.ui.fame.FameUiState
 import de.noelkoeppen.fossilcollector.ui.lab.LabUiState
 import de.noelkoeppen.fossilcollector.ui.museum.MuseumUiState
+import de.noelkoeppen.fossilcollector.ui.welcome.WelcomeUiState
 
 /**
  * Unveraenderlicher UI-Zustand, veroeffentlicht von [GameViewModel.uiState] (Kapitel 10.3).
@@ -42,6 +43,8 @@ sealed interface GameUiState {
      * @property book Ausschnitt fuer den Screen Sammelbuch (AP-20, [de.noelkoeppen.fossilcollector.ui.book.BookUiMapper])
      * @property fameScreen Ausschnitt fuer den Screen Ruhm (AP-22, [de.noelkoeppen.fossilcollector.ui.fame.FameUiMapper]);
      *   heisst nicht `fame`, weil [fame] schon der Ruhm der oberen Leiste ist
+     * @property welcome Willkommen-zurueck-Dialog (AP-23, [de.noelkoeppen.fossilcollector.ui.welcome.WelcomeUiMapper]);
+     *   `null` = kein Dialog
      */
     @Immutable
     data class Ready(
@@ -58,6 +61,7 @@ sealed interface GameUiState {
         val lab: LabUiState = LabUiState.EMPTY,
         val book: BookUiState = BookUiState.EMPTY,
         val fameScreen: FameUiState = FameUiState.EMPTY,
+        val welcome: WelcomeUiState? = null,
     ) : GameUiState
 }
 
