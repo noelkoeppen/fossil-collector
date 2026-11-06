@@ -28,6 +28,7 @@ object DigStateMapper {
                     blocksPerSecond = engine.blocksPerSecond(state, layer.id),
                     teams = run.teams[layer.id] ?: GameNumber.ZERO,
                     teamQuotes = quotes { purchases.quote(state, PurchaseTarget.Teams(layer.id), it) },
+                    texture = layer.texture,
                 )
             } else {
                 val cost = purchases.unlockCost(layer)
@@ -39,6 +40,7 @@ object DigStateMapper {
                     savingsProgress = savingsProgress(run.money, cost),
                     isNext = isNext,
                     canUnlock = isNext && run.money >= cost,
+                    texture = layer.texture,
                 )
             }
         }

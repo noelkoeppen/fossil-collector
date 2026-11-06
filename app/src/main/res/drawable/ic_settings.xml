@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Einstellungen: Zahnrad (AP-26, eigene Zeichnung) -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M9.64,4.36 L10.21,1.55 L13.79,1.55 L14.36,4.36 L15.73,4.92 L18.12,3.34 L20.66,5.88 L19.08,8.27 L19.64,9.64 L22.45,10.21 L22.45,13.79 L19.64,14.36 L19.08,15.73 L20.66,18.12 L18.12,20.66 L15.73,19.08 L14.36,19.64 L13.79,22.45 L10.21,22.45 L9.64,19.64 L8.27,19.08 L5.88,20.66 L3.34,18.12 L4.92,15.73 L4.36,14.36 L1.55,13.79 L1.55,10.21 L4.36,9.64 L4.92,8.27 L3.34,5.88 L5.88,3.34 L8.27,4.92 Z M8.7,12 A3.3,3.3 0 1 1 15.3,12 A3.3,3.3 0 1 1 8.7,12 Z"
+        android:fillType="evenOdd" />
+</vector>

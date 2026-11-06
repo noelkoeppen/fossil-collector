@@ -570,6 +570,12 @@ Umsetzung (AP-16): Die App liest die Farben aus `balance.json: qualityTiers[].co
 - Quelle: selbst erzeugte SVGs in `art/skeletons/<speciesId>.svg`, keine fremden Vorlagen, keine Anlehnung an bekannte Film- oder Markengrafik.
 - **Konvention:** Jeder Knochen ist eine Gruppe `id="<boneId>"`, jede Zone ein Pfad `id="<boneId>__<zoneId>"`. Ein Build-Skript (`tools/svg2json.py`) wandelt die SVGs in `skeleton_<speciesId>.json` (Pfaddaten plus IDs) um. Die App zeichnet sie mit Compose `PathParser` und färbt sie zur Laufzeit ein.
 - Schichthintergründe: Farbbänder mit einfacher Textur, ebenfalls per SVG oder Compose-Zeichnung.
+- Umsetzung (AP-26), Schichthintergründe per Compose-Zeichnung:
+    - **Daten:** `layers.json: texture` (`plain` | `gravel` | `banded` | `chalk`, optional, Standard `plain`; `core.data.LayerTexture`, im Schema als `enum`). Quartär `gravel` (lockerer Sand und Kiesel), Neogen `banded` (feine, leicht wellige Bänderung), Kreide `chalk` (helle Sprenkel, Feuersteinknollen, eine bis zwei helle Kreidelagen, angedeutete Ammoniten-Spiralen und Muscheln). Reine Gestaltung, keine Spielwirkung. **Abweichung:** Die Textur steht als Datenfeld statt als Zuordnung nach Schicht-ID im Code, damit neue Schichten (z. B. Kontinente, [Später]) ohne Codeänderung ein Muster bekommen.
+    - **Muster:** `ui/dig/LayerTexturePattern.generate(texture, seed, width, height, unit)` ist eine reine Funktion (Körner, Kiesel, Linien, Muscheln in Pixeln; Dichte je Fläche in dp², höchstens `MAX_ELEMENTS` = 900 Elemente). Seed = `seedFor(layerId)` (`String.hashCode`), also bei jedem Start gleich. Der Zufall ist reine Optik und läuft deshalb über `kotlin.random.Random(seed)`, nicht über `GameRandom` (Regel 7 gilt für den Spielzustand).
+    - **Lesbarkeit:** `ui/dig/LayerTexturePalette` wählt die Textfarbe (Schwarz oder Weiß, höherer WCAG-Kontrast; ersetzt die frühere Luminanzschwelle 0,35, mit der Neogen nur 3,9:1 hatte) und nimmt jeden Texturton so weit zur Bandfarbe zurück, dass der Text auf **jedem** Element mindestens 4,5:1 hat. Daher kein Overlay nötig. Gesperrte Bänder: Bandfarbe zu 35 % auf dem Grund, Text in `onSurface`, gleiche Absicherung. Der Tipp-Hinweis auf den Bändern steht deshalb in voller Textfarbe (vorher 75 % Deckkraft).
+    - **Leistung:** `LayerTextureBackground` (Kind mit `matchParentSize` hinter dem Bandinhalt) baut Muster und Pfade in `drawWithCache` nur bei neuer Größe, Schicht oder Palette; Körner und Kiesel eines Tons liegen in einem `Path` (wenige Zeichenaufrufe). Eine eigene `graphicsLayer` verhindert, dass die 10 Aktualisierungen/s des Texts darüber die Textur neu aufzeichnen.
+- Umsetzung (AP-26), Icons: eigene, flache Vector Drawables in `res/drawable` (24 dp, einfarbig weiß, eingefärbt von `Icon`), gesammelt in `ui/theme/AppIcons`: Tabs (`ic_tab_dig` Spitzhacke, `ic_tab_lab` Lupe, `ic_tab_museum` Säulenportal, `ic_tab_book` Buch mit Titelschild, `ic_tab_fame` Lorbeerkranz mit Stern), Währungen der oberen Leiste (`ic_money` Münze, `ic_research` Erlenmeyerkolben, `ic_star` für Ruhm), `ic_settings` (Zahnrad), `ic_back` (`autoMirrored`), Sammelbuch- und Skilltree-Symbole (`ic_check` Stufe 1/gekauft, `ic_star` Stufe 2/Capstone, `ic_lock`, `ic_warning`). Die Abhängigkeit `material-icons-core` ist entfernt. **Launcher-Icon:** adaptives Icon in `mipmap-anydpi` (minSdk 26, kein `-v26` nötig): Vordergrund ein stilisierter Ammonit in Knochenfarbe innerhalb der 66-dp-Sicherheitszone (`ic_launcher_foreground`, zugleich `monochrome`-Ebene für Themen-Icons ab Android 13), Hintergrund Gesteinsschichten (`ic_launcher_background`, Farben `launcher_rock_*`). Außerdem `dataExtractionRules` (kein Cloud-Backup, kein Geräteumzug) und `fullBackupContent="false"` passend zu `allowBackup="false"`: Der Spielstand wandert nur über Export/Import.
 - **MVP:** Platzhalter (ein generisches Vierbeiner- bzw. Zweibeiner-Skelett für alle Arten) ist zulässig. Die echten 18 Skelette entstehen in AP-27.
 - Umsetzung (AP-21):
     - **SVG-Regeln** (`tools/svg2json.py`, nur Python-Standardbibliothek): `viewBox` am `<svg>` Pflicht; in Knochengruppen nur Zonen-Pfade, keine verschachtelten Knochengruppen; **`transform` ist an jedem Element verboten** (wird nicht aufgelöst, damit die Koordinaten im JSON denen im SVG entsprechen; vor dem Export anwenden); Elemente außerhalb von Knochengruppen (Hintergrund) werden ignoriert. Die Gruppenreihenfolge ist die Zeichenreihenfolge, die **Zonenreihenfolge muss der in `bones.json` entsprechen** (Index i der Grafik = `zoneQualities[i]`).
@@ -658,7 +664,8 @@ Ablage: `core/src/main/resources/data/`. Alle IDs in `snake_case`, Texte nur als
 ```json
 [
   { "id": "quaternary", "order": 0, "unlockCost": 0, "teamBaseCost": 10, "teamGrowth": 1.12,
-    "teamRate": 0.1, "value": 1, "fragility": 0.15, "fameWeight": 1, "color": "#B9A27A" }
+    "teamRate": 0.1, "value": 1, "fragility": 0.15, "fameWeight": 1, "color": "#B9A27A",
+    "texture": "gravel" }
 ]
 ```
 
@@ -842,6 +849,7 @@ Jedes AP ist für eine Claude-Code-Session gedacht. Format: **ID – Titel** (Ab
 
 ### Phase 3 – Inhalt und Balancing
 - **AP-26 – Schichthintergründe und Icons** (AP-17)
+  Umgesetzt (Details in 8.5): Gesteinstexturen per Compose-Zeichnung (`layers.json: texture`), eigene Vektor-Icons für Tabs, Währungen, Einstellungen und Sammelbuch, adaptives Launcher-Icon mit monochromer Ebene, ohne `material-icons-core`.
 - **AP-27a/b/c – Skelett-SVGs Quartär / Neogen / Kreide** (AP-21)
   Je 6 Arten nach Konvention 8.5, schematischer Stil.
 - **AP-28 – Balancing-Werkzeug anbinden** (AP-15)

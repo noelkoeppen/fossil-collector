@@ -9,7 +9,8 @@
     "value": 1,
     "fragility": 0.15,
     "fameWeight": 1,
-    "color": "#B9A27A"
+    "color": "#B9A27A",
+    "texture": "gravel"
   },
   {
     "id": "neogene",
@@ -21,7 +22,8 @@
     "value": 8,
     "fragility": 0.3,
     "fameWeight": 3,
-    "color": "#9C7A54"
+    "color": "#9C7A54",
+    "texture": "banded"
   },
   {
     "id": "cretaceous",
@@ -33,6 +35,7 @@
     "value": 60,
     "fragility": 0.45,
     "fameWeight": 10,
-    "color": "#6E5A4A"
+    "color": "#6E5A4A",
+    "texture": "chalk"
   }
 ]

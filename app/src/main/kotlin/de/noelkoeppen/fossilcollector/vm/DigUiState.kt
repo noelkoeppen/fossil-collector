@@ -1,6 +1,7 @@
 package de.noelkoeppen.fossilcollector.vm
 
 import androidx.compose.runtime.Immutable
+import de.noelkoeppen.fossilcollector.core.data.LayerTexture
 import de.noelkoeppen.fossilcollector.core.engine.purchase.BuyMode
 import de.noelkoeppen.fossilcollector.core.engine.purchase.PurchaseQuote
 import de.noelkoeppen.fossilcollector.core.number.GameNumber
@@ -32,6 +33,9 @@ sealed interface DigLayerUi {
     /** Farbe des Schichtbands als `#RRGGBB` aus `layers.json`. */
     val color: String
 
+    /** Gesteinstextur des Schichtbands aus `layers.json` (AP-26). */
+    val texture: LayerTexture
+
     /**
      * Freigeschaltete Schicht.
      *
@@ -48,6 +52,7 @@ sealed interface DigLayerUi {
         val blocksPerSecond: GameNumber,
         val teams: GameNumber,
         val teamQuotes: Map<BuyMode, PurchaseQuote?>,
+        override val texture: LayerTexture = LayerTexture.PLAIN,
     ) : DigLayerUi
 
     /**
@@ -66,6 +71,7 @@ sealed interface DigLayerUi {
         val savingsProgress: Double,
         val isNext: Boolean,
         val canUnlock: Boolean,
+        override val texture: LayerTexture = LayerTexture.PLAIN,
     ) : DigLayerUi
 }
 

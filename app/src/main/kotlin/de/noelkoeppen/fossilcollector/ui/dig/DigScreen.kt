@@ -30,7 +30,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.tooling.preview.Preview
@@ -139,7 +139,7 @@ private fun DigContent(
     }
 }
 
-/** Farbband einer offenen Schicht; Tippen auf das Band graebt. */
+/** Farbband einer offenen Schicht mit Gesteinstextur (AP-26); Tippen auf das Band graebt. */
 @Composable
 private fun UnlockedLayerBand(
     layer: DigLayerUi.Unlocked,
@@ -148,42 +148,51 @@ private fun UnlockedLayerBand(
     texts: TextProvider,
     actions: DigActions,
 ) {
-    val background = remember(layer.color) { QualityColors.parseHexColor(layer.color) }
-    val content = contentColorFor(background)
-    Row(
+    val palette = remember(layer.color) { LayerTexturePalette.forBand(LayerTexturePalette.parseHex(layer.color)) }
+    val content = Color(palette.text)
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .background(background)
             .clickable(role = Role.Button, onClickLabel = stringResource(R.string.dig_tap_hint)) {
                 actions.tapDig(layer.layerId)
-            }
-            .padding(horizontal = 12.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically,
+            },
     ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(texts.layerName(layer.layerId), style = MaterialTheme.typography.titleMedium, color = content)
-            Text(
-                stringResource(R.string.dig_layer_blocks, format.formatPrecise(layer.blocks)),
-                style = MaterialTheme.typography.bodyMedium,
-                color = content,
-            )
-            Text(
-                stringResource(
-                    R.string.dig_layer_rate_teams,
-                    format.formatPrecise(layer.blocksPerSecond),
-                    format.format(layer.teams),
-                ),
-                style = MaterialTheme.typography.bodySmall,
-                color = content,
-            )
-            Text(stringResource(R.string.dig_tap_hint), style = MaterialTheme.typography.labelSmall, color = content.copy(alpha = 0.75f))
-        }
-        BuyButton(
-            title = stringResource(R.string.dig_buy_teams),
-            quote = layer.teamQuotes[buyMode],
-            format = format,
-            onClick = { actions.buyTeams(layer.layerId, buyMode) },
+        LayerTextureBackground(
+            texture = layer.texture,
+            seed = LayerTexturePattern.seedFor(layer.layerId),
+            palette = palette,
+            modifier = Modifier.matchParentSize(),
         )
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(texts.layerName(layer.layerId), style = MaterialTheme.typography.titleMedium, color = content)
+                Text(
+                    stringResource(R.string.dig_layer_blocks, format.formatPrecise(layer.blocks)),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = content,
+                )
+                Text(
+                    stringResource(
+                        R.string.dig_layer_rate_teams,
+                        format.formatPrecise(layer.blocksPerSecond),
+                        format.format(layer.teams),
+                    ),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = content,
+                )
+                // Volle Textfarbe: der Kontrast ist nur fuer sie gegen die Textur abgesichert.
+                Text(stringResource(R.string.dig_tap_hint), style = MaterialTheme.typography.labelSmall, color = content)
+            }
+            BuyButton(
+                title = stringResource(R.string.dig_buy_teams),
+                quote = layer.teamQuotes[buyMode],
+                format = format,
+                onClick = { actions.buyTeams(layer.layerId, buyMode) },
+            )
+        }
     }
 }
 
@@ -195,15 +204,37 @@ private fun LockedLayerBand(
     texts: TextProvider,
     actions: DigActions,
 ) {
-    val background = remember(layer.color) { QualityColors.parseHexColor(layer.color).copy(alpha = LOCKED_ALPHA) }
-    val content = MaterialTheme.colorScheme.onSurface
+    val surface = MaterialTheme.colorScheme.surface.toArgb()
+    val onSurface = MaterialTheme.colorScheme.onSurface.toArgb()
+    // Abgedunkelt: Bandfarbe mit LOCKED_ALPHA auf dem Grund, Text in der Themenfarbe.
+    val palette = remember(layer.color, surface, onSurface) {
+        val base = LayerTexturePalette.composite(LayerTexturePalette.parseHex(layer.color), LOCKED_ALPHA, surface)
+        LayerTexturePalette.create(base, onSurface)
+    }
+    val content = Color(palette.text)
     val percent = (layer.savingsProgress * PERCENT).toInt()
+    Box(modifier = Modifier.fillMaxWidth()) {
+        LayerTextureBackground(
+            texture = layer.texture,
+            seed = LayerTexturePattern.seedFor(layer.layerId),
+            palette = palette,
+            modifier = Modifier.matchParentSize(),
+        )
+        LockedLayerContent(layer, percent, content, format, texts, actions)
+    }
+}
+
+@Composable
+private fun LockedLayerContent(
+    layer: DigLayerUi.Locked,
+    percent: Int,
+    content: Color,
+    format: GameNumberFormat,
+    texts: TextProvider,
+    actions: DigActions,
+) {
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surface)
-            .background(background)
-            .padding(horizontal = 12.dp, vertical = 10.dp),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -329,12 +360,7 @@ fun FindPopupCard(popup: FindPopup, texts: TextProvider, modifier: Modifier = Mo
     }
 }
 
-/** Lesbare Textfarbe auf einem Schichtband. */
-private fun contentColorFor(background: Color): Color =
-    if (background.luminance() > LIGHT_BACKGROUND_LUMINANCE) Color.Black else Color.White
-
 private const val LOCKED_ALPHA = 0.35f
-private const val LIGHT_BACKGROUND_LUMINANCE = 0.35f
 private const val PERCENT = 100
 private val PREP_BUTTON_HEIGHT = 72.dp
 
@@ -365,6 +391,7 @@ private fun previewDig(started: Boolean): DigUiState {
     val layers = previewData.layers.mapIndexed { index, layer ->
         if (index == 0) {
             DigLayerUi.Unlocked(
+                texture = layer.texture,
                 layerId = layer.id,
                 color = layer.color,
                 blocks = if (started) GameNumber(3.75) else GameNumber.ZERO,
@@ -375,6 +402,7 @@ private fun previewDig(started: Boolean): DigUiState {
         } else {
             val progress = if (started) 2_400.0 / layer.unlockCost else 0.0
             DigLayerUi.Locked(
+                texture = layer.texture,
                 layerId = layer.id,
                 color = layer.color,
                 unlockCost = GameNumber(layer.unlockCost),

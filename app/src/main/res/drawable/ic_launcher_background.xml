@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Launcher-Hintergrund: Gesteinsschichten in gedeckten Brauntoenen (AP-26). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="@color/launcher_rock_top"
+        android:pathData="M0,0 H108 V108 H0 Z" />
+    <path
+        android:fillColor="@color/launcher_rock_middle"
+        android:pathData="M0,108 L0,30.97 L6,31.88 L12,32.41 L18,32.45 L24,32 L30,31.14 L36,30.05 L42,28.95 L48,28.06 L54,27.56 L60,27.56 L66,28.05 L72,28.94 L78,30.04 L84,31.13 L90,31.99 L96,32.45 L102,32.42 L108,31.89 L108,108 Z" />
+    <path
+        android:fillColor="@color/launcher_rock_low"
+        android:pathData="M0,108 L0,60.59 L6,59.66 L12,58.4 L18,57.06 L24,55.9 L30,55.18 L36,55.02 L42,55.46 L48,56.42 L54,57.7 L60,59.04 L66,60.17 L72,60.86 L78,60.97 L84,60.48 L90,59.49 L96,58.19 L102,56.86 L108,55.76 L108,108 Z" />
+    <path
+        android:fillColor="@color/launcher_rock_deep"
+        android:pathData="M0,108 L0,82.34 L6,81.87 L12,81.84 L18,82.25 L24,83.01 L30,83.97 L36,84.94 L42,85.71 L48,86.15 L54,86.14 L60,85.71 L66,84.92 L72,83.95 L78,82.99 L84,82.24 L90,81.84 L96,81.88 L102,82.34 L108,83.15 L108,108 Z" />
+</vector>

@@ -19,11 +19,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -45,6 +40,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
@@ -55,6 +51,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import de.noelkoeppen.fossilcollector.R
+import de.noelkoeppen.fossilcollector.ui.theme.AppIcons
 import de.noelkoeppen.fossilcollector.core.data.DataRepository
 import de.noelkoeppen.fossilcollector.core.data.LocaleKeys
 import de.noelkoeppen.fossilcollector.core.data.TextProvider
@@ -291,15 +288,15 @@ private fun SkillNodeCard(
             verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
             val icon = when {
-                mark == SelectionMark.REJECTED -> Icons.Filled.Warning
-                owned -> Icons.Filled.Check
-                locked -> Icons.Filled.Lock
-                node.capstone -> Icons.Filled.Star
+                mark == SelectionMark.REJECTED -> AppIcons.Warning
+                owned -> AppIcons.Check
+                locked -> AppIcons.Lock
+                node.capstone -> AppIcons.Star
                 else -> null
             }
             if (icon != null) {
                 Icon(
-                    icon,
+                    painterResource(icon),
                     contentDescription = null,
                     modifier = Modifier.size(14.dp),
                     tint = if (mark == SelectionMark.REJECTED) colors.error else content,
