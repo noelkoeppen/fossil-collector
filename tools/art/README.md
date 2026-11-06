@@ -50,6 +50,14 @@ rsvg-convert -b '#222' -w 600 art/skeletons/smilodon.svg -o /tmp/smilodon.png   
   `forelimb` (Oberarm mit Schulterblatt, Unterarm, Handwurzel/Mittelhand als `carpus`,
   Flügelfinger mit Kralle als `digits`), Laufbein = `hindlimb` (Tibiotarsus als `tibia`,
   Tarsometatarsus als `tarsus`).
+- Kreide (AP-27c): Bausteine `dino_tail` (Schwanzwirbel mit Dorn- und Hämalfortsätzen, alles
+  `dorsal__centrum`), `chain` (drei Langknochen mit Lücke), `claws` (Finger/Zehen),
+  `ornithischian_pelvis` (Prä- und Postpubis als Zone Schambein) und `armor_plates`
+  (Ankylosaurus-Panzer als Platten auf den Dornfortsätzen). Schnäbel: oben `skull__snout`, unten
+  `jaw__tip`; Kamm (Parasaurolophus) und Stirnhörner (Triceratops) `skull__skull_roof`, Nasenhorn
+  `skull__snout`, Nackenschild und Eckhörner des Ankylosaurus `skull__occiput`, Wangenhörner
+  `skull__orbit`; Sichelkralle des Velociraptor `hindlimb__toes`, Schwanzkeule `dorsal__centrum`.
+  Zweibeiner in waagerechter Haltung, neutrale Seitenansicht.
 
 Wer eine SVG später von Hand nachbearbeitet, sollte die Art nicht erneut mit dem Generator
 überschreiben (oder die Änderung in die Artfunktion übernehmen).
