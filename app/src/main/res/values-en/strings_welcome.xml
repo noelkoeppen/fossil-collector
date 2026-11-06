@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Welcome-back dialog (AP-23, chapter 7.1) -->
+<resources>
+    <string name="welcome_title">Welcome back!</string>
+    <string name="welcome_calculating">Calculating what happened while you were away …</string>
+    <string name="welcome_away">You were away for %1$s.</string>
+    <string name="welcome_credit">Credited: %1$s at %2$d %% efficiency, equal to %3$s of play time.</string>
+    <string name="welcome_capped">At most %1$s of absence is credited.</string>
+    <string name="welcome_money_label">Money</string>
+    <string name="welcome_money_value">+%1$s $</string>
+    <string name="welcome_research_label">Research points</string>
+    <string name="welcome_research_value">+%1$s RP</string>
+    <string name="welcome_finds_label">Finds</string>
+    <string name="welcome_best_title">Best new finds</string>
+    <string name="welcome_find_name">%1$s – %2$s</string>
+    <string name="welcome_find_quality">%1$s · %2$d %%</string>
+    <string name="welcome_milestones_title">Milestones reached</string>
+    <string name="welcome_close">Close</string>
+
+    <!-- Duration units, e.g. "2 h 15 min" -->
+    <string name="welcome_unit_days">%1$d d</string>
+    <string name="welcome_unit_hours">%1$d h</string>
+    <string name="welcome_unit_minutes">%1$d min</string>
+    <string name="welcome_unit_seconds">%1$d s</string>
+</resources>

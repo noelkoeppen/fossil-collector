@@ -69,6 +69,7 @@ import de.noelkoeppen.fossilcollector.ui.rememberGameNumberFormat
 import de.noelkoeppen.fossilcollector.ui.resolveNumberLanguage
 import de.noelkoeppen.fossilcollector.ui.theme.FossilCollectorTheme
 import de.noelkoeppen.fossilcollector.ui.theme.QualityColors
+import de.noelkoeppen.fossilcollector.ui.welcome.WelcomeBackDialog
 import de.noelkoeppen.fossilcollector.vm.DigActions
 import de.noelkoeppen.fossilcollector.vm.GameMessage
 import de.noelkoeppen.fossilcollector.vm.GameTab
@@ -78,7 +79,7 @@ import de.noelkoeppen.fossilcollector.vm.GameViewModel
 /**
  * App-Shell (AP-16, Kapitel 8.1): Theme, obere Leiste, untere Navigation mit den sichtbaren Tabs
  * (Kapitel 8.2) und den Screens in [TabContent] (seit AP-22 alle Tabs; die Einstellungen sind
- * noch ein Platzhalter bis AP-24).
+ * noch ein Platzhalter bis AP-24). Seit AP-23 zusaetzlich der Willkommen-zurueck-Dialog als Overlay.
  */
 @Composable
 fun AppShell(viewModel: GameViewModel) {
@@ -178,6 +179,16 @@ fun GameShell(
                 TabContent(currentTab, state, viewModel)
             }
         }
+    }
+
+    // Willkommen-zurueck-Dialog (AP-23) als Overlay ueber allem.
+    state.welcome?.let { welcome ->
+        WelcomeBackDialog(
+            state = welcome,
+            settings = state.settings,
+            texts = state.texts,
+            onDismiss = { viewModel?.dismissWelcome() },
+        )
     }
 }
 

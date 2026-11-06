@@ -42,6 +42,8 @@ import de.noelkoeppen.fossilcollector.ui.lab.LabUiMapper
 import de.noelkoeppen.fossilcollector.ui.lab.LabUiState
 import de.noelkoeppen.fossilcollector.ui.museum.MuseumUiMapper
 import de.noelkoeppen.fossilcollector.ui.museum.MuseumUiState
+import de.noelkoeppen.fossilcollector.ui.welcome.WelcomeUiMapper
+import de.noelkoeppen.fossilcollector.ui.welcome.WelcomeUiState
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
@@ -69,7 +71,14 @@ import java.io.IOException
  * - **Laden:** Spieldaten ueber [loadData] (Standard: [DataRepository] aus den Klassenpfad-Ressourcen
  *   von `core`, die im APK liegen), dann den Spielstand ueber [SaveStorage]. Ohne Spielstand oder
  *   wenn keiner lesbar ist: neues Spiel ueber `GameState.newGame` + [RunStart.values].
- *   Offline-Fortschritt beim Start folgt in AP-14/AP-23; hier wird nur `lastSavedAt` gepflegt.
+ * - **Offline-Fortschritt (AP-23, Kapitel 7.1):** Jedes Mal, wenn die App in den Vordergrund kommt
+ *   (auch beim ersten Start nach dem Laden), rechnet [catchUpOffline] die Zeit seit `lastSavedAt`
+ *   ueber `GameEngine.applyOffline` nach, bevor die Spielschleife startet. Die Schleife ist dabei
+ *   pausiert (sie laeuft im selben `collectLatest`-Block erst danach). Gerechnet wird auf
+ *   [gameDispatcher] (`Dispatchers.Default` mit Parallelitaet 1, nie der Main-Thread), damit Engine
+ *   und Spielstand nur von einem Thread benutzt werden. Danach wird der Zustand uebernommen und
+ *   gespeichert. Ab [WelcomeUiMapper.MIN_DIALOG_SECONDS] erscheint der Willkommen-Dialog
+ *   (waehrend der Berechnung mit Lade-Indikator), kuerzere Abwesenheiten werden ohne Dialog angerechnet.
  * - **Schleife:** 10 Ticks/s, je Tick `GameEngine.advance(state, 0.1, rng)`. Danach wird ein
  *   unveraenderlicher [GameUiState] per [uiState] veroeffentlicht, Ereignisse gehen an [events].
  *   Die Schleife laeuft nur im Vordergrund (siehe [onAppForeground]/[onAppBackground]).
@@ -143,6 +152,7 @@ class GameViewModel(
     private var texts: TextProvider = TextProvider.EMPTY
     private var bookMapper: BookUiMapper? = null
     private var prestigeDialog: PrestigeDialogState? = null
+    private var welcome: WelcomeUiState? = null
     private val popupBundler = FindPopupBundler()
 
     private val foreground = MutableStateFlow(false)
@@ -151,21 +161,41 @@ class GameViewModel(
     init {
         viewModelScope.launch(gameDispatcher) {
             if (!load()) return@launch
-            foreground.collectLatest { active -> if (active) runLoop() }
+            foreground.collectLatest { active ->
+                if (active) {
+                    catchUpOffline()
+                    runLoop()
+                }
+            }
         }
     }
 
-    /** App ist sichtbar: Spielschleife laeuft (idempotent). */
+    /** App ist sichtbar: Offline-Zeit nachrechnen, dann laeuft die Spielschleife (idempotent). */
     fun onAppForeground() {
         foreground.value = true
     }
 
     /** App geht in den Hintergrund: Schleife anhalten und speichern (idempotent). */
     fun onAppBackground() {
+        // Nur beim Uebergang Vordergrund -> Hintergrund wird `lastSavedAt` in jedem Fall neu gesetzt
+        // (auch ohne Aenderung seit dem letzten Speichern), damit die Offline-Zeit genau hier beginnt
+        // und keine Vordergrund-Zeit doppelt zaehlt. Der zweite Aufruf (Activity und Prozess melden
+        // beide) aendert dann nichts mehr.
+        val wasForeground = foreground.value
         foreground.value = false
         // NonCancellable: Das Speichern soll auch dann fertig werden, wenn das ViewModel gerade
         // geraeumt wird (Activity beendet).
-        viewModelScope.launch(gameDispatcher + NonCancellable) { saveCurrent() }
+        viewModelScope.launch(gameDispatcher + NonCancellable) { saveCurrent(force = wasForeground) }
+    }
+
+    /** Schliesst den Willkommen-zurueck-Dialog; waehrend der Berechnung ohne Wirkung. */
+    fun dismissWelcome() {
+        viewModelScope.launch(gameDispatcher) {
+            if (welcome is WelcomeUiState.Summary) {
+                welcome = null
+                publish()
+            }
+        }
     }
 
     /**
@@ -358,6 +388,7 @@ class GameViewModel(
         lastSavedState = if (needsInitialSave) null else loadedState
         revealedTabs = emptySet()
         prestigeDialog = null
+        welcome = null
         moneyRate.reset()
         publish()
         if (needsInitialSave) saveCurrent()
@@ -371,6 +402,38 @@ class GameViewModel(
             start = RunStart.values(gameData, modifiers),
             now = time.currentTimeMillis(),
         )
+
+    /**
+     * Offline-Fortschritt seit `lastSavedAt` (Kapitel 7.1, AP-23). Laeuft auf [gameDispatcher] vor
+     * [runLoop], die Schleife ist also pausiert. Nicht abbrechbar: Geht die App waehrend der
+     * Berechnung wieder in den Hintergrund, wird das Ergebnis trotzdem uebernommen und gespeichert
+     * (`lastSavedAt = now`), sonst wuerde die Zeit beim naechsten Mal erneut gezaehlt.
+     *
+     * Die Rechenzeit selbst (bei 4 h effektiv etwa 1 s) wird nicht nachgeholt: Gespeichert wird
+     * danach mit der aktuellen Zeit, ab der die Schleife weiterlaeuft.
+     */
+    private suspend fun catchUpOffline() = withContext(NonCancellable) {
+        val currentEngine = engine ?: return@withContext
+        val current = state ?: return@withContext
+        val now = time.currentTimeMillis()
+        val elapsed = WelcomeUiMapper.elapsedSeconds(current.lastSavedAt, now)
+        if (WelcomeUiMapper.showsDialog(elapsed)) {
+            // Lade-Indikator nur bei langer Abwesenheit; kurze Nachberechnungen sind sofort fertig.
+            welcome = WelcomeUiState.Calculating(elapsed)
+            publish()
+        }
+        val result = currentEngine.applyOffline(current, now, rng)
+        state = result.state
+        currentEngine.syncModifiers(result.state)
+        welcome = WelcomeUiMapper.next(
+            current = welcome,
+            summary = result.summary,
+            capSeconds = currentEngine.offline.capSeconds(),
+            efficiency = currentEngine.offline.efficiency(),
+        )
+        publish()
+        saveCurrent()
+    }
 
     /** Spielschleife; laeuft, bis sie abgebrochen wird (Hintergrund). */
     private suspend fun runLoop() {
@@ -396,6 +459,8 @@ class GameViewModel(
     }
 
     private fun tick() {
+        // Im Hintergrund zaehlt die Zeit nur als Offline-Zeit (falls ein Tick die Abbruchmeldung ueberholt).
+        if (!foreground.value) return
         val currentEngine = engine ?: return
         val current = state ?: return
         val result = currentEngine.advance(current, TICK_SECONDS, rng)
@@ -439,16 +504,17 @@ class GameViewModel(
             // Gecacht: neu gebaut nur bei geaendertem Buch, erforschten Arten oder Schichten.
             book = bookMapper?.map(currentEngine, current) ?: BookUiState.EMPTY,
             fameScreen = FameUiMapper.map(currentEngine, current, prestigeDialog),
+            welcome = welcome,
         )
     }
 
     /**
      * Speichert den aktuellen Zustand mit `lastSavedAt = jetzt`, sofern er sich seit dem letzten
-     * Speichern geaendert hat. Muss auf [gameDispatcher] laufen.
+     * Speichern geaendert hat oder [force] gesetzt ist. Muss auf [gameDispatcher] laufen.
      */
-    private suspend fun saveCurrent() {
+    private suspend fun saveCurrent(force: Boolean = false) {
         val current = state ?: return
-        if (current === lastSavedState) return
+        if (!force && current === lastSavedState) return
         val stamped = current.copy(lastSavedAt = time.currentTimeMillis())
         state = stamped
         lastSavedState = stamped
