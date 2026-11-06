@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Settings (AP-24, chapter 8.3) -->
+<resources>
+    <string name="settings_title">Settings</string>
+
+    <!-- Language -->
+    <string name="settings_language_title">Language</string>
+    <string name="settings_language_system">System language</string>
+    <string name="settings_language_hint">Applies to texts, names and numbers. The screen is rebuilt briefly.</string>
+
+    <!-- Number format; %1$s is an example number in that format -->
+    <string name="settings_number_format_title">Number format</string>
+    <string name="settings_number_format_short">Short (%1$s)</string>
+    <string name="settings_number_format_scientific">Scientific (%1$s)</string>
+
+    <!-- Save game: export and import -->
+    <string name="settings_save_title">Save game</string>
+    <string name="settings_export_text">Copies your save game to the clipboard as text, e.g. as a backup or for another device.</string>
+    <string name="settings_export_button">Export</string>
+    <string name="settings_export_clip_label">Fossil Collector save game</string>
+    <string name="settings_export_copied">Save game copied to the clipboard.</string>
+    <string name="settings_export_failed">The save game could not be exported.</string>
+    <string name="settings_import_text">Paste an exported save game to load it.</string>
+    <string name="settings_import_field_label">Save game text</string>
+    <string name="settings_import_paste">Paste</string>
+    <string name="settings_import_button">Import</string>
+    <string name="settings_import_confirm_title">Import save game?</string>
+    <string name="settings_import_confirm_text">Your current save game will be overwritten. The imported save gets no offline progress.</string>
+    <string name="settings_import_confirm_button">Overwrite</string>
+    <string name="settings_import_success">Save game imported.</string>
+
+    <!-- Import errors -->
+    <string name="settings_import_error_empty">No text was pasted.</string>
+    <string name="settings_import_error_encoding">The text is not a valid save game. Was it copied completely?</string>
+    <string name="settings_import_error_json">The text does not contain a readable save game.</string>
+    <string name="settings_import_error_missing_version">The save game has no version number.</string>
+    <string name="settings_import_error_too_new">The save game comes from a newer version of the app. Please update the app.</string>
+    <string name="settings_import_error_unsupported">This save game version is not supported.</string>
+    <string name="settings_import_error_migration">The save game could not be converted to the current version.</string>
+    <string name="settings_import_error_content">The save game is incomplete or damaged.</string>
+    <string name="settings_import_error_unknown_content">The save game contains content this version of the app does not know.</string>
+
+    <!-- Delete save game (double confirmation) -->
+    <string name="settings_delete_text">Deletes all your progress including fame, skills and the collection book and starts a new game. Your settings are kept.</string>
+    <string name="settings_delete_button">Delete save game</string>
+    <string name="settings_delete_confirm_title">Delete save game?</string>
+    <string name="settings_delete_confirm_text">All your progress will be lost. This cannot be undone. Tip: export a backup first.</string>
+    <string name="settings_delete_confirm_next">Continue</string>
+    <string name="settings_delete_final_title">Delete permanently</string>
+    <!-- %1$s is the confirmation word (settings_delete_word) -->
+    <string name="settings_delete_final_text">Type %1$s to confirm.</string>
+    <string name="settings_delete_word">DELETE</string>
+    <string name="settings_delete_final_button">Delete</string>
+    <string name="settings_deleted">Save game deleted. A new game was started.</string>
+    <string name="settings_deleted_incomplete">New game started. Some old backup files could not be deleted.</string>
+
+    <!-- Version -->
+    <string name="settings_version">Version %1$s</string>
+    <string name="settings_cancel">Cancel</string>
+</resources>

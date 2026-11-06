@@ -85,4 +85,16 @@ sealed interface GameMessage {
 
     /** Prestige abgelehnt (AP-22); der Spielstand ist unveraendert. */
     data class PrestigeFailed(val reason: PrestigeFailure) : GameMessage
+
+    /** Import uebernommen (AP-24) und gespeichert. */
+    data object ImportSucceeded : GameMessage
+
+    /** Import abgelehnt (AP-24); der Spielstand ist unveraendert. */
+    data class ImportFailed(val error: ImportError) : GameMessage
+
+    /** Spielstand geloescht und neues Spiel gestartet (AP-24). */
+    data object SaveDeleted : GameMessage
+
+    /** Neues Spiel gestartet, aber alte Spielstand-Dateien konnten nicht alle geloescht werden (AP-24). */
+    data object SaveDeletedIncomplete : GameMessage
 }

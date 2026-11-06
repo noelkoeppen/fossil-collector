@@ -202,4 +202,38 @@ class SaveStorageTest {
         assertTrue(storage.backupFiles.none { it.exists() })
         assertFalse(storage.tempFile.exists())
     }
+
+    @Test
+    fun deleteAllRemovesMainBackupsAndCorruptCopy() {
+        val storage = storage()
+        for (id in 1L..5L) storage.save(state(id))
+        storage.corruptFile.writeText("kaputt")
+        storage.tempFile.writeText("halb")
+        assertTrue(storage.backupFiles.all { it.isFile })
+
+        storage.deleteAll()
+
+        assertFalse(storage.mainFile.exists())
+        assertFalse(storage.tempFile.exists())
+        assertFalse(storage.corruptFile.exists())
+        assertTrue(storage.backupFiles.none { it.exists() })
+        assertEquals(SaveLoadResult.NoSave, storage.load())
+    }
+
+    @Test
+    fun deleteAllThenSaveStartsWithoutBackups() {
+        val storage = storage()
+        for (id in 1L..3L) storage.save(state(id))
+        storage.deleteAll()
+        storage.save(state(10))
+
+        assertEquals(10L, loaded(storage.load()).state.lastSavedAt)
+        assertTrue(storage.backupFiles.none { it.exists() })
+    }
+
+    @Test
+    fun deleteAllOnEmptyDirectoryIsNoOp() {
+        storage().deleteAll()
+        assertEquals(SaveLoadResult.NoSave, storage().load())
+    }
 }

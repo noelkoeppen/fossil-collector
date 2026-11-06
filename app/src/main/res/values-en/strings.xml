@@ -22,14 +22,7 @@
     <string name="tab_book">Collection</string>
     <string name="tab_fame">Fame</string>
 
-    <!-- Placeholder screens (real screens from AP-17) -->
-    <string name="placeholder_dig">The excavation cross-section with layers, teams and preparation will appear here.</string>
-    <string name="placeholder_lab">Research slots, queue and reconstruction will appear here.</string>
-    <string name="placeholder_museum">The museum halls with your exhibited finds will appear here.</string>
-    <string name="placeholder_book">The collection book with all species and bones will appear here.</string>
-    <string name="placeholder_fame">The skill tree and prestige will appear here.</string>
-    <string name="placeholder_settings_title">Settings</string>
-    <string name="placeholder_settings">Language, number format, export and import will follow in a later version.</string>
+    <!-- Navigation -->
     <string name="back">Back</string>
 
     <!-- Save game messages -->

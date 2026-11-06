@@ -24,7 +24,10 @@ import de.noelkoeppen.fossilcollector.core.engine.purchase.BuyMode
 import de.noelkoeppen.fossilcollector.core.engine.purchase.PurchaseResult
 import de.noelkoeppen.fossilcollector.core.engine.purchase.Purchases
 import de.noelkoeppen.fossilcollector.core.model.GameState
+import de.noelkoeppen.fossilcollector.core.model.LanguageSetting
 import de.noelkoeppen.fossilcollector.core.model.PieceKey
+import de.noelkoeppen.fossilcollector.core.model.Settings
+import de.noelkoeppen.fossilcollector.core.number.NumberNotation
 import de.noelkoeppen.fossilcollector.core.modifier.ModifierEngine
 import de.noelkoeppen.fossilcollector.core.random.GameRandom
 import de.noelkoeppen.fossilcollector.core.random.SeededRandom
@@ -85,6 +88,10 @@ import java.io.IOException
  * - **Speichern:** Autosave alle [AUTOSAVE_INTERVAL_NANOS], beim Wechsel in den Hintergrund
  *   (Prozess-Lifecycle `ON_STOP` ueber `platform/AppLifecycleObserver` und `Activity.onStop`) sowie
  *   direkt nach dem Anlegen eines neuen Spiels und direkt nach dem Prestige (Kapitel 7.2). `lastSavedAt` wird beim Speichern auf die aktuelle Zeit gesetzt.
+ * - **Einstellungen (AP-24, Kapitel 8.3):** Sprache und Zahlenformat aendern den Spielstand und
+ *   werden sofort gespeichert. Export, Import und "Spielstand loeschen" laufen ueber [SaveTransfer];
+ *   ein importierter bzw. neuer Stand ersetzt den aktuellen ueber [replaceState] (Modifier-Abgleich,
+ *   UI-Zwischenstaende zuruecksetzen, sofort speichern).
  *
  * Threading: Spielstand, Engine und [ModifierEngine] werden ausschliesslich auf [gameDispatcher]
  * (Parallelitaet 1) angefasst. Dateizugriffe laufen auf [ioDispatcher] unter einem Mutex.
@@ -153,6 +160,7 @@ class GameViewModel(
     private var bookMapper: BookUiMapper? = null
     private var prestigeDialog: PrestigeDialogState? = null
     private var welcome: WelcomeUiState? = null
+    private var transfer: SaveTransfer? = null
     private val popupBundler = FindPopupBundler()
 
     private val foreground = MutableStateFlow(false)
@@ -322,6 +330,106 @@ class GameViewModel(
         }
     }
 
+    // --- Einstellungen (AP-24) ---
+
+    /** Spracheinstellung aendern und sofort speichern; die Activity passt die UI-Sprache an. */
+    fun setLanguage(language: LanguageSetting) = updateSettings { it.copy(language = language) }
+
+    /** Zahlenformat aendern (wirkt sofort) und speichern. */
+    fun setNumberFormat(notation: NumberNotation) = updateSettings { it.copy(numberFormat = notation) }
+
+    private fun updateSettings(change: (Settings) -> Settings) {
+        viewModelScope.launch(gameDispatcher) {
+            val current = state ?: return@launch
+            val settings = change(current.settings)
+            if (settings == current.settings) return@launch
+            state = current.copy(settings = settings)
+            publish()
+            saveCurrent()
+        }
+    }
+
+    /** Aktueller Spielstand als Base64-Text (Kapitel 7.2); das Kopieren uebernimmt die UI. */
+    suspend fun exportSave(): SaveExportResult = withContext(gameDispatcher) {
+        val currentTransfer = transfer ?: return@withContext SaveExportResult.Failure()
+        val current = state ?: return@withContext SaveExportResult.Failure()
+        currentTransfer.export(current).also {
+            if (it is SaveExportResult.Failure) Log.e(TAG, "Export fehlgeschlagen: ${it.detail}")
+        }
+    }
+
+    /**
+     * Prueft einen Import-Text, ohne ihn zu uebernehmen (fuer die Fehleranzeige vor dem
+     * Bestaetigungsdialog). Laeuft auf dem Spiel-Thread, nicht auf dem Main-Thread.
+     */
+    suspend fun checkImport(text: String): SaveImportResult = withContext(gameDispatcher) {
+        transfer?.import(text, time.currentTimeMillis()) ?: SaveImportResult.Failure(ImportError.EMPTY)
+    }
+
+    /**
+     * Uebernimmt einen Import-Text nach der Bestaetigung: erneut pruefen ([SaveTransfer.import],
+     * `lastSavedAt = jetzt`, also **kein** Offline-Fortschritt), dann [replaceState]. [messages]
+     * liefert [GameMessage.ImportSucceeded] bzw. [GameMessage.ImportFailed] (Stand unveraendert).
+     */
+    fun importSave(text: String) {
+        viewModelScope.launch(gameDispatcher) {
+            val currentTransfer = transfer ?: return@launch
+            when (val result = currentTransfer.import(text, time.currentTimeMillis())) {
+                is SaveImportResult.Success -> {
+                    replaceState(result.state)
+                    messageChannel.trySend(GameMessage.ImportSucceeded)
+                }
+                is SaveImportResult.Failure -> {
+                    Log.w(TAG, "Import abgelehnt: ${result.error} ${result.detail}")
+                    messageChannel.trySend(GameMessage.ImportFailed(result.error))
+                }
+            }
+        }
+    }
+
+    /**
+     * "Spielstand loeschen" (nach doppelter Bestaetigung in der UI): neues Spiel
+     * ([SaveTransfer.newGame], Einstellungen bleiben), alle Spielstand-Dateien samt Backups loeschen
+     * ([SaveStorage.deleteAll]) und den neuen Stand sofort speichern.
+     *
+     * Der neue Stand wird zuerst im Speicher gesetzt, dann wird geloescht: Ein Autosave waehrend
+     * des Loeschens kann so nur den neuen Stand schreiben, nie den geloeschten.
+     */
+    fun deleteSave() {
+        viewModelScope.launch(gameDispatcher + NonCancellable) {
+            val currentTransfer = transfer ?: return@launch
+            val fresh = currentTransfer.newGame(state, time.currentTimeMillis())
+            replaceState(fresh, save = false)
+            val deleted = try {
+                withContext(ioDispatcher) { saveMutex.withLock { storage.deleteAll() } }
+                true
+            } catch (e: IOException) {
+                Log.e(TAG, "Spielstand-Dateien nicht vollstaendig geloescht", e)
+                false
+            }
+            saveCurrent(force = true)
+            messageChannel.trySend(if (deleted) GameMessage.SaveDeleted else GameMessage.SaveDeletedIncomplete)
+        }
+    }
+
+    /**
+     * Ersetzt den Spielstand vollstaendig (Import, Loeschen): Modifier abgleichen, Geldrate,
+     * Fund-Popups, Tabs und Dialoge zuruecksetzen, veroeffentlichen und (bei [save]) sofort speichern.
+     * Muss auf [gameDispatcher] laufen.
+     */
+    private suspend fun replaceState(newState: GameState, save: Boolean = true) {
+        val currentEngine = engine ?: return
+        state = newState
+        currentEngine.syncModifiers(newState)
+        moneyRate.reset()
+        popupBundler.reset()
+        revealedTabs = emptySet()
+        prestigeDialog = null
+        welcome = null
+        publish()
+        if (save) saveCurrent(force = true)
+    }
+
     /** Aendert den Dialogzustand auf dem Spiel-Thread und veroeffentlicht den UI-Zustand. */
     private fun updatePrestigeDialog(change: (GameEngine, GameState, PrestigeDialogState?) -> PrestigeDialogState?) {
         viewModelScope.launch(gameDispatcher) {
@@ -383,6 +491,7 @@ class GameViewModel(
         qualityTiers = QualityTiers.fromGameData(loadedData)
         texts = TextProvider.fromGameData(loadedData)
         bookMapper = BookUiMapper(loadedData)
+        transfer = SaveTransfer(loadedData)
         popupBundler.reset()
         state = loadedState
         lastSavedState = if (needsInitialSave) null else loadedState
