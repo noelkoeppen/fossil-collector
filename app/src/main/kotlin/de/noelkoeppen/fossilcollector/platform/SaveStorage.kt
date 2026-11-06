@@ -106,6 +106,23 @@ class SaveStorage(
         return SaveLoadResult.Unreadable(failures.toList())
     }
 
+    /**
+     * Loescht alle Spielstand-Dateien: Hauptdatei, temporaere Datei, Backups und die Kopie einer
+     * unlesbaren Hauptdatei ("Spielstand loeschen", AP-24). Danach liefert [load] [SaveLoadResult.NoSave].
+     *
+     * Die Backups werden mit geloescht: [load] faellt bei einer defekten Hauptdatei auf sie zurueck,
+     * ein geloeschter Spielstand koennte sonst spaeter wieder auftauchen.
+     *
+     * @throws IOException wenn eine vorhandene Datei nicht geloescht werden kann
+     */
+    fun deleteAll() {
+        val files = listOf(mainFile, tempFile, corruptFile) + backupFiles
+        for (file in files) {
+            Files.deleteIfExists(file.toPath())
+        }
+        mainUnreadable = false
+    }
+
     private fun rotateBackups() {
         val backups = backupFiles
         for (i in backups.lastIndex downTo 1) {

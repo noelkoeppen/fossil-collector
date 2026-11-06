@@ -36,6 +36,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -48,6 +50,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.launch
+import de.noelkoeppen.fossilcollector.BuildConfig
 import de.noelkoeppen.fossilcollector.R
 import de.noelkoeppen.fossilcollector.core.engine.PrestigeFailure
 import de.noelkoeppen.fossilcollector.core.engine.ReconstructionFailure
@@ -69,6 +73,10 @@ import de.noelkoeppen.fossilcollector.ui.rememberGameNumberFormat
 import de.noelkoeppen.fossilcollector.ui.resolveNumberLanguage
 import de.noelkoeppen.fossilcollector.ui.theme.FossilCollectorTheme
 import de.noelkoeppen.fossilcollector.ui.theme.QualityColors
+import de.noelkoeppen.fossilcollector.ui.settings.SettingsActions
+import de.noelkoeppen.fossilcollector.ui.settings.SettingsLogic
+import de.noelkoeppen.fossilcollector.ui.settings.SettingsScreen
+import de.noelkoeppen.fossilcollector.ui.settings.settingsActions
 import de.noelkoeppen.fossilcollector.ui.welcome.WelcomeBackDialog
 import de.noelkoeppen.fossilcollector.vm.DigActions
 import de.noelkoeppen.fossilcollector.vm.GameMessage
@@ -78,14 +86,14 @@ import de.noelkoeppen.fossilcollector.vm.GameViewModel
 
 /**
  * App-Shell (AP-16, Kapitel 8.1): Theme, obere Leiste, untere Navigation mit den sichtbaren Tabs
- * (Kapitel 8.2) und den Screens in [TabContent] (seit AP-22 alle Tabs; die Einstellungen sind
- * noch ein Platzhalter bis AP-24). Seit AP-23 zusaetzlich der Willkommen-zurueck-Dialog als Overlay.
+ * (Kapitel 8.2) und den Screens in [TabContent] (seit AP-22 alle Tabs). Seit AP-23 zusaetzlich der
+ * Willkommen-zurueck-Dialog als Overlay, seit AP-24 der Einstellungs-Screen (Zahnrad, Zurueck schliesst).
  */
 @Composable
 fun AppShell(viewModel: GameViewModel) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
-    val context = LocalContext.current
+    val context by rememberUpdatedState(LocalContext.current)
 
     LaunchedEffect(viewModel) {
         viewModel.messages.collect { message ->
@@ -129,6 +137,10 @@ private fun messageText(message: GameMessage, context: android.content.Context, 
             PrestigeFailure.NON_FINITE_RESULT -> R.string.fame_message_prestige_error
         },
     )
+    GameMessage.ImportSucceeded -> context.getString(R.string.settings_import_success)
+    is GameMessage.ImportFailed -> context.getString(SettingsLogic.importErrorText(message.error))
+    GameMessage.SaveDeleted -> context.getString(R.string.settings_deleted)
+    GameMessage.SaveDeletedIncomplete -> context.getString(R.string.settings_deleted_incomplete)
 }
 
 /**
@@ -144,6 +156,7 @@ fun GameShell(
 ) {
     var selectedTab by rememberSaveable { mutableStateOf(GameTab.DIG) }
     var showSettings by rememberSaveable { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
     // Ein Tab, der (z. B. nach einem Neustart) nicht sichtbar ist, faellt auf die Grabung zurueck.
     val currentTab = if (selectedTab in state.visibleTabs) selectedTab else GameTab.DIG
 
@@ -171,9 +184,11 @@ fun GameShell(
     ) { padding ->
         Box(modifier = Modifier.fillMaxSize().padding(padding)) {
             if (showSettings) {
-                PlaceholderScreen(
-                    title = stringResource(R.string.placeholder_settings_title),
-                    text = stringResource(R.string.placeholder_settings),
+                SettingsScreen(
+                    settings = state.settings,
+                    versionName = BuildConfig.VERSION_NAME,
+                    actions = remember(viewModel) { viewModel?.let(::settingsActions) ?: SettingsActions.NONE },
+                    onMessage = { text -> scope.launch { snackbarHostState.showSnackbar(text) } },
                 )
             } else {
                 TabContent(currentTab, state, viewModel)

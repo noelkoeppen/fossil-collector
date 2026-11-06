@@ -22,14 +22,7 @@
     <string name="tab_book">Sammelbuch</string>
     <string name="tab_fame">Ruhm</string>
 
-    <!-- Platzhalter-Screens (echte Screens ab AP-17) -->
-    <string name="placeholder_dig">Hier entsteht der Grabungsquerschnitt mit Schichten, Teams und Präparation.</string>
-    <string name="placeholder_lab">Hier entstehen Forschungsplätze, Warteschlange und Rekonstruktion.</string>
-    <string name="placeholder_museum">Hier entstehen die Museumshallen mit deinen ausgestellten Funden.</string>
-    <string name="placeholder_book">Hier entsteht das Sammelbuch mit allen Arten und Knochen.</string>
-    <string name="placeholder_fame">Hier entstehen Skilltree und Prestige.</string>
-    <string name="placeholder_settings_title">Einstellungen</string>
-    <string name="placeholder_settings">Sprache, Zahlenformat, Export und Import folgen in einer späteren Version.</string>
+    <!-- Navigation -->
     <string name="back">Zurück</string>
 
     <!-- Hinweise zum Spielstand -->

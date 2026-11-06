@@ -35,6 +35,8 @@ android {
 
     buildFeatures {
         compose = true
+        // Versionsanzeige in den Einstellungen (AP-24): BuildConfig.VERSION_NAME
+        buildConfig = true
     }
 
     testOptions {

@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Einstellungen (AP-24, Kapitel 8.3) -->
+<resources>
+    <string name="settings_title">Einstellungen</string>
+
+    <!-- Sprache -->
+    <string name="settings_language_title">Sprache</string>
+    <string name="settings_language_system">Systemsprache</string>
+    <!-- Sprachnamen in der jeweiligen Sprache selbst, deshalb nicht uebersetzt -->
+    <string name="settings_language_de" translatable="false">Deutsch</string>
+    <string name="settings_language_en" translatable="false">English</string>
+    <string name="settings_language_hint">Gilt für Texte, Namen und Zahlen. Die Anzeige wird kurz neu aufgebaut.</string>
+
+    <!-- Zahlenformat; %1$s ist eine Beispielzahl im jeweiligen Format -->
+    <string name="settings_number_format_title">Zahlenformat</string>
+    <string name="settings_number_format_short">Kurz (%1$s)</string>
+    <string name="settings_number_format_scientific">Wissenschaftlich (%1$s)</string>
+
+    <!-- Spielstand: Export und Import -->
+    <string name="settings_save_title">Spielstand</string>
+    <string name="settings_export_text">Kopiert deinen Spielstand als Text in die Zwischenablage, z. B. als Sicherung oder für ein anderes Gerät.</string>
+    <string name="settings_export_button">Exportieren</string>
+    <string name="settings_export_clip_label">Fossil Collector Spielstand</string>
+    <string name="settings_export_copied">Spielstand in die Zwischenablage kopiert.</string>
+    <string name="settings_export_failed">Der Spielstand konnte nicht exportiert werden.</string>
+    <string name="settings_import_text">Füge einen exportierten Spielstand ein, um ihn zu laden.</string>
+    <string name="settings_import_field_label">Spielstand-Text</string>
+    <string name="settings_import_paste">Einfügen</string>
+    <string name="settings_import_button">Importieren</string>
+    <string name="settings_import_confirm_title">Spielstand importieren?</string>
+    <string name="settings_import_confirm_text">Dein aktueller Spielstand wird überschrieben. Für den importierten Stand gibt es keinen Offline-Fortschritt.</string>
+    <string name="settings_import_confirm_button">Überschreiben</string>
+    <string name="settings_import_success">Spielstand importiert.</string>
+
+    <!-- Fehler beim Import -->
+    <string name="settings_import_error_empty">Es wurde kein Text eingefügt.</string>
+    <string name="settings_import_error_encoding">Der Text ist kein gültiger Spielstand. Wurde er vollständig kopiert?</string>
+    <string name="settings_import_error_json">Der Text enthält keinen lesbaren Spielstand.</string>
+    <string name="settings_import_error_missing_version">Dem Spielstand fehlt die Versionsangabe.</string>
+    <string name="settings_import_error_too_new">Der Spielstand stammt aus einer neueren Version der App. Bitte aktualisiere die App.</string>
+    <string name="settings_import_error_unsupported">Diese Spielstand-Version wird nicht unterstützt.</string>
+    <string name="settings_import_error_migration">Der Spielstand konnte nicht auf die aktuelle Version umgestellt werden.</string>
+    <string name="settings_import_error_content">Der Spielstand ist unvollständig oder beschädigt.</string>
+    <string name="settings_import_error_unknown_content">Der Spielstand enthält Inhalte, die diese Version der App nicht kennt.</string>
+
+    <!-- Spielstand loeschen (doppelte Bestaetigung) -->
+    <string name="settings_delete_text">Löscht deinen gesamten Fortschritt einschließlich Ruhm, Skills und Sammelbuch und startet ein neues Spiel. Die Einstellungen bleiben erhalten.</string>
+    <string name="settings_delete_button">Spielstand löschen</string>
+    <string name="settings_delete_confirm_title">Spielstand löschen?</string>
+    <string name="settings_delete_confirm_text">Dein gesamter Fortschritt geht verloren. Das kann nicht rückgängig gemacht werden. Tipp: Exportiere vorher eine Sicherung.</string>
+    <string name="settings_delete_confirm_next">Weiter</string>
+    <string name="settings_delete_final_title">Endgültig löschen</string>
+    <!-- %1$s ist das Bestaetigungswort (settings_delete_word) -->
+    <string name="settings_delete_final_text">Gib zur Bestätigung %1$s ein.</string>
+    <string name="settings_delete_word">LÖSCHEN</string>
+    <string name="settings_delete_final_button">Löschen</string>
+    <string name="settings_deleted">Spielstand gelöscht. Ein neues Spiel wurde gestartet.</string>
+    <string name="settings_deleted_incomplete">Neues Spiel gestartet. Alte Sicherungsdateien konnten nicht alle gelöscht werden.</string>
+
+    <!-- Version -->
+    <string name="settings_version">Version %1$s</string>
+    <string name="settings_cancel">Abbrechen</string>
+</resources>
