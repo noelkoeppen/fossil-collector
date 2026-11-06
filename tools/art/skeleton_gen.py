@@ -872,6 +872,397 @@ def thylacosmilus():
     return sk
 
 
+# --------------------------------------------------------------------------- Kreide (AP-27c)
+
+def dino_tail(sk, ctrl, n, h0, h1, spine=(8.0, 1.0), chevron=(9.0, 1.0), tilt=30.0):
+    """Dinosaurierschwanz: Wirbelkoerper mit kurzen Dorn- und Haemalfortsaetzen (Chevrons), alles in
+    der Zone Wirbelkoerper der Rueckenwirbel (dorsal__centrum). Kurve von vorn (Huefte) nach hinten;
+    Dornen und Chevrons neigen sich zur Schwanzspitze und werden nach hinten kuerzer."""
+    curve = Curve(ctrl)
+    for i in range(n):
+        u = (i + 0.5) / n
+        p, t = curve.at(u)
+        h = h0 + (h1 - h0) * u
+        half = curve.length / n / 2 * 0.8
+        sk.add("dorsal", "centrum", rrect(p, t, half, h / 2, min(half, h / 2) * 0.55))
+        a = math.radians(tilt)
+        # Normale nach oben (Kurve laeuft nach links, also links von der Laufrichtung)
+        up = (-t[1], t[0]) if t[0] < 0 else (t[1], -t[0])
+        for length, sign in ((interp(spine, u), 1), (interp(chevron, u), -1)):
+            if length < 1.5:
+                continue
+            d = (sign * up[0] * math.cos(a) + t[0] * math.sin(a), sign * up[1] * math.cos(a) + t[1] * math.sin(a))
+            base = (p[0] + sign * up[0] * h * 0.4, p[1] + sign * up[1] * h * 0.4)
+            tip = (base[0] + d[0] * (length + h * 0.1), base[1] + d[1] * (length + h * 0.1))
+            w = max(1.0, h * 0.22)
+            sk.add("dorsal", "centrum", taper([base, tip], [w, w * 0.6]))
+
+
+def chain(sk, bone_id, zones, joints, radii, gap=5.0):
+    """Drei Langknochen hintereinander (z. B. Oberschenkel, Schienbein, Mittelfuss) zwischen den
+    Gelenkpunkten joints[0..3]; zwischen den Knochen bleibt eine Luecke gap."""
+    for i, zone in enumerate(zones):
+        a, b = joints[i], joints[i + 1]
+        d = norm((b[0] - a[0], b[1] - a[1]))
+        if i > 0:
+            a = (a[0] + d[0] * gap / 2, a[1] + d[1] * gap / 2)
+        if i < len(zones) - 1:
+            b = (b[0] - d[0] * gap / 2, b[1] - d[1] * gap / 2)
+        sk.add(bone_id, zone, bone(a, b, *radii[i]))
+
+
+def claws(sk, bone_id, zone, base, specs, r0=2.8, r1=1.0):
+    """Finger oder Zehen: je Eintrag (dx, dy, Laenge, Kruemmung) ein gebogener, spitzer Strich."""
+    for dx, dy, length, bend in specs:
+        x, y = base[0] + dx, base[1] + dy
+        sk.add(bone_id, zone, curve_taper([(x, y), (x + length * 0.55, y + bend * 0.4),
+                                           (x + length, y + bend)], r0, r1, 8))
+
+
+def tyrannosaurus():
+    """Waagerechte Haltung, Huefte als Drehpunkt; grosser, tiefer Schaedel, winzige Arme mit zwei
+    Fingern, kraeftige Hinterbeine, langer Schwanz zum Ausbalancieren. Neutrale Seitenansicht."""
+    sk = Skeleton()
+    frames = column(sk, "dorsal", [(160, 84), (190, 82), (220, 84), (246, 90)], 10, 10,
+                    [13, 12, 12, 11, 10], tilt=12, spine_w=(2.8, 1.8))
+    dino_tail(sk, [(146, 86), (110, 88), (70, 94), (30, 102), (-4, 108)], 21, 12, 3.4,
+              spine=(10, 6, 2), chevron=(12, 7, 2))
+    ribs(sk, frames[1:], [(174, 126), (200, 140), (230, 138), (250, 118)], bow=9, r=(2.8, 2.1),
+         split=(0.18, 0.36, 0.78))
+    column(sk, "cervical", [(254, 90), (263, 80), (268, 68), (277, 60)], 5, 11, [7, 6], tilt=-14,
+           wing=0.7, spine_w=(3.0, 2.0))
+    pelvis(sk, (152, 100), [(122, 92), (120, 82), (136, 74), (172, 74), (188, 80), (178, 92), (160, 94)],
+           [(144, 108), (134, 124), (126, 136)], [(160, 108), (170, 126), (175, 142)], r=8.4,
+           ischium_r=(4.4, 3.2), pubis_r=(4.6, 3.6))
+    sk.add("pelvis", "pubis", blob([(164, 146), (176, 140), (192, 145), (188, 151), (170, 151)]))
+    # Kraeftiges Hinterbein: Oberschenkel, Schienbein, langer Mittelfuss (Zone Fusswurzel), drei Zehen
+    chain(sk, "hindlimb", ("femur", "tibia", "tarsus"),
+          [(152, 106), (168, 144), (152, 182), (166, 208)],
+          [(7.4, 5.4, 6.8), (6.4, 4.6, 5.4), (5.2, 3.8, 4.6)], gap=7)
+    sk.add("hindlimb", "tarsus", circle((150, 185), 4.6))
+    claws(sk, "hindlimb", "toes", (170, 210), [(0, 0, 24, 3), (-2, -3, 18, 2), (-1, 3, 15, 2)], 3.2, 1.2)
+    sk.add("hindlimb", "toes", curve_taper([(160, 208), (154, 211), (150, 211)], 2.4, 1.0, 6))
+    # Winzige Arme: langes, schmales Schulterblatt (Zone Oberarm), zwei Finger mit Krallen
+    sk.add("forelimb", "humerus", blob([(236, 94), (243, 90), (256, 108), (250, 112)]))
+    sk.add("forelimb", "humerus", bone((254, 117), (258, 128), 4.4, 3.4, 4.0))
+    sk.add("forelimb", "radius_ulna", bone((261, 133), (268, 137), 4.0, 3.4, 3.6))
+    sk.add("forelimb", "carpus", blob([(269, 140), (272, 135), (279, 136), (281, 141), (276, 145)]))
+    claws(sk, "forelimb", "digits", (284, 141), [(0, 0, 9, 4), (-1, 4, 7, 4)], 2.6, 1.0)
+    # Grosser, tiefer Schaedel mit Augenhoehle und Praeorbitalfenster; Maul geschlossen
+    f = local((276, 52), 8, 1.22)
+    outline = blob(mapped(f, [(0, 4), (2, -10), (10, -18), (24, -20), (40, -15), (54, -9), (63, -3),
+                              (66, 4), (63, 10), (50, 11), (30, 13), (14, 15), (4, 13)]))
+    teeth = [poly([f((x - 2, 10)), f((x + 2, 10)), f((x, 16))]).buffer(0.4) for x in (40, 46, 52, 58)]
+    outlined_bone(sk, "skull", outline,
+                  [mapped(f, [(35, -40), (35, 40)]), mapped(f, [(11, -40), (11, 40)]),
+                   mapped(f, [(6, -8), (40, -7)])],
+                  {"snout": f((52, 2)), "orbit": f((22, 6)), "skull_roof": f((22, -14)), "occiput": f((5, 0))},
+                  holes=[("orbit", circle(f((24, -1)), 4.4)),
+                         ("snout", blob(mapped(f, [(39, -2), (46, -6), (52, -3), (47, 3), (40, 3)])))],
+                  extras={"snout": unary_union(teeth)})
+    g = local(f((6, 15)), 8, 1.22)
+    jaw = blob(mapped(g, [(-3, -3), (2, -11), (8, -10), (12, -2), (26, 0), (46, -1), (56, -2), (58, 4),
+                          (52, 10), (30, 15), (6, 13)]))
+    outlined_bone(sk, "jaw", jaw,
+                  [mapped(g, [(44, -20), (44, 20)]), mapped(g, [(14, -20), (14, 20)]), mapped(g, [(12, 5), (46, 4)])],
+                  {"tip": g((50, 2)), "tooth_row": g((28, 2)), "lower_edge": g((28, 9)), "joint": g((5, 0))})
+    return sk
+
+
+def ornithischian_pelvis(sk, acet, ilium_pts, ischium_pts, postpubis_pts, prepubis_pts, r=6.0,
+                         ischium_r=(3.4, 2.6), pubis_r=(2.6, 2.0), prepubis_r=(3.6, 2.8)):
+    """Vogelbecken: Schambein mit langem, duennem Fortsatz nach hinten (parallel zum Sitzbein) und
+    einem Vorfortsatz (Praepubis) nach vorn; beides Zone Schambein."""
+    pelvis(sk, acet, ilium_pts, ischium_pts, postpubis_pts, r=r, ischium_r=ischium_r, pubis_r=pubis_r)
+    sk.add("pelvis", "pubis", curve_taper(prepubis_pts, *prepubis_r))
+
+
+def psittacosaurus():
+    """Kleiner zweibeiniger Ceratopsier: kurzer, hoher Schaedel mit Papageienschnabel (Oberschnabel in
+    der Zone Schnauze, Unterschnabel/Praedentale in der Zone Kinnspitze), kurze Wangenhoerner unter
+    der Augenhoehle (Zone Augenhoehle), kurze Arme mit vier Fingern, langer Schwanz."""
+    sk = Skeleton()
+    frames = column(sk, "dorsal", [(158, 92), (182, 89), (206, 89), (226, 92)], 8, 8,
+                    [8, 9, 8, 7], tilt=12, spine_w=(2.4, 1.6))
+    dino_tail(sk, [(144, 95), (110, 99), (70, 107), (30, 114), (-2, 118)], 20, 8, 3,
+              spine=(8, 4, 1), chevron=(8, 4, 1))
+    ribs(sk, frames[1:], [(170, 124), (190, 132), (212, 130), (226, 116)], bow=7, r=(2.4, 1.8),
+         split=(0.18, 0.36, 0.78))
+    column(sk, "cervical", [(232, 92), (241, 84), (248, 74), (256, 66)], 5, 8.5, [5, 4], tilt=-10,
+           wing=0.75, spine_w=(2.4, 1.6))
+    ornithischian_pelvis(sk, (150, 102), [(124, 97), (124, 88), (138, 84), (166, 84), (176, 90), (162, 97)],
+                         [(142, 110), (130, 120), (120, 126)], [(153, 111), (146, 126), (140, 136)],
+                         [(158, 107), (166, 111), (172, 112)], r=6.4)
+    # Laufbein mit drei Zehen vorn und kleiner Innenzehe
+    chain(sk, "hindlimb", ("femur", "tibia", "tarsus"),
+          [(150, 108), (162, 138), (150, 168), (158, 188)],
+          [(5.4, 3.8, 5.0), (4.8, 3.2, 4.0), (4.0, 2.8, 3.6)], gap=6)
+    sk.add("hindlimb", "tarsus", circle((149, 171), 3.8))
+    claws(sk, "hindlimb", "toes", (162, 191), [(0, 0, 17, 1.5), (-1, -3, 13, 1), (-1, 3, 11, 1)], 2.8, 1.0)
+    sk.add("hindlimb", "toes", curve_taper([(155, 190), (150, 192), (147, 192)], 2.0, 0.9, 6))
+    # Kurze Arme mit vier kurzen Fingern
+    sk.add("forelimb", "humerus", blob([(206, 98), (214, 94), (226, 106), (220, 110)]))
+    sk.add("forelimb", "humerus", bone((224, 114), (230, 132), 4.4, 3.0, 4.0))
+    sk.add("forelimb", "radius_ulna", bone((232, 137), (240, 150), 3.8, 2.6, 3.4))
+    sk.add("forelimb", "carpus", blob([(240, 156), (243, 152), (250, 153), (251, 158), (245, 160)]))
+    claws(sk, "forelimb", "digits", (254, 155), [(0, 0, 9, 3), (0, 3.5, 8, 3), (-1, 7, 6, 2.5)], 2.2, 0.9)
+    # Kurzer, hoher Schaedel mit Papageienschnabel und Wangenhoernern
+    f = local((258, 54), 4, 1.3)
+    outline = blob(mapped(f, [(0, 2), (1, -7), (7, -13), (17, -15), (26, -13), (32, -8), (36, -2), (38, 4),
+                              (37, 10), (35, 15), (35, 15), (32, 9), (28, 6), (18, 6), (8, 7), (2, 6)]), 12)
+    horn = curve_taper(mapped(f, [(15, 4), (12, 11), (7, 19)]), 3.2, 0.9, 8)
+    outlined_bone(sk, "skull", outline,
+                  [mapped(f, [(28, -40), (28, 40)]), mapped(f, [(8, -40), (8, 40)]),
+                   mapped(f, [(8, -6), (28, -6)])],
+                  {"snout": f((33, 2)), "orbit": f((18, 3)), "skull_roof": f((18, -11)), "occiput": f((4, 0))},
+                  holes=[("orbit", circle(f((19, -1)), 4.2))],
+                  extras={"orbit": horn})
+    g = local(f((6, 8)), 4, 1.3)
+    jaw = blob(mapped(g, [(-2, -2), (2, -8), (6, -7), (9, -1), (15, 0), (20, -2), (23, -1), (24, 4),
+                          (21, 9), (12, 11), (3, 8)]), 12)
+    outlined_bone(sk, "jaw", jaw,
+                  [mapped(g, [(18, -20), (18, 20)]), mapped(g, [(10, -20), (10, 20)]), mapped(g, [(9, 5.5), (19, 5.5)])],
+                  {"tip": g((21, 3)), "tooth_row": g((14, 2)), "lower_edge": g((14, 8)), "joint": g((4, 0))})
+    return sk
+
+
+def parasaurolophus():
+    """Hadrosaurier, waagerechte Haltung: hohe Dornfortsaetze, tiefer langer Schwanz, Entenschnabel
+    (Zone Schnauze bzw. Kinnspitze), langer, hohler, nach hinten gebogener Kamm (Zone Schaedeldach),
+    lange, schlanke Arme mit hufartigen Fingern, Laufbein mit drei stumpfen Zehen."""
+    sk = Skeleton()
+    frames = column(sk, "dorsal", [(160, 87), (190, 85), (220, 89), (244, 97)], 10, 10,
+                    [16, 16, 14, 12, 10], tilt=12, spine_w=(2.8, 2.0), wing=0.7)
+    dino_tail(sk, [(146, 89), (110, 93), (70, 101), (30, 109), (-4, 115)], 22, 11, 3,
+              spine=(15, 9, 2), chevron=(15, 9, 2), tilt=28)
+    ribs(sk, frames[1:], [(172, 130), (200, 142), (230, 138), (246, 120)], bow=8, r=(2.8, 2.1),
+         split=(0.18, 0.36, 0.78))
+    column(sk, "cervical", [(250, 98), (260, 90), (266, 78), (272, 66), (280, 58)], 6, 10, [5, 4],
+           tilt=-10, wing=0.7, spine_w=(2.8, 1.8))
+    ornithischian_pelvis(sk, (150, 102), [(118, 97), (118, 87), (136, 81), (172, 81), (188, 87), (172, 97)],
+                         [(142, 111), (132, 128), (124, 144)], [(152, 112), (149, 120), (147, 126)],
+                         [(160, 108), (172, 113), (182, 114)], r=8.4, ischium_r=(4.0, 3.4),
+                         pubis_r=(2.6, 2.0), prepubis_r=(4.0, 3.0))
+    sk.add("pelvis", "pubis", blob([(176, 108), (188, 106), (194, 112), (188, 120), (178, 118)]))
+    sk.add("pelvis", "ischium", circle((124, 145), 3.6))
+    # Laufbein, drei stumpfe Zehen mit Hufen
+    chain(sk, "hindlimb", ("femur", "tibia", "tarsus"),
+          [(150, 108), (164, 144), (150, 178), (160, 198)],
+          [(6.6, 4.8, 6.0), (5.8, 4.0, 5.0), (4.6, 3.4, 4.2)], gap=7)
+    sk.add("hindlimb", "tarsus", circle((149, 181), 4.2))
+    claws(sk, "hindlimb", "toes", (165, 201), [(0, 0, 15, 1), (-1, -3.5, 11, 0.5), (-1, 3.5, 10, 0.5)], 3.0, 2.2)
+    # Lange, schlanke Arme mit hufartigen Fingern
+    sk.add("forelimb", "humerus", blob([(226, 100), (236, 96), (252, 114), (246, 118)]))
+    sk.add("forelimb", "humerus", bone((248, 122), (254, 146), 4.8, 3.2, 4.2))
+    sk.add("forelimb", "radius_ulna", bone((255, 152), (258, 176), 3.8, 2.6, 3.4))
+    sk.add("forelimb", "radius_ulna", bone((260, 151), (263, 174), 2.8, 2.0, 2.6))
+    sk.add("forelimb", "carpus", blob([(253, 183), (256, 178), (265, 179), (267, 185), (259, 188)]))
+    claws(sk, "forelimb", "digits", (270, 185), [(0, 0, 9, 2), (-1, 4, 8, 2)], 2.8, 2.0)
+    # Schaedel mit Entenschnabel; langer, hohler Kamm nach hinten (Zone Schaedeldach)
+    f = local((282, 52), 22, 1.3)
+    outline = blob(mapped(f, [(0, 3), (2, -6), (10, -10), (22, -10), (34, -7), (46, -6), (56, -5),
+                              (62, -2), (63, 4), (58, 7), (46, 6), (30, 8), (16, 10), (5, 9)]))
+    crest = curve_taper(mapped(f, [(22, -8), (12, -13), (-4, -17), (-22, -19), (-38, -18)]), 4.6, 3.6, 10)
+    crest = crest.union(circle(f((-38, -18)), 3.6))
+    outlined_bone(sk, "skull", outline,
+                  [mapped(f, [(36, -40), (36, 40)]), mapped(f, [(10, -40), (10, 40)]),
+                   mapped(f, [(6, -4), (38, -3)])],
+                  {"snout": f((50, 1)), "orbit": f((22, 4)), "skull_roof": f((22, -7)), "occiput": f((4, 0))},
+                  holes=[("orbit", circle(f((22, 0)), 3.4))],
+                  extras={"skull_roof": crest})
+    g = local(f((6, 10)), 22, 1.3)
+    jaw = blob(mapped(g, [(-2, -2), (2, -9), (7, -8), (10, -1), (24, 0), (44, -1), (52, -3), (55, 1),
+                          (48, 7), (28, 10), (5, 9)]))
+    outlined_bone(sk, "jaw", jaw,
+                  [mapped(g, [(42, -20), (42, 20)]), mapped(g, [(12, -20), (12, 20)]), mapped(g, [(10, 3.5), (43, 2.5)])],
+                  {"tip": g((48, 1)), "tooth_row": g((26, 1.5)), "lower_edge": g((26, 6)), "joint": g((4, 0))})
+    return sk
+
+
+def triceratops():
+    """Vierbeiniger Ceratopsier: riesiger Schaedel mit Nackenschild (Frill, Zone Hinterhaupt, mit
+    Randzacken), zwei langen Stirnhoernern (Zone Schaedeldach), kurzem Nasenhorn und Schnabel (Zone
+    Schnauze), Praedentale (Zone Kinnspitze). Gewoelbter Ruecken, saeulenartige Hinterbeine,
+    kuerzere, angewinkelte Vorderbeine, mittellanger Schwanz."""
+    sk = Skeleton()
+    frames = column(sk, "dorsal", [(140, 88), (170, 81), (200, 82), (230, 92)], 11, 10,
+                    [11, 14, 14, 12, 10], tilt=14, spine_w=(2.8, 2.0), wing=0.7)
+    dino_tail(sk, [(128, 92), (100, 98), (72, 108), (46, 120), (24, 130)], 14, 10, 3.4,
+              spine=(9, 5, 1), chevron=(9, 5, 1), tilt=34)
+    ribs(sk, frames[2:], [(156, 136), (182, 150), (214, 148), (232, 128)], bow=9, r=(3.0, 2.3),
+         split=(0.18, 0.36, 0.78))
+    column(sk, "cervical", [(238, 97), (248, 101), (258, 105)], 3, 12, [7, 6], tilt=-6, wing=1.05,
+           spine_w=(3.0, 2.0))
+    ornithischian_pelvis(sk, (128, 102), [(94, 96), (94, 86), (110, 79), (152, 79), (166, 85), (150, 95)],
+                         [(120, 110), (110, 126), (104, 138)], [(130, 111), (127, 119), (125, 125)],
+                         [(138, 109), (150, 115), (158, 117)], r=8.0, ischium_r=(4.4, 3.4),
+                         pubis_r=(2.8, 2.2), prepubis_r=(4.4, 3.4))
+    # Saeulenartiges Hinterbein mit kurzem Fuss und Hufzehen
+    chain(sk, "hindlimb", ("femur", "tibia", "tarsus"),
+          [(128, 108), (134, 148), (127, 180), (133, 196)],
+          [(7.2, 5.4, 6.6), (6.2, 4.6, 5.4), (5.4, 4.2, 4.8)], gap=7)
+    sk.add("hindlimb", "tarsus", circle((126, 183), 4.6))
+    claws(sk, "hindlimb", "toes", (137, 198), [(0, 0, 11, 1), (-2, -3.5, 9, 0.5), (-2, 3.5, 8, 0.5)], 3.2, 2.4)
+    # Kuerzeres, angewinkeltes Vorderbein mit grossem Schulterblatt
+    sk.add("forelimb", "humerus", blob([(212, 92), (230, 88), (238, 96), (232, 120), (222, 120)]))
+    sk.add("forelimb", "humerus", bone((228, 126), (238, 152), 6.8, 4.8, 6.2))
+    sk.add("forelimb", "radius_ulna", bone((236, 158), (230, 182), 5.4, 3.8, 4.8))
+    sk.add("forelimb", "radius_ulna", circle((242, 158), 3.8))
+    sk.add("forelimb", "carpus", blob([(224, 190), (226, 185), (236, 185), (240, 190), (232, 193)]))
+    claws(sk, "forelimb", "digits", (243, 194), [(0, 0, 9, 1.5), (-2, -3.5, 8, 1), (-3, 3.5, 7, 1)], 3.0, 2.2)
+    # Riesiger Schaedel, tief getragen
+    f = local((262, 106), 16, 1.25)
+    outline = blob(mapped(f, [(0, 0), (4, -14), (14, -20), (30, -20), (44, -16), (56, -10), (66, -2),
+                              (72, 6), (72, 6), (66, 10), (52, 10), (34, 12), (16, 12), (4, 8)]))
+    frill_pts = [(8, -12), (-6, -22), (-24, -36), (-38, -48), (-36, -60), (-20, -62), (-2, -50), (14, -34),
+                 (20, -18)]
+    frill = blob(mapped(f, frill_pts))
+    edge = Curve(mapped(f, [(-10, -26), (-26, -38), (-38, -48), (-36, -60), (-20, -62), (-2, -50), (14, -34)]))
+    frill = unary_union([frill] + [circle(edge.at(k / 11)[0], 2.4) for k in range(12)])
+    brow = [curve_taper(mapped(f, [(24 + dx, -16), (30 + dx, -30), (40 + dx + dy, -44 + dy), (52 + dx + dy, -54 + dy)]),
+                        4.2, 1.0, 10) for dx, dy in ((0, 0), (8, 6))]
+    nose = curve_taper(mapped(f, [(56, -8), (59, -16), (60, -22)]), 3.4, 1.0, 8)
+    outlined_bone(sk, "skull", outline,
+                  [mapped(f, [(46, -40), (46, 40)]), mapped(f, [(15, -40), (15, 40)]),
+                   mapped(f, [(15, -8), (46, -7)])],
+                  {"snout": f((58, 2)), "orbit": f((30, 4)), "skull_roof": f((30, -14)), "occiput": f((6, 0))},
+                  holes=[("orbit", circle(f((32, -2)), 3.8))],
+                  extras={"occiput": frill, "skull_roof": unary_union(brow), "snout": nose})
+    g = local(f((8, 12)), 16, 1.15)
+    jaw = blob(mapped(g, [(-3, -3), (2, -12), (8, -11), (11, -2), (26, 0), (46, -1), (56, -2), (61, 1),
+                          (57, 8), (40, 12), (22, 13), (6, 11)]))
+    outlined_bone(sk, "jaw", jaw,
+                  [mapped(g, [(50, -20), (50, 20)]), mapped(g, [(14, -20), (14, 20)]), mapped(g, [(12, 5.5), (51, 4.5)])],
+                  {"tip": g((55, 2)), "tooth_row": g((30, 2)), "lower_edge": g((30, 8)), "joint": g((5, 0))})
+    return sk
+
+
+def armor_plates(sk, bone_id, frames, lift, size, keel=2.0):
+    """Panzerplatten (Osteoderme), nur angedeutet als flache, gekielte Platten auf den
+    Dornfortsaetzen (Zone Dornfortsatz)."""
+    for p, t, nrm, b, half in frames:
+        c = (p[0] + nrm[0] * (b + lift), p[1] + nrm[1] * (b + lift))
+        hl, hh = half * size, 2.2
+        pts = [(-hl, hh), (-hl * 0.7, -hh), (0, -hh - keel), (hl * 0.7, -hh), (hl, hh)]
+        sk.add(bone_id, "spinous", blob([(c[0] + t[0] * u - nrm[0] * v, c[1] + t[1] * u - nrm[1] * v)
+                                         for u, v in pts], 6))
+
+
+def ankylosaurus():
+    """Breiter, flacher Vierbeiner: niedriger Ruecken mit Panzerplatten (angedeutet als Teil der
+    Dornfortsaetze), steifer Schwanz mit Schwanzkeule (Zone Wirbelkoerper), kurze, kraeftige Beine,
+    kurzer, breiter Schaedel mit Hoernern an den hinteren Ecken (Zone Hinterhaupt) und an der Wange
+    (Zone Augenhoehle), kleiner Schnabel (Zone Schnauze)."""
+    sk = Skeleton()
+    frames = column(sk, "dorsal", [(140, 106), (170, 100), (200, 101), (228, 108)], 10, 9,
+                    [5], tilt=4, spine_w=(2.6, 2.2), wing=0.75)
+    armor_plates(sk, "dorsal", frames, 6.5, 0.85)
+    dino_tail(sk, [(126, 110), (96, 114), (66, 119), (38, 123), (16, 125)], 14, 8.5, 4.5,
+              spine=(5, 3), chevron=(6, 3), tilt=40)
+    sk.add("dorsal", "centrum", blob([(16, 125), (12, 118), (2, 116), (-8, 119), (-12, 125), (-8, 131),
+                                      (2, 134), (12, 132)]))
+    ribs(sk, frames[1:], [(156, 142), (182, 150), (212, 148), (230, 136)], bow=10, r=(3.0, 2.3),
+         split=(0.2, 0.38, 0.78))
+    cerv = column(sk, "cervical", [(236, 110), (246, 116), (256, 122)], 3, 11, [5], tilt=-4, wing=1.0,
+                  spine_w=(3.0, 2.4))
+    armor_plates(sk, "cervical", cerv, 6.5, 0.9, keel=3.0)
+    ornithischian_pelvis(sk, (130, 122), [(96, 116), (96, 106), (112, 100), (156, 100), (172, 106), (152, 116)],
+                         [(122, 130), (116, 142), (112, 148)], [(132, 131), (130, 138), (128, 143)],
+                         [(140, 129), (150, 133), (156, 134)], r=8.0, ischium_r=(4.4, 3.4),
+                         pubis_r=(3.0, 2.4), prepubis_r=(4.0, 3.2))
+    # Kurze, kraeftige Beine mit Hufzehen
+    chain(sk, "hindlimb", ("femur", "tibia", "tarsus"),
+          [(130, 128), (138, 152), (132, 170), (136, 180)],
+          [(7.2, 5.8, 6.8), (6.4, 5.0, 5.6), (5.4, 4.6, 5.0)], gap=6)
+    sk.add("hindlimb", "tarsus", circle((131, 173), 4.6))
+    claws(sk, "hindlimb", "toes", (140, 182), [(0, 0, 10, 1), (-2, -3.5, 8, 0.5), (-2, 3.5, 7, 0.5)], 3.2, 2.4)
+    sk.add("forelimb", "humerus", blob([(214, 112), (230, 108), (236, 116), (230, 132), (222, 132)]))
+    sk.add("forelimb", "humerus", bone((228, 137), (238, 154), 6.8, 5.2, 6.2))
+    sk.add("forelimb", "radius_ulna", bone((236, 160), (233, 172), 5.6, 4.6, 5.0))
+    sk.add("forelimb", "radius_ulna", circle((243, 159), 3.8))
+    sk.add("forelimb", "carpus", blob([(226, 179), (228, 174), (238, 174), (242, 179), (234, 182)]))
+    claws(sk, "forelimb", "digits", (245, 182), [(0, 0, 9, 1), (-2, -3.5, 8, 0.5), (-3, 3.5, 7, 0.5)], 3.0, 2.2)
+    # Kurzer, breiter, flacher Schaedel mit Eckhoernern und kleinem Schnabel
+    f = local((258, 124), 12, 1.3)
+    outline = blob(mapped(f, [(0, 0), (2, -10), (12, -14), (28, -14), (40, -10), (46, -4), (48, 2),
+                              (46, 7), (36, 8), (20, 9), (6, 8)]))
+    back_horn = curve_taper(mapped(f, [(6, -10), (-2, -13), (-9, -13)]), 3.8, 1.0, 8)
+    cheek_horn = curve_taper(mapped(f, [(16, 5), (13, 11), (9, 15)]), 3.4, 1.0, 8)
+    outlined_bone(sk, "skull", outline,
+                  [mapped(f, [(36, -40), (36, 40)]), mapped(f, [(12, -40), (12, 40)]),
+                   mapped(f, [(12, -6), (37, -5)])],
+                  {"snout": f((42, 1)), "orbit": f((24, 4)), "skull_roof": f((24, -10)), "occiput": f((5, 0))},
+                  holes=[("orbit", circle(f((24, -1)), 3.4))],
+                  extras={"occiput": back_horn, "orbit": cheek_horn})
+    g = local(f((6, 8)), 12, 1.3)
+    jaw = blob(mapped(g, [(-2, -2), (2, -8), (7, -7), (10, -1), (22, 0), (34, -1), (40, -1), (41, 3),
+                          (36, 8), (22, 10), (5, 8)]))
+    outlined_bone(sk, "jaw", jaw,
+                  [mapped(g, [(32, -20), (32, 20)]), mapped(g, [(12, -20), (12, 20)]), mapped(g, [(10, 5), (33, 4.5)])],
+                  {"tip": g((37, 2)), "tooth_row": g((22, 2)), "lower_edge": g((22, 7.5)), "joint": g((4, 0))})
+    return sk
+
+
+def velociraptor():
+    """Schlanker Dromaeosaurier in waagerechter Haltung: lange, flache Schnauze, lange gefaltete Arme
+    mit drei Krallenfingern, hochgestellte Sichelkralle am zweiten Zeh, steifer gerader Schwanz
+    (die verknoecherten Sehnen sind als zwei duenne Staebe angedeutet). Schambein nach hinten."""
+    sk = Skeleton()
+    frames = column(sk, "dorsal", [(160, 90), (186, 88), (210, 90), (230, 95)], 8, 8,
+                    [8, 8, 7], tilt=10, spine_w=(2.4, 1.6))
+    tail = [(144, 92), (100, 88), (50, 83), (-4, 78)]
+    dino_tail(sk, tail, 22, 7.5, 3, spine=(6, 3, 1), chevron=(7, 3, 1), tilt=55)
+    for off in (-5.0, 5.0):
+        sk.add("dorsal", "centrum", curve_taper([(x, y + off * (1 - i * 0.22)) for i, (x, y) in enumerate(tail)],
+                                                1.1, 0.7, 10))
+    ribs(sk, frames[1:], [(172, 124), (192, 132), (214, 130), (230, 116)], bow=7, r=(2.3, 1.7),
+         split=(0.18, 0.36, 0.78))
+    column(sk, "cervical", [(236, 95), (246, 87), (250, 76), (258, 66), (268, 60)], 6, 8, [4, 3],
+           tilt=-8, wing=0.75, spine_w=(2.2, 1.6))
+    pelvis(sk, (150, 101), [(126, 96), (126, 87), (140, 82), (166, 82), (175, 88), (164, 96)],
+           [(144, 109), (136, 119), (131, 124)], [(154, 109), (148, 128), (141, 143)], r=6.4,
+           ischium_r=(3.4, 2.6), pubis_r=(3.4, 2.6))
+    sk.add("pelvis", "pubis", blob([(136, 144), (141, 140), (147, 143), (144, 147), (138, 147)]))
+    # Langes, schlankes Laufbein; Sichelkralle am zweiten Zeh hochgeklappt
+    chain(sk, "hindlimb", ("femur", "tibia", "tarsus"),
+          [(150, 107), (164, 138), (150, 174), (160, 194)],
+          [(5.2, 3.6, 4.8), (4.6, 3.0, 3.8), (3.8, 2.6, 3.4)], gap=6)
+    sk.add("hindlimb", "tarsus", circle((149, 177), 3.6))
+    claws(sk, "hindlimb", "toes", (164, 197), [(0, 0, 16, 1), (-1, 2.5, 12, 1)], 2.6, 1.0)
+    sk.add("hindlimb", "toes", curve_taper([(162, 193), (166, 187), (172, 183), (179, 184), (183, 189)],
+                                           3.2, 0.8, 8))
+    sk.add("hindlimb", "toes", curve_taper([(156, 196), (151, 198), (148, 198)], 2.0, 0.9, 6))
+    # Lange Arme, am Koerper gefaltet; drei lange Finger mit gebogenen Krallen
+    sk.add("forelimb", "humerus", blob([(214, 98), (221, 94), (232, 108), (226, 112)]))
+    sk.add("forelimb", "humerus", bone((230, 116), (236, 136), 4.0, 2.8, 3.6))
+    sk.add("forelimb", "radius_ulna", bone((241, 139), (259, 141), 3.6, 2.4, 3.2))
+    sk.add("forelimb", "radius_ulna", bone((242, 144), (258, 145), 2.6, 1.8, 2.4))
+    sk.add("forelimb", "carpus", blob([(263, 139), (268, 137), (272, 141), (270, 147), (264, 147)]))
+    for dx, dy, ln in ((0, -2, 16), (-1, 4, 13), (-3, 9, 10)):
+        x, y = 275 + dx, 139 + dy
+        sk.add("forelimb", "digits", curve_taper([(x, y), (x + ln * 0.5, y + 1), (x + ln * 0.85, y + 4),
+                                                  (x + ln * 0.9, y + 8)], 2.2, 0.7, 8))
+    # Langer, flacher Schaedel mit grosser Augenhoehle und Praeorbitalfenster
+    f = local((268, 56), 6, 1.1)
+    outline = blob(mapped(f, [(0, 3), (2, -7), (10, -11), (22, -11), (36, -8), (48, -5), (56, -2),
+                              (57, 2), (48, 4), (30, 6), (14, 7), (4, 7)]))
+    teeth = [poly([f((x - 1.4, 4)), f((x + 1.4, 4)), f((x, 8.5))]).buffer(0.3) for x in (34, 40, 46, 52)]
+    outlined_bone(sk, "skull", outline,
+                  [mapped(f, [(29, -40), (29, 40)]), mapped(f, [(8, -40), (8, 40)]),
+                   mapped(f, [(4, -6), (32, -5)])],
+                  {"snout": f((46, 0)), "orbit": f((18, 3)), "skull_roof": f((18, -8)), "occiput": f((4, 0))},
+                  holes=[("orbit", circle(f((19, 0)), 3.8)),
+                         ("snout", blob(mapped(f, [(33, -1), (38, -3.5), (43, -2), (39, 1.5), (34, 1.5)])))],
+                  extras={"snout": unary_union(teeth)})
+    g = local(f((4, 8)), 6, 1.1)
+    jaw = blob(mapped(g, [(-2, -2), (2, -8), (7, -7), (10, -1), (24, 0), (42, -1), (52, -2), (53, 3),
+                          (44, 7), (26, 9), (5, 8)]))
+    outlined_bone(sk, "jaw", jaw,
+                  [mapped(g, [(39, -20), (39, 20)]), mapped(g, [(12, -20), (12, 20)]), mapped(g, [(10, 3.5), (41, 3)])],
+                  {"tip": g((47, 0.5)), "tooth_row": g((26, 1)), "lower_edge": g((26, 5)), "joint": g((4, 0))})
+    return sk
+
+
 SPECIES = {
     "cave_bear": cave_bear,
     "giant_deer": giant_deer,
@@ -885,6 +1276,12 @@ SPECIES = {
     "deinotherium": deinotherium,
     "titanis": titanis,
     "thylacosmilus": thylacosmilus,
+    "psittacosaurus": psittacosaurus,
+    "parasaurolophus": parasaurolophus,
+    "triceratops": triceratops,
+    "velociraptor": velociraptor,
+    "ankylosaurus": ankylosaurus,
+    "tyrannosaurus": tyrannosaurus,
 }
 
 
