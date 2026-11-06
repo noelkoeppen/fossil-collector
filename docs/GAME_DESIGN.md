@@ -529,7 +529,7 @@ Umsetzung (AP-16): `app/vm/TabUnlockRules`. Museum: `meta.stats.piecesFound > 0`
     - **Cache:** Der Mapper ist eine Instanz im `GameViewModel` und liefert dieselbe Instanz, solange `meta.book` und `meta.researchedSpecies` (Instanzvergleich) und die Zahl der offenen Schichten gleich sind; `publish` (10/s) kostet dann nur diesen Vergleich.
     - Raster: unbekannte Arten dunkel mit „?“ (nicht antippbar), sonst Name, `x/8 Knochen`, Symbol (Haken = Stufe 1, Stern in Farbe der schlechtesten Stufe = Stufe 2). Gesperrte Schichten haben ein Schloss im Reiter und einen Hinweis.
     - Art-Detail als Zustand im Screen (`rememberSaveable`), Zurück-Taste (`BackHandler`) und Pfeil führen zur Liste.
-    - **Skelett-Grafik:** austauschbare Composable `SkeletonView(speciesId, bodyPlan, bones: Map<boneId, SkeletonBone(tierIndex?, zoneQualities?)>)`. AP-20 zeichnet einen schematischen Platzhalter (generischer Vier- bzw. Zweibeiner aus einfachen Formen, Farbe nach Stufe über `QualityColors.forTierIndex`, bei bekannten Zonen Streifen je Zone, fehlend grau gestrichelt, unbekannte Knochen-IDs als Kacheln am unteren Rand). AP-21 ersetzt nur den Inhalt dieser Funktion.
+    - **Skelett-Grafik:** austauschbare Composable `SkeletonView(speciesId, bodyPlan, bones: Map<boneId, SkeletonBone(tierIndex?, zoneQualities?)>)`. AP-20 zeichnet einen schematischen Platzhalter (generischer Vier- bzw. Zweibeiner aus einfachen Formen, Farbe nach Stufe über `QualityColors.forTierIndex`, bei bekannten Zonen Streifen je Zone, fehlend grau gestrichelt, unbekannte Knochen-IDs als Kacheln am unteren Rand). AP-21 ersetzt nur den Inhalt dieser Funktion (siehe 8.5, Umsetzung AP-21).
     - Stat-Namen der Boni über `TextProvider.statName(StatId)` (Schlüssel `stat.<id>.name`, für alle Stats Pflicht in beiden Sprachen). Bonuszahlen: `mult` als Prozent, `add` als Zahl (`formatBonusNumber`).
 - **Ruhm:** Ruhm verfügbar/gesamt, Skilltree als 4 vertikale Äste, Prestige-Button mit Vorschau, Dialog mit Reset-Übersicht, Respec-Option im Prestige-Dialog.
   Umsetzung (AP-22): `app/ui/fame`. `FameUiMapper.map(engine, state, dialog)` baut außerhalb der Composables den `FameUiState` (Feld **`fameScreen`** in `GameUiState.Ready`, weil `fame` dort schon der Ruhm der oberen Leiste ist): Ruhm verfügbar/gesamt, Prestige-Zähler, Vorschau `GameEngine.fameGainPreview` und `canPrestige` (Vorschau ≥ 1), Äste aus `GameEngine.skillOverview` als `SkillBranchUi`/`SkillNodeUi` (Status, Preis, `affordable`, fehlende Voraussetzungen, Wirkung als `Modifier` aus `skilltree.json`).
@@ -549,6 +549,13 @@ Umsetzung (AP-16): Die App liest die Farben aus `balance.json: qualityTiers[].co
 - **Konvention:** Jeder Knochen ist eine Gruppe `id="<boneId>"`, jede Zone ein Pfad `id="<boneId>__<zoneId>"`. Ein Build-Skript (`tools/svg2json.py`) wandelt die SVGs in `skeleton_<speciesId>.json` (Pfaddaten plus IDs) um. Die App zeichnet sie mit Compose `PathParser` und färbt sie zur Laufzeit ein.
 - Schichthintergründe: Farbbänder mit einfacher Textur, ebenfalls per SVG oder Compose-Zeichnung.
 - **MVP:** Platzhalter (ein generisches Vierbeiner- bzw. Zweibeiner-Skelett für alle Arten) ist zulässig. Die echten 18 Skelette entstehen in AP-27.
+- Umsetzung (AP-21):
+    - **SVG-Regeln** (`tools/svg2json.py`, nur Python-Standardbibliothek): `viewBox` am `<svg>` Pflicht; in Knochengruppen nur Zonen-Pfade, keine verschachtelten Knochengruppen; **`transform` ist an jedem Element verboten** (wird nicht aufgelöst, damit die Koordinaten im JSON denen im SVG entsprechen; vor dem Export anwenden); Elemente außerhalb von Knochengruppen (Hintergrund) werden ignoriert. Die Gruppenreihenfolge ist die Zeichenreihenfolge, die **Zonenreihenfolge muss der in `bones.json` entsprechen** (Index i der Grafik = `zoneQualities[i]`).
+    - **Ausgabe:** `core/src/main/resources/data/skeletons/skeleton_<name>.json` (`name`, `viewBox {x,y,width,height}`, `bones[{id, zones[{id, d}]}]`, Schema `schema/skeleton.schema.json`). Die JSONs sind eingecheckt, der Build braucht kein Python; `svg2json.py --check` und `tools/test_svg2json.py` laufen in der CI. Anleitung im README (Abschnitt Tools).
+    - **Platzhalter:** `art/skeletons/quadruped.svg` und `biped.svg` (8 Knochen × 4 Zonen, schematisch, `#E8DFC8` auf dunklem Grund).
+    - **Fallback-Regel:** Eine Art nutzt `skeleton_<speciesId>.json` (= `species.art`, vom `DataValidator` erzwungen); fehlt die Datei, gilt `skeleton_<bodyPlan>.json`. Bis AP-27 nutzen alle Arten die Platzhalter. AP-27 legt nur `art/skeletons/<speciesId>.svg` an und erzeugt die JSONs.
+    - **Core:** `core.data.SkeletonArt` (Modell), `SkeletonArtRepository` (`load`, `resolveFile`, `forSpecies`, `candidates`), `SkeletonArtValidator` (jeder Knochen/jede Zone aus `bones.json` vorhanden, Reihenfolge, keine unbekannten Einträge). `DataValidationTest` prüft beide Platzhalter und die aufgelöste Grafik jeder Art.
+    - **App:** `ui/book/SkeletonArtCache` parst die Pfade einmal pro Datei mit Compose `PathParser` (Laden auf `Dispatchers.IO`), `SkeletonView` zeichnet in einer `Canvas` mit viewBox-Skalierung (zentriert). Farbe je Zone über `SkeletonColoring`: bekannte Zonenqualität → `QualityColors.forQuality`, sonst Knochenstufe `forTierIndex`, ohne Farben `#E8DFC8`; fehlende Knochen nur als grau gestrichelte Kontur. Knochen, die die Grafik nicht enthält, werden nicht gezeichnet (die Validierung stellt sicher, dass jede Grafik alle Knochen aus `bones.json` hat); die Kacheln für unbekannte Knochen aus AP-20 entfallen.
 
 ---
 
@@ -583,7 +590,8 @@ Keine. Das Spiel ist ein Hobbyprojekt. Keine Werbung, keine In-App-Käufe, keine
   sim/        fossil_sim.py
   svg2json.py
   validate_data.py (optional, CI)
-/art/skeletons/*.svg
+  test_svg2json.py
+/art/skeletons/*.svg       -> core/src/main/resources/data/skeletons/skeleton_*.json
 ```
 
 ### 10.3 Spielschleife
@@ -639,6 +647,7 @@ Ablage: `core/src/main/resources/data/`. Alle IDs in `snake_case`, Texte nur als
     "bookBonus": { "stat": "prep_rate", "op": "mult", "value": 0.02 } }
 ]
 ```
+`art` muss `skeleton_<id>.json` heißen; fehlt die Datei in `data/skeletons/`, nutzt die App den Platzhalter `skeleton_<bodyPlan>.json` (8.5).
 
 **`bones.json`**
 ```json

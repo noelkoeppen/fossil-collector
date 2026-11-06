@@ -26,6 +26,9 @@ jobs:
       - name: Gradle einrichten
         uses: gradle/actions/setup-gradle@v5
 
+      - name: Skelett-Grafiken pruefen (svg2json)
+        run: python3 tools/test_svg2json.py && python3 tools/svg2json.py --check
+
       - name: Core-Tests
         run: ./gradlew :core:test --stacktrace
 

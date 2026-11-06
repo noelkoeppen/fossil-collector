@@ -73,6 +73,9 @@ class DataRepository(
             isLenient = false
         }
 
+        /** Liest Dateien relativ zu `data/` aus dem Klassenpfad (Standardquelle, auch im APK). */
+        val classpathReader: (String) -> String? = ::readClasspathResource
+
         private fun readClasspathResource(file: String): String? =
             DataRepository::class.java.classLoader
                 .getResourceAsStream(RESOURCE_ROOT + file)
