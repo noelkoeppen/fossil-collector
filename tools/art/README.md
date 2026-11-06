@@ -41,6 +41,15 @@ rsvg-convert -b '#222' -w 600 art/skeletons/smilodon.svg -o /tmp/smilodon.png   
 - Kopfanhänge: Schaufelgeweih des Riesenhirschs in `skull__skull_roof`; beim Wollnashorn Nasenhorn in
   `skull__snout`, Stirnhorn in `skull__skull_roof`; Stoßzähne des Mammuts und Säbelzähne von
   Smilodon in `skull__snout`.
+- Neogen (AP-27b): obere Stoßzähne (Gomphotherium) und Säbelzähne (Thylacosmilus) in
+  `skull__snout`; Unterkiefer-Stoßzähne (Gomphotherium flach, Deinotherium nach unten gebogen) und
+  der Kinnfortsatz von Thylacosmilus in `jaw__tip`. Hipparion trägt an jedem Fuß zwei kurze
+  Seitenzehen (Zone Finger/Zehen), Chalicotherium läuft auf den Knöcheln (Krallen eingeschlagen).
+- Vogel (Titanis, `bodyPlan` biped): Oberschnabel mit Haken = `skull__snout`, Unterschnabel = `jaw`,
+  Hals = `cervical`, kurzer Rücken plus Schwanzwirbel = `dorsal`, kurzer angelegter Flügel =
+  `forelimb` (Oberarm mit Schulterblatt, Unterarm, Handwurzel/Mittelhand als `carpus`,
+  Flügelfinger mit Kralle als `digits`), Laufbein = `hindlimb` (Tibiotarsus als `tibia`,
+  Tarsometatarsus als `tarsus`).
 
 Wer eine SVG später von Hand nachbearbeitet, sollte die Art nicht erneut mit dem Generator
 überschreiben (oder die Änderung in die Artfunktion übernehmen).
