@@ -21,11 +21,6 @@ import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -47,6 +42,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -54,6 +50,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import de.noelkoeppen.fossilcollector.R
+import de.noelkoeppen.fossilcollector.ui.theme.AppIcons
 import de.noelkoeppen.fossilcollector.core.data.DataRepository
 import de.noelkoeppen.fossilcollector.core.data.TextProvider
 import de.noelkoeppen.fossilcollector.core.engine.CompletionLevel
@@ -157,7 +154,7 @@ private fun BookList(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             if (!tabLayer.unlocked) {
                                 Icon(
-                                    imageVector = Icons.Filled.Lock,
+                                    painter = painterResource(AppIcons.Lock),
                                     contentDescription = stringResource(R.string.book_layer_locked),
                                     modifier = Modifier.size(14.dp),
                                 )
@@ -256,13 +253,13 @@ private fun CompletionSymbol(level: CompletionLevel, tierColor: Color?, modifier
     when (level) {
         CompletionLevel.NONE -> Spacer(modifier.then(size))
         CompletionLevel.RESEARCHED -> Icon(
-            imageVector = Icons.Filled.Check,
+            painter = painterResource(AppIcons.Check),
             contentDescription = stringResource(R.string.book_level_researched),
             tint = MaterialTheme.colorScheme.secondary,
             modifier = modifier.then(size),
         )
         CompletionLevel.SKELETON_COMPLETE -> Icon(
-            imageVector = Icons.Filled.Star,
+            painter = painterResource(AppIcons.Star),
             contentDescription = stringResource(R.string.book_level_complete),
             tint = tierColor ?: MaterialTheme.colorScheme.primary,
             modifier = modifier.then(size),
@@ -315,7 +312,7 @@ private fun SpeciesDetail(
 private fun DetailHeader(species: BookSpeciesUi, texts: TextProvider, onBack: () -> Unit) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         IconButton(onClick = onBack) {
-            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.book_back))
+            Icon(painterResource(AppIcons.Back), contentDescription = stringResource(R.string.book_back))
         }
         Column(modifier = Modifier.weight(1f)) {
             Text(

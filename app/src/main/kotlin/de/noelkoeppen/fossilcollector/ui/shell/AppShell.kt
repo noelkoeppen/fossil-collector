@@ -1,6 +1,7 @@
 package de.noelkoeppen.fossilcollector.ui.shell
 
 import androidx.activity.compose.BackHandler
+import androidx.annotation.DrawableRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -9,16 +10,10 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.List
-import androidx.compose.material.icons.filled.Build
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.CircularProgressIndicator
@@ -45,8 +40,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -80,6 +75,7 @@ import de.noelkoeppen.fossilcollector.ui.feedback.animatedGameNumber
 import de.noelkoeppen.fossilcollector.ui.resolveContentLanguage
 import de.noelkoeppen.fossilcollector.ui.rememberGameNumberFormat
 import de.noelkoeppen.fossilcollector.ui.resolveNumberLanguage
+import de.noelkoeppen.fossilcollector.ui.theme.AppIcons
 import de.noelkoeppen.fossilcollector.ui.theme.FossilCollectorTheme
 import de.noelkoeppen.fossilcollector.ui.theme.QualityColors
 import de.noelkoeppen.fossilcollector.ui.settings.SettingsActions
@@ -306,28 +302,31 @@ private fun TopResourceBar(
             ) {
                 if (settingsOpen) {
                     IconButton(onClick = onBackClick) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
+                        Icon(painterResource(AppIcons.Back), contentDescription = stringResource(R.string.back))
                     }
                 }
                 ResourceValue(
+                    icon = AppIcons.Money,
                     label = stringResource(R.string.top_bar_money_label),
                     value = stringResource(R.string.top_bar_money_value, format.format(money)),
                     detail = stringResource(R.string.top_bar_money_rate, format.format(state.moneyPerSecond)),
                     modifier = Modifier.weight(1.4f),
                 )
                 ResourceValue(
+                    icon = AppIcons.ResearchPoints,
                     label = stringResource(R.string.top_bar_research_label),
                     value = format.format(researchPoints),
                     modifier = Modifier.weight(1f),
                 )
                 ResourceValue(
+                    icon = AppIcons.Fame,
                     label = stringResource(R.string.top_bar_fame_label),
                     value = format.format(fame),
                     modifier = Modifier.weight(1f),
                 )
                 if (!settingsOpen) {
                     IconButton(onClick = onSettingsClick) {
-                        Icon(Icons.Filled.Settings, contentDescription = stringResource(R.string.top_bar_settings))
+                        Icon(painterResource(AppIcons.Settings), contentDescription = stringResource(R.string.top_bar_settings))
                     }
                 }
             }
@@ -336,15 +335,31 @@ private fun TopResourceBar(
     }
 }
 
+/** Ein Wert der oberen Leiste: eigenes Waehrungssymbol (AP-26, dekorativ) und Bezeichnung, darunter der Wert. */
 @Composable
-private fun ResourceValue(label: String, value: String, modifier: Modifier = Modifier, detail: String? = null) {
+private fun ResourceValue(
+    @DrawableRes icon: Int,
+    label: String,
+    value: String,
+    modifier: Modifier = Modifier,
+    detail: String? = null,
+) {
     Column(modifier = modifier) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 1,
-        )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                painter = painterResource(icon),
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(12.dp),
+            )
+            Spacer(Modifier.width(4.dp))
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+            )
+        }
         Text(
             text = value,
             style = MaterialTheme.typography.titleMedium,
@@ -397,7 +412,7 @@ private fun GameNavigationBar(
                             }
                         },
                     ) {
-                        Icon(tab.icon, contentDescription = null)
+                        Icon(painterResource(tab.icon), contentDescription = null)
                     }
                 },
                 label = { Text(label, maxLines = 1) },
@@ -459,14 +474,15 @@ private val GameTab.titleRes: Int
         GameTab.FAME -> R.string.tab_fame
     }
 
-/** Vorlaeufige Material-Symbole; eigene Icons folgen in AP-26. */
-private val GameTab.icon: ImageVector
+/** Eigene Tab-Symbole (AP-26). */
+@get:DrawableRes
+private val GameTab.icon: Int
     get() = when (this) {
-        GameTab.DIG -> Icons.Filled.Build
-        GameTab.LAB -> Icons.Filled.Search
-        GameTab.MUSEUM -> Icons.Filled.Home
-        GameTab.BOOK -> Icons.AutoMirrored.Filled.List
-        GameTab.FAME -> Icons.Filled.Star
+        GameTab.DIG -> AppIcons.TabDig
+        GameTab.LAB -> AppIcons.TabLab
+        GameTab.MUSEUM -> AppIcons.TabMuseum
+        GameTab.BOOK -> AppIcons.TabBook
+        GameTab.FAME -> AppIcons.TabFame
     }
 
 @Preview

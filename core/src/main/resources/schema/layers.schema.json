@@ -44,6 +44,15 @@
       },
       "color": {
         "$ref": "common.schema.json#/$defs/color"
+      },
+      "texture": {
+        "description": "Gesteinstextur des Schichtbands (Kapitel 8.5, AP-26); Standard plain",
+        "enum": [
+          "plain",
+          "gravel",
+          "banded",
+          "chalk"
+        ]
       }
     },
     "required": [

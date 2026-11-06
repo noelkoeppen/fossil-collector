@@ -39,6 +39,7 @@ class DigStateMapperTest {
         val dig = map(newGame())
         assertEquals(data.layers.map { it.id }, dig.layers.map { it.layerId })
         assertEquals(data.layers.map { it.color }, dig.layers.map { it.color })
+        assertEquals(data.layers.map { it.texture }, dig.layers.map { it.texture })
 
         val first = dig.layers[0] as DigLayerUi.Unlocked
         assertEquals(GameNumber.ZERO, first.blocks)

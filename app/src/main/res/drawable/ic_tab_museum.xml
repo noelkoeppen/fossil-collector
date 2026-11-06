@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Tab Museum: Saeulenportal (AP-26, eigene Zeichnung) -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M12,2.5 L22,8.5 H2 Z M3,9.5 H21 V11.3 H3 Z M4.55,12.3 H6.65 V18.3 H4.55 Z M8.82,12.3 H10.92 V18.3 H8.82 Z M13.08,12.3 H15.18 V18.3 H13.08 Z M17.35,12.3 H19.45 V18.3 H17.35 Z M3,19.2 H21 V20.6 H3 Z M2,21.3 H22 V22.5 H2 Z" />
+</vector>

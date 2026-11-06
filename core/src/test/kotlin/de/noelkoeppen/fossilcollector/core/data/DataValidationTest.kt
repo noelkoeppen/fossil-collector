@@ -261,6 +261,38 @@ class DataValidationTest {
         DataRepository.ALL_FILES.forEach { dataFile(it) }
     }
 
+    // --- Schichttexturen (Kapitel 8.5, AP-26) ---
+
+    @Test
+    fun mvpLayersHaveDistinctTextures() {
+        val textures = data.layers.map { it.texture }
+        assertEquals(listOf(LayerTexture.GRAVEL, LayerTexture.BANDED, LayerTexture.CHALK), textures)
+    }
+
+    @Test
+    fun missingTextureDefaultsToPlain() {
+        val repo = patchedRepository(DataRepository.LAYERS) { it.replaceFirst(Regex(",\\s*\"texture\": \"gravel\""), "") }
+        assertEquals(LayerTexture.PLAIN, repo.load().layers.first().texture)
+    }
+
+    @Test
+    fun rejectsUnknownTexture() {
+        val repo = patchedRepository(DataRepository.LAYERS) { it.replaceFirst("\"gravel\"", "\"marble\"") }
+        val e = assertThrows<DataValidationException> { repo.load() }
+        assertTrue(e.errors.single().startsWith(DataRepository.LAYERS), e.errors.toString())
+    }
+
+    @Test
+    fun schemaTexturesMatchEnum() {
+        val schema = Json.parseToJsonElement(checkNotNull(resource("schema/layers.schema.json"))).jsonObject
+        val texture = schema.getValue("items").jsonObject.getValue("properties").jsonObject.getValue("texture").jsonObject
+        val names = texture.getValue("enum").jsonArray.map { it.jsonPrimitive.content }
+        assertEquals(LayerTexture.entries.map { it.serialName }, names)
+        LayerTexture.entries.forEach {
+            assertEquals("\"${it.serialName}\"", Json.encodeToString(LayerTexture.serializer(), it))
+        }
+    }
+
     @Test
     fun schemaStatIdsMatchEnum() {
         val common = Json.parseToJsonElement(checkNotNull(resource("schema/common.schema.json"))).jsonObject

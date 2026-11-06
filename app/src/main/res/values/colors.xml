@@ -2,4 +2,9 @@
 <resources>
     <color name="background">#FF1C1A17</color>
     <color name="bone">#FFE8DFC8</color>
+    <!-- Launcher-Hintergrund (AP-26): Gesteinsschichten von oben nach unten -->
+    <color name="launcher_rock_top">#FF66523F</color>
+    <color name="launcher_rock_middle">#FF594737</color>
+    <color name="launcher_rock_low">#FF4B3C30</color>
+    <color name="launcher_rock_deep">#FF3E3229</color>
 </resources>

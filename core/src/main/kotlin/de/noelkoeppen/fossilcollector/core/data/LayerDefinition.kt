@@ -24,4 +24,6 @@ data class LayerDefinition(
     val fameWeight: Double,
     /** Farbe des Schichtbands als `#RRGGBB`. */
     val color: String,
+    /** Gesteinstextur des Schichtbands (Kapitel 8.5, AP-26); fehlt sie, gilt [LayerTexture.PLAIN]. */
+    val texture: LayerTexture = LayerTexture.PLAIN,
 )
