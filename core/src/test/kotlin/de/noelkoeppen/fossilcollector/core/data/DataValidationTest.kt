@@ -64,6 +64,40 @@ class DataValidationTest {
         assertTrue(de.keys.containsAll(required), "Fehlend: ${required - de.keys}")
     }
 
+    // --- Skelett-Grafiken (Kapitel 8.5, AP-21) ---
+
+    private val skeletons = SkeletonArtRepository()
+
+    @Test
+    fun placeholderExistsForEveryBodyPlanAndMatchesBones() {
+        BodyPlan.entries.forEach { plan ->
+            val file = SkeletonArtRepository.placeholderFile(plan)
+            val art = checkNotNull(skeletons.load(file)) { "Platzhalter $file fehlt" }
+            assertEquals(plan.serialName, art.name)
+            assertEquals(emptyList<String>(), SkeletonArtValidator.validate(file, art, data.bones))
+        }
+    }
+
+    @Test
+    fun everySpeciesResolvesToValidSkeletonArt() {
+        data.species.forEach { species ->
+            assertEquals(SkeletonArtRepository.fileName(species.id), species.art)
+            val file = checkNotNull(skeletons.resolveFile(species.id, species.bodyPlan)) { "keine Grafik fuer ${species.id}" }
+            assertTrue(file == species.art || file == SkeletonArtRepository.placeholderFile(species.bodyPlan))
+            val art = checkNotNull(skeletons.forSpecies(species.id, species.bodyPlan))
+            assertEquals(emptyList<String>(), SkeletonArtValidator.validate(file, art, data.bones))
+            species.bones.forEach { assertTrue(it in art.bonesById, "Knochen $it fehlt in $file") }
+        }
+    }
+
+    @Test
+    fun detectsArtNotFollowingConvention() {
+        val errors = errorsOf(DataRepository.SPECIES) {
+            it.replaceFirst("\"art\": \"skeleton_cave_bear.json\"", "\"art\": \"bear.json\"")
+        }
+        assertTrue(errors.any { "cave_bear" in it && "art" in it }, errors.toString())
+    }
+
     // --- MVP-Umfang ---
 
     @Test
@@ -219,7 +253,7 @@ class DataValidationTest {
     fun everyDataFileHasSchema() {
         val schemaNames = DataRepository.ALL_FILES.map { file ->
             if (file.startsWith("locale/")) "locale.schema.json" else file.removeSuffix(".json") + ".schema.json"
-        }.distinct() + "common.schema.json"
+        }.distinct() + "common.schema.json" + "skeleton.schema.json"
         schemaNames.forEach { name ->
             val text = checkNotNull(resource("schema/$name")) { "Schema $name fehlt" }
             assertTrue(Json.parseToJsonElement(text) is JsonObject, "$name ist kein JSON-Objekt")

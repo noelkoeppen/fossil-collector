@@ -78,7 +78,8 @@ object DataValidator {
             species.bones.filterNot { it in data.bonesById }
                 .forEach { errors += "$ctx: unbekannter Knochen '$it'" }
             if (species.bones.toSet().size != species.bones.size) errors += "$ctx: Knochen doppelt"
-            if (species.art.isBlank()) errors += "$ctx: art fehlt"
+            val expectedArt = SkeletonArtRepository.fileName(species.id)
+            if (species.art != expectedArt) errors += "$ctx: art muss '$expectedArt' sein (Kapitel 8.5)"
             if (species.bookBonus.value <= 0) errors += "$ctx: bookBonus.value muss > 0 sein"
         }
         data.layers.filter { data.speciesByLayer[it.id].isNullOrEmpty() }

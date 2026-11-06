@@ -21,11 +21,15 @@ data class SpeciesDefinition(
     val bookBonus: BookBonusDefinition,
 )
 
-/** Koerperbau, bestimmt die Platzhalter-Grafik (Kapitel 8.5). */
+/**
+ * Koerperbau, bestimmt die Platzhalter-Grafik `skeleton_<serialName>.json` (Kapitel 8.5).
+ *
+ * @property serialName Name im JSON
+ */
 @Serializable
-enum class BodyPlan {
-    @SerialName("biped") BIPED,
-    @SerialName("quadruped") QUADRUPED,
+enum class BodyPlan(val serialName: String) {
+    @SerialName("biped") BIPED("biped"),
+    @SerialName("quadruped") QUADRUPED("quadruped"),
 }
 
 /**
