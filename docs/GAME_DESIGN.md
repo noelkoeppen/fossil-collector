@@ -260,9 +260,9 @@ Für jeden Fossilfund mit Schlüssel `pieceKey = speciesId:boneId:age:sex` (im M
 | 2.–5. Durchlauf | Schicht 3 (Kreide) erreichbar, erste Capstones |
 | langfristig | Buch in Museumsreif, voller Skilltree, später Kontinente |
 
-Die Simulation (Kapitel 6.7) mit den Startwerten aus Kapitel 6.4 trifft dieses Pacing: Neogen nach ca. 28 min, nach 45 min 11–14 Ruhm.
+Die Referenzsimulation der Design-Phase (ohne Pech-Schutz, Meilensteine und Buch-Boni) traf mit den Startwerten aus Kapitel 6.4 dieses Pacing: Neogen nach ca. 28 min, nach 45 min 11–14 Ruhm.
 
-Messung mit der Kotlin-Engine (AP-15, `PacingTest`, Details in 6.7): Neogen nach 22–23 min, erstes Skelett nach ca. 3 min, nach 45 min 22–26 Ruhm, nach 60 min 31 Ruhm. Die Akzeptanzgrenzen aus AP-15 sind erfüllt, das Pacing ist aber schneller als die Tabelle; die Python-Referenz kennt Pech-Schutz, Meilenstein-Belohnungen und Buch-Boni nicht. Die Anpassung ist Aufgabe von AP-29.
+Messung mit der Kotlin-Engine (AP-15, `PacingTest`, Details in 6.7): Neogen nach 22–23 min, erstes Skelett nach ca. 3 min, nach 45 min 22–26 Ruhm, nach 60 min 31 Ruhm. Die Akzeptanzgrenzen aus AP-15 sind erfüllt, das Pacing ist aber schneller als die Tabelle; die Referenz der Design-Phase kannte Pech-Schutz, Meilenstein-Belohnungen und Buch-Boni nicht. Seit AP-28 bildet `tools/sim/fossil_sim.py` die Engine samt dieser Systeme nach und liefert für dieselben Seeds dieselben Werte wie der `PacingTest` (6.7). Die Anpassung ist Aufgabe von AP-29.
 
 ### 5.2 Meilensteine [MVP]
 Datengetriebene Meilensteine (`milestones.json`) mit kleiner Belohnung (Geld oder FP) und Toast-Meldung, z. B.: erster Fund, erstes Skelett, erste Museumsreif-Qualität, 10 Teams, neue Schicht, erste Rekonstruktion, erstes Prestige. Sie dienen vor allem als Orientierung („Was mache ich als Nächstes?“).
@@ -426,18 +426,23 @@ Buch vollständig, Buch in Museumsreif, voller Skilltree. Später zusätzlich: C
 - Werte nie als `Int`/`Long` speichern. `NaN` bzw. `Infinity` werden in `advance()` erkannt und als Fehler geloggt (Debug: Exception).
 
 ### 6.7 Balancing-Werkzeug [MVP]
-- `tools/sim/fossil_sim.py` (Referenz liegt bei, Version aus der Design-Phase) simuliert einen Durchlauf mit einer gierigen Kauf-KI und gibt den Verlauf (Geld, Einkommen, Funde, Skelette, Ruhm) pro Zeitpunkt aus.
+- `tools/sim/fossil_sim.py` simuliert einen Durchlauf mit einer gierigen Kauf-KI und gibt den Verlauf (Geld, Einkommen, Funde, Skelette, Ruhm) pro Zeitpunkt aus.
 - AP-28 stellt es so um, dass es die JSON-Dateien aus `core/src/main/resources/data/` liest. Zusätzlich gibt es einen Kotlin-Test `PacingTest`, der einen 60-Minuten-Durchlauf mit festem Seed simuliert und prüft, dass Schicht 2 zwischen 15 und 40 Minuten erreicht wird.
 - Umsetzung (AP-15): `core/src/test/.../core/sim/PacingTest` und `GreedyBot` (mit `GreedyBotConfig`, `BotSnapshot`).
-  - **Ablage im Testquellbaum** (Paket `core.sim`), nicht in `core/src/main`: Die KI ist ein Prüfwerkzeug und gehört nicht ins APK. AP-28 bindet das Python-Werkzeug an die JSON-Daten an und braucht die Kotlin-KI nicht. Soll sie später außerhalb von Tests laufen (z. B. als Gradle-Task), wird sie in ein eigenes Source-Set verschoben.
+  - **Ablage im Testquellbaum** (Paket `core.sim`), nicht in `core/src/main`: Die KI ist ein Prüfwerkzeug und gehört nicht ins APK. AP-28 bindet das Python-Werkzeug an die JSON-Daten an und bildet die Kotlin-KI dort nach (siehe unten). Soll sie später außerhalb von Tests laufen (z. B. als Gradle-Task), wird sie in ein eigenes Source-Set verschoben.
   - **Nur öffentliche Aktionen:** `tapDig`, `tapPrep`, `advance` (Seed fest, `SeededRandom`), `Purchases` (Teams, Präparatoren, `unlockNextLayer`), `buyHalls`, `buyLabSlots`, `buyToolLevel` (Max mit allen FP) und `reconstruct` (nach jedem abgeschlossenen Laborjob alle Rekonstruktionen mit `isImprovement`). Kein Prestige, keine Skills (erster Durchlauf).
   - **Kauf-Logik wie die Referenz** (`Run.buy`): Optionen sind das nächste Team je offener Schicht, die nächste Schicht, ein Präparator (nur solange `prepRate < Grabung * 1.1`, Preis mit 0.7 gewichtet), eine Halle (ab `Run-Funde > Plätze * 0.8`) und ein Laborplatz (ab `Duplikate > 20 * Laborplätze`). Gekauft wird die billigste Option, solange sie bezahlbar ist; sonst wird gespart. Diese Strategie-Parameter sind Spielerverhalten, keine Spielwerte, und stehen deshalb in `GreedyBotConfig` statt in den JSON-Daten.
   - **Tippen:** 2 Tipps/s auf die tiefste offene Schicht und 2 Tipps/s auf „Freilegen“ in den ersten 10 min (= Referenz `MANUAL_DIG`/`MANUAL_PREP` 0.5 Blöcke/s, `ACTIVE_SECONDS` 600). Tippen nur in Minute 0–2 verschiebt Neogen um ca. 0,5 min (gemessen). Ganz ohne Tippen kommt der Durchlauf nicht in Gang (Startgeld 0, kein Team), das ist so gewollt (5.1: erste Funde durch Tippen).
   - **Tick 1 s** wie die Referenz und der Offline-Fortschritt: `advance` ist zeitschritt-tolerant (gemessen: Tick 0,1 s ergibt dieselben Neogen-Zeitpunkte, Ruhm ±4 durch andere Zufallsfolge), die Laufzeit ist zehnmal kürzer. Die Tipprate wird bei kleineren Ticks anteilig verteilt.
   - **Assertions** je Seed 1, 2, 3: Neogen zwischen 15 und 40 min, `fameGainPreview` nach 60 min zwischen 8 und 40. Verlauf alle 5 min (Minute, Geld, Museumseinkommen/s, Geldzufluss/s, Funde, Skelette, Ruhm-Vorschau, Bestände) in der Standardausgabe des Tests (Gradle-Testbericht). Laufzeit ca. 0,3–0,7 s je Seed.
-  - **Messwerte** (Daten Stand AP-15, Seeds 1–5): Neogen nach 21,8–22,9 min, erstes Skelett nach 2,4–3,2 min, Ruhm 30 min 11–14, 45 min 22–26, 60 min 31 (alle 12 Skelette der Schichten 1–2 vollständig), Museum 60 min ca. 1 300 $/s. Python-Referenz Seeds 1–3: Neogen 28,0–28,3 min, Ruhm 45 min 11–14, 60 min 19–22, Museum ca. 700 $/s.
+  - **Messwerte** (Daten Stand AP-15, Seeds 1–5): Neogen nach 21,8–22,9 min, erstes Skelett nach 2,4–3,2 min, Ruhm 30 min 11–14, 45 min 22–26, 60 min 31 (alle 12 Skelette der Schichten 1–2 vollständig), Museum 60 min ca. 1 300 $/s. Python-Referenz der Design-Phase (vor AP-28) Seeds 1–3: Neogen 28,0–28,3 min, Ruhm 45 min 11–14, 60 min 19–22, Museum ca. 700 $/s.
   - **Ursachen der Abweichung** (Ablation, je eine Änderung, Mittel über Seeds 1–5): Ohne Buch-Boni (inkl. `researchedBonus`) Museum 60 min −27 %, Neogen +1,4 min; ohne Meilenstein-Belohnungen Neogen +1,2 min; `missingBoneWeight` 1 (Referenz hat keinen Pech-Schutz) Ruhm 45 min −5, erstes Skelett +1,4 min; Rekonstruktions-Cap 0,85 statt 0,89 und Verzicht auf Rekonstruktion je ca. −1 bis −2 Ruhm. Mit allen vier Referenz-Annahmen zusammen liefert die Kotlin-Engine Neogen nach 25–27 min und 13–15 Ruhm nach 45 min, also nahe an der Referenz; Engine und Referenz stimmen damit im Kern überein, die Beschleunigung kommt aus den später ergänzten Systemen (Kapitel 4.7, 4.9, 5.2).
   - **Vorschlag für AP-29** (nicht umgesetzt, weil die AP-15-Grenzen erfüllt sind): Neogen `unlockCost` 6 000 → 8 000 und `fameWeight` 3 → 2 ergibt Neogen nach 25,8–27,1 min, Ruhm 45 min 17–19, 60 min 21–23. Zusätzlich `bookTierFactor` [1, 1.5, 2, 3, 4] senkt den Ruhm nach 45 min auf 14–19. Das erste Skelett bleibt bei ca. 3 min (Pech-Schutz plus frühe Ökonomie); entweder die Erwartung „~10 min“ in 5.1 anpassen oder die frühe Phase (z. B. `findChance`, Präparatorpreis) gezielt verlangsamen.
+- Umsetzung (AP-28): `tools/sim/fossil_sim.py` (nur Python-Standardbibliothek), Anleitung und Vergleichstabelle in `tools/sim/README.md`, Tests `tools/sim/test_fossil_sim.py` (CI).
+  - **Daten:** liest `layers`, `species`, `bones`, `generators`, `upgrades`, `balance`, `milestones` und `skilltree` aus `core/src/main/resources/data/` (oder `--data`). Im Skript stehen nur Formeln und das Spielerverhalten (`BotConfig`, entspricht `GreedyBotConfig`). `--set pfad=wert` ändert einzelne Datenwerte nur für einen Lauf (z. B. `layers.neogene.unlockCost=8000`), damit Balancing-Ideen ohne Änderung der JSON-Dateien geprüft werden können.
+  - **Nachbau der Engine statt der alten Referenz:** gleiche Systeme und Reihenfolge wie `GameEngine.advance` und `GreedyBot` (Präparation in ganzen Blöcken, Pech-Schutz, Funde einordnen, Museum, Labor FIFO, Rekonstruktion mit Cap, Buch-Boni, Meilensteine, Modifier-Quellen und Abgleichzeitpunkte, Kauf-KI). Der Zufall bildet `kotlin.random.Random(seed)` (XorWow) nach, Summen werden wie in Kotlin ohne Kompensation gebildet. **Ergebnis:** Für die Seeds 1–5 ist der Verlauf identisch mit dem `PacingTest` (Neogen, Ruhm 45/60 min, alle Verlaufszeilen; Ziel war ±15 %). Damit gelten Python-Ergebnisse direkt für die Engine.
+  - **Parameter:** Seed(s) (`--seeds 1-5`), Dauer, Intervall, Datenordner, CSV (`--csv`), Schalter für Analysen (`--no-book-bonus`, `--no-milestones`, `--no-bad-luck-protection`, `--no-reconstruction`), gekaufte Skills (`--skills`), Tippdauer und Schrittweite.
+  - **Grenzen:** nur erster Durchlauf mit KI (kein Prestige, keine Sonderausstellung, kein Offline). Ändert ein AP die Engine-Logik, muss `fossil_sim.py` nachgezogen werden; die Gleichheit mit dem `PacingTest` ist die Kontrolle (Vergleich in `tools/sim/README.md`). Die CI prüft nur Lauffähigkeit und Determinismus, nicht die Gleichheit (die Kotlin-Werte stehen nur im Testlog).
 
 ---
 
@@ -587,7 +592,7 @@ Keine. Das Spiel ist ein Hobbyprojekt. Keine Werbung, keine In-App-Käufe, keine
   vm/         GameViewModel (Game-Loop, Aktionen)
   platform/   SaveStorage (Datei, atomar), Lifecycle, Zeitquelle
 /tools
-  sim/        fossil_sim.py
+  sim/        fossil_sim.py, test_fossil_sim.py, README.md
   svg2json.py
   validate_data.py (optional, CI)
   test_svg2json.py
