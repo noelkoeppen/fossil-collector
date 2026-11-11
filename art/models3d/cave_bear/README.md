@@ -14,11 +14,36 @@ und kein Arbeitspaket aus Kapitel 14.
 Beide Dateien sind eigenständige HTML-Seiten ohne Abhängigkeiten außer den Google Fonts.
 Einfach im Browser öffnen (WebGL nötig).
 
+## Einzelknochen als Meshes
+
+Unter `bones/` liegt jeder Knochen als eigene glTF-Datei (`.glb`), insgesamt 105 Stück:
+18 Schädelteile (inkl. beider Unterkieferhälften), 27 Wirbel, Kreuzbein, 8 Schwanzwirbel,
+28 Rippen, Brustbein, 2 Hüftbeine sowie je Seite Schulterblatt, Oberarm, Speiche, Elle,
+Vorderpfote, Oberschenkel, Kniescheibe, Schienbein, Wadenbein und Hinterpfote.
+Die kleinen Pfotenknochen sind je Pfote ein Teil.
+
+| Datei | Inhalt |
+|---|---|
+| `bones/<id>.glb` | Ein Knochen. Paarige Knochen enden auf `_l` bzw. `_r`. |
+| `bones.json` | Liste aller Knochen: `id`, Datei, Gruppe, Seite, Name (de/en), Bounding-Box, Dreiecke |
+| `cave_bear_all.glb` | Alle Knochen in einer Datei, jeder als eigener Knoten mit seiner `id` |
+| `bones_viewer.html` | Betrachter für `cave_bear_all.glb` (über einen lokalen Webserver öffnen) |
+
+- Alle Meshes liegen im gemeinsamen Skelett-Koordinatensystem. Lädt man alle Dateien ohne
+  Verschiebung, ergibt sich das stehende Skelett.
+- Die Meshes tragen nur die Form und eine einheitliche Knochenfarbe. Risse, Verfärbungen und
+  Schaden aus den Shader-Seiten sind nicht enthalten.
+- Die rechten Knochen sind Spiegelungen der linken.
+
+Neu erzeugen: `python3 tools/models3d/build_extract.py && python3 tools/models3d/extract.py`
+(braucht Google Chrome, `playwright`, `scikit-image`, `trimesh`, `fast-simplification`).
+Die Skripte lesen die Formen aus `skeleton.html` und `skull.html`.
+
 ## Technik
 
 - Das Modell ist kein Mesh. Die Form ist als Abstandsfunktion (SDF) im Fragment-Shader
-  beschrieben und wird pro Pixel per Raymarching berechnet. Es gibt deshalb keine glTF- oder
-  OBJ-Datei.
+  beschrieben und wird pro Pixel per Raymarching berechnet. Die Meshes unter `bones/` werden daraus per
+  Marching Cubes abgeleitet.
 - Jedes Teil hat eine Qualität 0..1 (Uniform `uQ`). Niedrige Qualität bricht Stücke aus der
   Oberfläche. Die Qualitätsfarben entsprechen Kapitel 8.4.
 - "Auseinanderziehen" verschiebt die Teile über `uEx`, paarige Teile werden an der Mittelebene

@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Höhlenbär Einzelknochen</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600&family=Archivo+Narrow:wght@600;700&display=swap">
+<style>
+/* Layout: one screen. Placard header, showcase in the middle, bone picker and actions at the bottom. */
+:root {
+  color-scheme: dark;
+  --ground: #100e0b;
+  --stage: #1d1914;
+  --line: #3a3228;
+  --bone: #e8dfc8;
+  --muted: #a39780;
+  --accent: #e2b93b;
+  --display: "Archivo Narrow", "Arial Narrow", sans-serif;
+  --body: "Archivo", system-ui, sans-serif;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body { background: var(--ground); color: var(--bone); font-family: var(--body); font-size: 15px; display: flex; flex-direction: column; }
+header { padding: 14px 16px 10px; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; flex-wrap: wrap; }
+h1 { font-family: var(--display); font-size: 22px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; margin: 0; text-wrap: balance; }
+.sub { color: var(--muted); font-size: 13px; margin-top: 2px; }
+#count { font-family: var(--display); font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; }
+#stage { flex: 1 1 auto; min-height: 220px; position: relative; background: radial-gradient(ellipse at 50% 45%, var(--stage), var(--ground) 78%); }
+#stage canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: grab; }
+#label { position: absolute; left: 16px; right: 16px; top: 10px; font-family: var(--display); font-size: 18px; font-weight: 700; pointer-events: none; }
+#label small { display: block; font-family: var(--body); font-weight: 400; font-size: 12px; color: var(--muted); }
+#hint { position: absolute; left: 16px; right: 16px; bottom: 8px; color: var(--muted); font-size: 12px; pointer-events: none; }
+#msg { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding: 24px; text-align: center; color: var(--muted); pointer-events: none; }
+.panel { border-top: 1px solid var(--line); padding: 10px 16px 14px; display: flex; flex-direction: column; gap: 10px; }
+label { font-size: 12px; color: var(--muted); display: block; margin-bottom: 4px; }
+select { width: 100%; font: 600 15px var(--body); padding: 10px; border-radius: 4px; background: var(--stage); color: var(--bone); border: 1px solid var(--line); }
+.controls { display: flex; gap: 8px; flex-wrap: wrap; }
+.btn { flex: 1 1 130px; font: 600 14px var(--body); padding: 10px 12px; border-radius: 4px; cursor: pointer; background: var(--stage); color: var(--bone); border: 1px solid var(--line); }
+.btn.primary { background: var(--accent); color: #1c1608; border-color: var(--accent); }
+.btn:disabled { opacity: 0.45; cursor: default; }
+button:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>Höhlenbär · Einzelknochen</h1>
+    <div class="sub">Jeder Knochen ist ein eigenes 3D-Mesh</div>
+  </div>
+  <div id="count">–</div>
+</header>
+<div id="stage">
+  <div id="label"></div>
+  <div id="msg">Knochen werden geladen …</div>
+  <div id="hint">Ziehen dreht, zwei Finger zoomen und verschieben, Tippen wählt einen Knochen</div>
+</div>
+<div class="panel">
+  <div>
+    <label for="pick">Knochen</label>
+    <select id="pick"><option value="">Ganzes Skelett</option></select>
+  </div>
+  <div class="controls">
+    <button class="btn primary" id="solo" type="button" disabled>Nur diesen Knochen zeigen</button>
+    <button class="btn" id="all" type="button">Ganzes Skelett</button>
+  </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+<script>
+(function () {
+  var GROUPS = { skull: "Schädel", cervical: "Halswirbel", thoracic: "Brustwirbel", lumbar: "Lendenwirbel", pelvis: "Becken", tail: "Schwanz", ribs: "Rippen", sternum: "Brustbein", forelimb: "Vorderbein", hindlimb: "Hinterbein" };
+  var stage = document.getElementById("stage"), msg = document.getElementById("msg"), label = document.getElementById("label");
+  var pick = document.getElementById("pick"), soloBtn = document.getElementById("solo"), allBtn = document.getElementById("all");
+  function fail(t) { msg.textContent = t; msg.style.display = "flex"; }
+  if (!window.THREE || !THREE.GLTFLoader) { fail("Die 3D-Bibliothek konnte nicht geladen werden."); return; }
+  var renderer;
+  try { renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true }); } catch (e) { fail("Dieser Browser stellt kein WebGL bereit."); return; }
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.outputEncoding = THREE.sRGBEncoding;
+  stage.insertBefore(renderer.domElement, stage.firstChild);
+  var el = renderer.domElement;
+
+  var scene = new THREE.Scene();
+  var camera = new THREE.PerspectiveCamera(30, 1, 0.05, 100);
+  scene.add(new THREE.HemisphereLight(0xfff1d8, 0x2a2118, 0.55));
+  var key = new THREE.DirectionalLight(0xffffff, 0.7); scene.add(key);
+  var rim = new THREE.DirectionalLight(0xffd9a0, 0.35); scene.add(rim);
+
+  var BASE = new THREE.Color("#d9cba6"), DIM = new THREE.Color("#4a4336"), SEL = new THREE.Color("#e2b93b");
+  var bones = [], byId = {}, selected = null, solo = false;
+  var HOME = { c: new THREE.Vector3(1.75, -0.46, 0), r: 2.6 };
+  var tgt = HOME.c.clone(), radius = HOME.r, zoom = 1, yaw = -0.8, pitch = 0.18;
+
+  function draw() {
+    var w = stage.clientWidth, h = stage.clientHeight;
+    if (!w || !h) return;
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h;
+    var vf = camera.fov * Math.PI / 180, hf = 2 * Math.atan(Math.tan(vf / 2) * camera.aspect);
+    var d = radius / Math.sin(Math.min(vf, hf) / 2) * zoom;
+    var cp = Math.cos(pitch), sp = Math.sin(pitch);
+    camera.position.set(tgt.x + d * cp * Math.sin(yaw), tgt.y + d * sp, tgt.z + d * cp * Math.cos(yaw));
+    camera.lookAt(tgt);
+    camera.near = Math.max(0.01, d * 0.02); camera.far = d * 4 + 10;
+    camera.updateProjectionMatrix();
+    key.position.copy(camera.position).add(new THREE.Vector3(-1.5, 2.5, 0).applyQuaternion(camera.quaternion).multiplyScalar(d * 0.3));
+    rim.position.copy(tgt).add(new THREE.Vector3(2, 1, -3).applyQuaternion(camera.quaternion));
+    renderer.render(scene, camera);
+  }
+  var pending = false;
+  function ask() { if (pending) return; pending = true; requestAnimationFrame(function () { pending = false; draw(); }); }
+
+  function paint() {
+    bones.forEach(function (b) {
+      b.mesh.visible = !solo || b === selected;
+      b.mesh.material.color.copy(!selected ? BASE : (b === selected ? (solo ? BASE : SEL) : DIM));
+    });
+    if (selected) label.innerHTML = "", label.appendChild(document.createTextNode(selected.info.name.de)),
+      label.appendChild(Object.assign(document.createElement("small"), { textContent: GROUPS[selected.info.group] + " · " + selected.info.file + " · " + selected.info.triangles + " Dreiecke" }));
+    else label.textContent = "";
+    soloBtn.disabled = !selected;
+    pick.value = selected ? selected.info.id : "";
+  }
+  function frame() {
+    if (solo && selected) {
+      var bb = new THREE.Box3().setFromObject(selected.mesh), s = new THREE.Sphere();
+      bb.getBoundingSphere(s); tgt.copy(s.center); radius = s.radius * 1.15;
+    } else { tgt.copy(HOME.c); radius = HOME.r; }
+    zoom = 1;
+  }
+  function select(b, makeSolo) { selected = b; solo = !!(b && makeSolo); frame(); paint(); ask(); }
+
+  pick.addEventListener("change", function () { select(byId[pick.value] || null, !!pick.value); });
+  soloBtn.addEventListener("click", function () { if (selected) select(selected, true); });
+  allBtn.addEventListener("click", function () { select(null, false); });
+
+  // ---------- pointer handling ----------
+  var pts = {}, lastDist = 0, lastMid = null, moved = 0, downAt = null;
+  var ray = new THREE.Raycaster();
+  el.addEventListener("pointerdown", function (e) {
+    pts[e.pointerId] = { x: e.clientX, y: e.clientY };
+    try { el.setPointerCapture(e.pointerId); } catch (err) {}
+    lastDist = 0; lastMid = null; moved = 0; downAt = { x: e.clientX, y: e.clientY };
+  });
+  el.addEventListener("pointermove", function (e) {
+    var p = pts[e.pointerId]; if (!p) return;
+    var ids = Object.keys(pts);
+    moved += Math.abs(e.clientX - p.x) + Math.abs(e.clientY - p.y);
+    if (ids.length === 1) {
+      yaw -= (e.clientX - p.x) * 0.01;
+      pitch = Math.max(-1.4, Math.min(1.4, pitch + (e.clientY - p.y) * 0.01));
+      p.x = e.clientX; p.y = e.clientY;
+    } else {
+      p.x = e.clientX; p.y = e.clientY;
+      var a = pts[ids[0]], b = pts[ids[1]], dd = Math.hypot(a.x - b.x, a.y - b.y);
+      if (lastDist) zoom = Math.max(0.08, Math.min(2.5, zoom * lastDist / dd));
+      lastDist = dd;
+      var mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+      if (lastMid) {
+        var k = camera.position.distanceTo(tgt) * 2 * Math.tan(camera.fov * Math.PI / 360) / stage.clientHeight;
+        var right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion), up = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion);
+        tgt.addScaledVector(right, -(mx - lastMid.x) * k).addScaledVector(up, (my - lastMid.y) * k);
+      }
+      lastMid = { x: mx, y: my };
+    }
+    ask();
+  });
+  function up(e) {
+    var wasTap = pts[e.pointerId] && Object.keys(pts).length === 1 && moved < 8 && e.type === "pointerup";
+    delete pts[e.pointerId]; lastDist = 0; lastMid = null;
+    if (!wasTap || solo) return;
+    var r = el.getBoundingClientRect();
+    ray.setFromCamera(new THREE.Vector2((e.clientX - r.left) / r.width * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1), camera);
+    var hit = ray.intersectObjects(bones.map(function (b) { return b.mesh; }), false)[0];
+    select(hit ? hit.object.userData.bone : null, false);
+  }
+  el.addEventListener("pointerup", up);
+  el.addEventListener("pointercancel", up);
+  el.addEventListener("wheel", function (e) { e.preventDefault(); zoom = Math.max(0.08, Math.min(2.5, zoom * (e.deltaY > 0 ? 1.08 : 0.93))); ask(); }, { passive: false });
+  window.addEventListener("resize", ask);
+  if (window.ResizeObserver) new ResizeObserver(ask).observe(stage);
+
+  // ---------- loading ----------
+  fetch("bones.json").then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); }).then(function (man) {
+    var list = man.bones, loader = new THREE.GLTFLoader(), done = 0, og = {};
+    list.forEach(function (info) {
+      if (!og[info.group]) { og[info.group] = document.createElement("optgroup"); og[info.group].label = GROUPS[info.group] || info.group; pick.appendChild(og[info.group]); }
+      var o = document.createElement("option"); o.value = info.id; o.textContent = info.name.de; og[info.group].appendChild(o);
+    });
+    var infoById = {};
+    list.forEach(function (info) { infoById[info.id] = info; });
+    function onModel(g) {
+      var found = [];
+      g.scene.updateMatrixWorld(true);
+      g.scene.traverse(function (o) { if (o.isMesh) found.push(o); });
+      found.forEach(function (mesh) {
+        var info = infoById[mesh.name] || (mesh.parent && infoById[mesh.parent.name]);
+        if (!info) return;
+        if (!mesh.geometry.attributes.normal) mesh.geometry.computeVertexNormals();
+        mesh.material = new THREE.MeshStandardMaterial({ color: BASE.clone(), roughness: 0.82, metalness: 0 });
+        var b = { info: info, mesh: mesh }; mesh.userData.bone = b;
+        bones.push(b); byId[info.id] = b;
+      });
+      scene.add(g.scene);
+      msg.style.display = "none";
+      document.getElementById("count").textContent = bones.length + " Knochen";
+      window.loaded = true;
+      paint(); ask();
+    }
+    function bad() { fail("Die Knochen konnten nicht geladen werden."); }
+    // the combined model as a plain .glb, or packed as base64 where .glb files cannot be served
+    loader.load("cave_bear_all.glb", onModel, undefined, function () {
+      fetch("cave_bear_all.b64.json").then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); }).then(function (j) {
+        var bin = atob(j.glb), buf = new Uint8Array(bin.length);
+        for (var i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
+        loader.parse(buf.buffer, "", onModel, bad);
+      }).catch(bad);
+    });
+  }).catch(function () { fail("Die Knochenliste konnte nicht geladen werden."); });
+  ask();
+})();
+</script>
+</body>
+</html>
