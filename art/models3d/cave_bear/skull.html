@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Höhlenbär-Schädel 3D</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600&family=Archivo+Narrow:wght@600;700&display=swap">
+<style>
+/* Layout: one screen. Placard header, lit showcase fills the middle, zone table and controls at the bottom. */
+:root {
+  color-scheme: dark;
+  --ground: #100e0b;
+  --stage: #1d1914;
+  --line: #3a3228;
+  --bone: #e8dfc8;
+  --muted: #a39780;
+  --accent: #e2b93b;
+  --display: "Archivo Narrow", "Arial Narrow", sans-serif;
+  --body: "Archivo", system-ui, sans-serif;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body {
+  background: var(--ground);
+  color: var(--bone);
+  font-family: var(--body);
+  font-size: 15px;
+  display: flex;
+  flex-direction: column;
+}
+header {
+  padding: 14px 16px 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--line);
+}
+h1 {
+  font-family: var(--display);
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin: 0;
+  text-wrap: balance;
+}
+.sub { color: var(--muted); font-size: 13px; margin-top: 2px; }
+.piece { text-align: right; font-variant-numeric: tabular-nums; }
+.piece b { font-family: var(--display); font-size: 20px; }
+.piece span { display: block; font-size: 13px; }
+#stage { flex: 1 1 auto; min-height: 200px; position: relative; background: var(--ground); }
+#stage canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: grab; }
+#hint { position: absolute; left: 16px; bottom: 8px; color: var(--muted); font-size: 12px; pointer-events: none; }
+#fail {
+  position: absolute; inset: 0; display: none;
+  align-items: center; justify-content: center;
+  padding: 24px; text-align: center; color: var(--muted);
+}
+.panel { border-top: 1px solid var(--line); padding: 10px 16px 14px; display: flex; flex-direction: column; gap: 10px; }
+.zones { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; }
+.zone {
+  display: flex; align-items: center; gap: 8px;
+  background: none; color: inherit; font: inherit; text-align: left;
+  border: 1px solid var(--line); border-radius: 4px;
+  padding: 5px 6px; cursor: pointer; min-width: 0; font-size: 13px; line-height: 1.25;
+}
+.zone[aria-pressed="true"] { border-color: var(--bone); background: var(--stage); }
+.swatch { width: 10px; align-self: stretch; border-radius: 2px; flex: none; }
+.zone .txt { min-width: 0; flex: 1; }
+.zone .name { font-family: var(--display); font-weight: 600; letter-spacing: 0.02em; }
+.zone .tier { font-size: 11px; color: var(--muted); }
+.zone .name { font-size: 12.5px; letter-spacing: 0; white-space: nowrap; }
+.zone .pct { font-variant-numeric: tabular-nums; font-family: var(--display); font-weight: 700; }
+.controls { display: flex; gap: 8px; flex-wrap: wrap; }
+.btn {
+  flex: 1 1 100px;
+  font: 600 14px var(--body);
+  padding: 10px 12px; border-radius: 4px; cursor: pointer;
+  background: var(--stage); color: var(--bone); border: 1px solid var(--line);
+}
+.btn.primary { background: var(--accent); color: #1c1608; border-color: var(--accent); }
+button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>Höhlenbär · Schädel</h1>
+    <div class="sub">Quartär · Schädel und Unterkiefer · 10 Knochen</div>
+  </div>
+  <div class="piece"><b id="pieceQ">–</b><span id="pieceTier">–</span></div>
+</header>
+
+<div id="stage">
+  <canvas id="gl"></canvas>
+  <div id="hint">Ziehen dreht, zwei Finger zoomen</div>
+  <div id="fail">Die 3D-Ansicht konnte nicht gestartet werden. Dieser Browser stellt kein WebGL bereit.</div>
+</div>
+
+<div class="panel">
+  <div class="zones" id="zones"></div>
+  <div class="controls">
+    <button class="btn primary" id="explode" type="button">Auseinanderziehen</button>
+    <button class="btn" id="roll" type="button">Neu würfeln</button>
+    <button class="btn" id="mode" type="button">Qualitätsfarben</button>
+  </div>
+</div>
+
+<script id="fs" type="x-shader/x-fragment">
+precision highp float;
+uniform vec2 uRes;
+uniform vec3 uRo;
+uniform vec3 uRight;
+uniform vec3 uUp;
+uniform vec3 uFwd;
+uniform float uQ[10];
+uniform vec3 uCol[10];
+uniform float uEx;
+uniform float uTint;
+uniform float uSel;
+
+const float FLOOR = -0.247;
+float gId;
+vec3 gPos;
+float gEdge;
+const float TILT = 0.0;
+
+float smin(float a, float b, float k) {
+  float h = clamp(0.5 + 0.5 * (b - a) / k, 0.0, 1.0);
+  return mix(b, a, h) - k * h * (1.0 - h);
+}
+float smax(float a, float b, float k) { return -smin(-a, -b, k); }
+float sdEll(vec3 p, vec3 r) {
+  float k0 = length(p / r);
+  float k1 = length(p / (r * r));
+  return k0 * (k0 - 1.0) / k1;
+}
+float sdCap(vec3 p, vec3 a, vec3 b, float r) {
+  vec3 pa = p - a, ba = b - a;
+  float h = clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0);
+  return length(pa - ba * h) - r;
+}
+float sdCone(vec3 p, vec3 a, vec3 b, float r1, float r2) {
+  vec3 pa = p - a, ba = b - a;
+  float h = clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0);
+  return length(pa - ba * h) - mix(r1, r2, h);
+}
+float sdBox(vec3 p, vec3 b, float r) {
+  vec3 q = abs(p) - b;
+  return length(max(q, 0.0)) + min(max(q.x, max(q.y, q.z)), 0.0) - r;
+}
+float hash(vec3 p) {
+  p = fract(p * 0.3183099 + 0.1);
+  p *= 17.0;
+  return fract(p.x * p.y * p.z * (p.x + p.y + p.z));
+}
+float noise(vec3 x) {
+  vec3 i = floor(x), f = fract(x);
+  f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(mix(hash(i), hash(i + vec3(1, 0, 0)), f.x),
+                 mix(hash(i + vec3(0, 1, 0)), hash(i + vec3(1, 1, 0)), f.x), f.y),
+             mix(mix(hash(i + vec3(0, 0, 1)), hash(i + vec3(1, 0, 1)), f.x),
+                 mix(hash(i + vec3(0, 1, 1)), hash(i + vec3(1, 1, 1)), f.x), f.y), f.z);
+}
+float fbm(vec3 p) {
+  float a = 0.5, s = 0.0;
+  for (int i = 0; i < 4; i++) { s += a * noise(p); p = p * 2.03 + 7.1; a *= 0.5; }
+  return s;
+}
+
+vec3 toSkull(vec3 p) {
+  float c = cos(TILT), s = sin(TILT);
+  return vec3(c * p.x + s * p.y, -s * p.x + c * p.y, p.z);
+}
+
+// the whole skull as one form: distance, material (0 bone, 1 tooth)
+vec2 shape(vec3 p) {
+  vec3 q = vec3(p.x, p.y, abs(p.z));
+
+  // braincase, forehead with its two bosses, muzzle
+  float d = sdEll(q - vec3(0.22, 0.06, 0.0), vec3(0.25, 0.135, 0.115));
+  d = smin(d, sdEll(q - vec3(0.0, 0.09, 0.0), vec3(0.15, 0.14, 0.115)), 0.06);
+  d = smin(d, sdEll(q - vec3(-0.025, 0.165, 0.055), vec3(0.07, 0.06, 0.055)), 0.04);
+  d = smin(d, sdEll(q - vec3(-0.28, 0.012, 0.0), vec3(0.25, 0.105, 0.105)), 0.09);
+  d = smin(d, sdEll(q - vec3(-0.30, -0.02, 0.06), vec3(0.20, 0.075, 0.06)), 0.05);
+  d = smin(d, sdEll(q - vec3(-0.41, -0.03, 0.075), vec3(0.06, 0.07, 0.045)), 0.04);
+  d = smin(d, sdEll(q - vec3(-0.47, -0.035, 0.0), vec3(0.05, 0.045, 0.07)), 0.04);
+  d = smin(d, sdCap(q, vec3(-0.27, -0.06, 0.085), vec3(-0.09, -0.06, 0.09), 0.028), 0.03);
+  d = smin(d, sdEll(q - vec3(-0.12, -0.035, 0.11), vec3(0.09, 0.05, 0.06)), 0.05);
+
+  // crests
+  d = smin(d, sdEll(q - vec3(0.35, 0.175, 0.0), vec3(0.15, 0.06, 0.011)), 0.04);
+  float disc = sdEll(q - vec3(0.475, 0.055, 0.0), vec3(0.016, 0.105, 0.10));
+  disc = max(disc, (q.z - 0.115 + 0.55 * max(q.y - 0.02, 0.0)) * 0.85);
+  d = smin(d, disc, 0.05);
+  d = smin(d, sdCap(q, vec3(-0.01, 0.17, 0.09), vec3(0.13, 0.185, 0.008), 0.012), 0.03);
+
+  // jaw joint region, processes at the skull base
+  d = smin(d, sdEll(q - vec3(0.30, -0.03, 0.13), vec3(0.06, 0.035, 0.06)), 0.05);
+  d = smin(d, sdCone(q, vec3(0.37, -0.03, 0.125), vec3(0.38, -0.10, 0.13), 0.03, 0.014), 0.03);
+  d = smin(d, sdCone(q, vec3(0.43, -0.03, 0.07), vec3(0.44, -0.095, 0.075), 0.022, 0.010), 0.03);
+  d = smin(d, sdEll(q - vec3(0.33, -0.07, 0.06), vec3(0.045, 0.02, 0.035)), 0.02);
+
+  // temple hollow, eye socket
+  d = smax(d, -sdEll(q - vec3(0.12, 0.02, 0.21), vec3(0.16, 0.13, 0.105)), 0.04);
+  d = smax(d, -sdEll(q - vec3(-0.065, 0.04, 0.115), vec3(0.065, 0.06, 0.075)), 0.02);
+  d = smax(d, -sdCap(q, vec3(-0.05, 0.03, 0.14), vec3(0.10, 0.0, 0.19), 0.048), 0.02);
+  d = smax(d, -sdCap(q, vec3(-0.02, 0.02, 0.155), vec3(0.01, -0.11, 0.155), 0.038), 0.02);
+
+  // cheek arch: a deep, flat band, widest part of the skull
+  vec3 qa = vec3(q.x, q.y * 0.4, q.z);
+  float a = sdCap(qa, vec3(-0.10, -0.016, 0.15), vec3(0.04, -0.024, 0.268), 0.0125);
+  a = min(a, sdCap(qa, vec3(0.04, -0.024, 0.268), vec3(0.20, -0.018, 0.273), 0.0125));
+  a = min(a, sdCap(qa, vec3(0.20, -0.018, 0.273), vec3(0.31, -0.006, 0.17), 0.0125));
+  d = smin(d, a, 0.03);
+  d = smin(d, sdCone(q, vec3(-0.02, 0.15, 0.09), vec3(0.0, 0.118, 0.142), 0.024, 0.012), 0.035);
+
+  // back of the head: slanted plate under the overhanging crest
+  d = smax(d, q.x - 0.5 - 0.15 * q.y, 0.012);
+  d = smin(d, sdEll(q - vec3(0.495, -0.04, 0.04), vec3(0.03, 0.025, 0.03)), 0.015);
+  d = smax(d, -(length(q - vec3(0.515, -0.03, 0.0)) - 0.025), 0.008);
+
+  // openings
+  d = smax(d, -sdEll(q - vec3(-0.51, 0.045, 0.0), vec3(0.10, 0.05, 0.06)), 0.018);
+  d = smax(d, -sdEll(q - vec3(-0.2, -0.16, 0.0), vec3(0.3, 0.07, 0.05)), 0.03);
+  float cav = sdEll(q - vec3(-0.35, 0.03, 0.0), vec3(0.20, 0.058, 0.058));
+  cav = max(cav, -max(q.z - 0.006, -(q.x + 0.42)));
+  d = smax(d, -cav, 0.012);
+  d = smax(d, -sdCap(q, vec3(-0.215, -0.014, 0.118), vec3(-0.13, 0.0, 0.09), 0.011), 0.008);
+  d = smax(d, -sdEll(q - vec3(0.27, 0.04, 0.0), vec3(0.19, 0.075, 0.065)), 0.015);
+  d = smax(d, -sdCap(q, vec3(0.40, 0.0, 0.0), vec3(0.54, -0.03, 0.0), 0.024), 0.008);
+
+  // teeth: curved canine, three incisors, then a gap and three cheek teeth
+  float t = sdCone(q, vec3(-0.42, -0.05, 0.088), vec3(-0.410, -0.110, 0.096), 0.024, 0.019);
+  t = smin(t, sdCone(q, vec3(-0.410, -0.110, 0.096), vec3(-0.392, -0.152, 0.099), 0.019, 0.010), 0.006);
+  t = smin(t, sdCone(q, vec3(-0.392, -0.152, 0.099), vec3(-0.374, -0.180, 0.098), 0.010, 0.002), 0.004);
+  t = min(t, sdEll(q - vec3(-0.506, -0.070, 0.009), vec3(0.006, 0.014, 0.0075)));
+  t = min(t, sdEll(q - vec3(-0.502, -0.072, 0.026), vec3(0.006, 0.015, 0.0075)));
+  t = min(t, sdEll(q - vec3(-0.490, -0.076, 0.045), vec3(0.008, 0.019, 0.009)));
+  float tm = sdBox(q - vec3(-0.257, -0.098, 0.088), vec3(0.012, 0.014, 0.007), 0.007);
+  tm = min(tm, sdBox(q - vec3(-0.203, -0.100, 0.090), vec3(0.021, 0.015, 0.011), 0.008));
+  tm = min(tm, sdBox(q - vec3(-0.127, -0.100, 0.090), vec3(0.036, 0.015, 0.013), 0.008));
+  tm += (0.0026 * sin(q.x * 118.0 + 0.7) * cos((q.z - 0.09) * 200.0) + 0.0015 * sin(q.x * 47.0)) * smoothstep(-0.105, -0.12, q.y);
+  t = min(t, tm);
+
+  float m = t < d ? 1.0 : 0.0;
+  d = min(d, t);
+
+  return vec2(d, m);
+}
+
+// The nine bones as regions of space. k < 0: find the bone that contains p.
+// Otherwise: signed distance to the region of bone k (negative inside).
+// 0 occipital, 1 premaxilla, 2 nasal, 3 maxilla, 4 jugal, 5 sphenoid, 6 temporal, 7 frontal, 8 parietal
+vec2 boneAt(vec3 p, float k) {
+  vec3 q = vec3(p.x, p.y, abs(p.z));
+  float R0 = 0.415 - q.x;
+  float R1 = (q.x + 0.45 + 0.25 * q.z) * 0.97;
+  float R2 = max(max(q.x + 0.13, 0.055 - q.y), q.z - 0.035);
+  float R3 = min(q.x + 0.13, max(max(q.x + 0.04, q.y + 0.03), q.z - 0.13));
+  float R4 = max(max(q.x - 0.18, 0.135 - q.z), q.y - 0.03);
+  float R5 = max(q.y + 0.02, q.z - 0.07);
+  float R6 = max(0.18 - q.x, q.y - 0.045);
+  float R7 = q.x - 0.10;
+  float acc = -1000.0, s;
+  bool find = k < 0.0;
+  s = max(R0, acc); if (find ? s < 0.0 : k < 0.5) return vec2(0.0, s); acc = max(acc, -R0);
+  s = max(R1, acc); if (find ? s < 0.0 : k < 1.5) return vec2(1.0, s); acc = max(acc, -R1);
+  s = max(R2, acc); if (find ? s < 0.0 : k < 2.5) return vec2(2.0, s); acc = max(acc, -R2);
+  s = max(R3, acc); if (find ? s < 0.0 : k < 3.5) return vec2(3.0, s); acc = max(acc, -R3);
+  s = max(R4, acc); if (find ? s < 0.0 : k < 4.5) return vec2(4.0, s); acc = max(acc, -R4);
+  s = max(R5, acc); if (find ? s < 0.0 : k < 5.5) return vec2(5.0, s); acc = max(acc, -R5);
+  s = max(R6, acc); if (find ? s < 0.0 : k < 6.5) return vec2(6.0, s); acc = max(acc, -R6);
+  s = max(R7, acc); if (find ? s < 0.0 : k < 7.5) return vec2(7.0, s); acc = max(acc, -R7);
+  return vec2(8.0, acc);
+}
+
+float qOf(float k) {
+  if (k < 0.5) return uQ[0]; if (k < 1.5) return uQ[1]; if (k < 2.5) return uQ[2];
+  if (k < 3.5) return uQ[3]; if (k < 4.5) return uQ[4]; if (k < 5.5) return uQ[5];
+  if (k < 6.5) return uQ[6]; if (k < 7.5) return uQ[7]; if (k < 8.5) return uQ[8]; return uQ[9];
+}
+vec3 colOf(float k) {
+  if (k < 0.5) return uCol[0]; if (k < 1.5) return uCol[1]; if (k < 2.5) return uCol[2];
+  if (k < 3.5) return uCol[3]; if (k < 4.5) return uCol[4]; if (k < 5.5) return uCol[5];
+  if (k < 6.5) return uCol[6]; if (k < 7.5) return uCol[7]; if (k < 8.5) return uCol[8]; return uCol[9];
+}
+
+// where each bone moves when the skull is pulled apart: offset, bounding centre, radius
+void boneParams(float k, out vec3 off, out vec3 c, out float r) {
+  if (k < 0.5)      { off = vec3(0.24, 0.02, 0.0);   c = vec3(0.47, 0.05, 0.0);    r = 0.22; }
+  else if (k < 1.5) { off = vec3(-0.20, -0.04, 0.0); c = vec3(-0.49, -0.04, 0.0);  r = 0.12; }
+  else if (k < 2.5) { off = vec3(-0.08, 0.20, 0.0);  c = vec3(-0.30, 0.09, 0.0);   r = 0.20; }
+  else if (k < 3.5) { off = vec3(-0.05, -0.05, 0.13); c = vec3(-0.26, -0.03, 0.07); r = 0.28; }
+  else if (k < 4.5) { off = vec3(0.0, -0.06, 0.22);  c = vec3(0.03, -0.04, 0.22);  r = 0.20; }
+  else if (k < 5.5) { off = vec3(0.0, -0.24, 0.0);   c = vec3(0.19, -0.05, 0.0);   r = 0.26; }
+  else if (k < 6.5) { off = vec3(0.12, -0.03, 0.22); c = vec3(0.30, -0.02, 0.15);  r = 0.23; }
+  else if (k < 7.5) { off = vec3(-0.03, 0.24, 0.0);  c = vec3(-0.02, 0.10, 0.0);   r = 0.23; }
+  else if (k < 8.5) { off = vec3(0.12, 0.27, 0.0);   c = vec3(0.26, 0.12, 0.0);    r = 0.27; }
+  else              { off = vec3(-0.02, -0.42, 0.0); c = vec3(-0.10, -0.12, 0.0);  r = 0.47; }
+}
+
+// damage: chunks break out of the surface where quality is low
+float carve(vec3 p, float d, float dmg) {
+  float n = (dot(sin(p * 23.0 + 1.3), cos(p.zxy * 19.0)) + 0.5 * dot(sin(p * 47.0), cos(p.yzx * 41.0))) / 1.6;
+  float thr = mix(3.0, 0.1, pow(dmg, 0.8));
+  return min((n - thr) * 0.02, d + 0.04);
+}
+
+// lower jaw: two branches joined at the chin, rising at the back to the jaw joint
+vec2 jaw(vec3 p) {
+  vec3 q = vec3(p.x, p.y, abs(p.z));
+  vec3 qa = vec3(q.x, q.y * 0.5, q.z);
+  float d = sdCap(qa, vec3(-0.46, -0.097, 0.02), vec3(-0.38, -0.104, 0.062), 0.022);
+  d = min(d, sdCap(qa, vec3(-0.38, -0.104, 0.062), vec3(-0.10, -0.10, 0.10), 0.022));
+  d = min(d, sdCap(qa, vec3(-0.10, -0.10, 0.10), vec3(0.16, -0.088, 0.15), 0.022));
+  d = smin(d, sdEll(q - vec3(-0.455, -0.19, 0.0), vec3(0.055, 0.05, 0.05)), 0.03);
+  d = smin(d, sdEll(q - vec3(0.19, -0.08, 0.165), vec3(0.08, 0.12, 0.018)), 0.04);
+  d = smin(d, sdCap(q, vec3(0.23, -0.10, 0.16), vec3(0.29, -0.085, 0.15), 0.02), 0.03);
+  d = smin(d, sdCap(q, vec3(0.29, -0.085, 0.11), vec3(0.29, -0.085, 0.19), 0.017), 0.02);
+  d = smin(d, sdCone(q, vec3(0.20, -0.18, 0.15), vec3(0.30, -0.20, 0.14), 0.022, 0.01), 0.03);
+
+  float t = sdCone(q, vec3(-0.445, -0.170, 0.058), vec3(-0.456, -0.130, 0.069), 0.021, 0.016);
+  t = smin(t, sdCone(q, vec3(-0.456, -0.130, 0.069), vec3(-0.453, -0.100, 0.077), 0.016, 0.008), 0.006);
+  t = smin(t, sdCone(q, vec3(-0.453, -0.100, 0.077), vec3(-0.445, -0.080, 0.080), 0.008, 0.002), 0.004);
+  t = min(t, sdEll(q - vec3(-0.492, -0.140, 0.008), vec3(0.0055, 0.014, 0.007)));
+  t = min(t, sdEll(q - vec3(-0.488, -0.141, 0.023), vec3(0.0055, 0.014, 0.007)));
+  t = min(t, sdEll(q - vec3(-0.480, -0.143, 0.037), vec3(0.006, 0.015, 0.007)));
+  float tm = sdBox(q - vec3(-0.27, -0.148, 0.078), vec3(0.011, 0.014, 0.006), 0.006);
+  tm = min(tm, sdBox(q - vec3(-0.215, -0.148, 0.083), vec3(0.022, 0.015, 0.008), 0.007));
+  tm = min(tm, sdBox(q - vec3(-0.147, -0.148, 0.090), vec3(0.023, 0.015, 0.009), 0.007));
+  tm = min(tm, sdBox(q - vec3(-0.087, -0.146, 0.097), vec3(0.018, 0.014, 0.008), 0.007));
+  tm += (0.0026 * sin(q.x * 118.0 + 2.1) * cos((q.z - 0.088) * 200.0) + 0.0015 * sin(q.x * 47.0)) * smoothstep(-0.145, -0.13, q.y);
+  t = min(t, tm);
+  return vec2(min(d, t), t < d ? 1.0 : 0.0);
+}
+
+vec2 skull(vec3 p) {
+  if (uEx < 0.001) {
+    vec2 sh = shape(p);
+    vec2 b = boneAt(p, -1.0);
+    float dmg = (1.0 - qOf(b.x)) * smoothstep(0.0, 0.02, -b.y);
+    float c = carve(p, sh.x, dmg);
+    if (c > sh.x) sh = vec2(c, 2.0);
+    gId = b.x; gPos = p; gEdge = -b.y;
+    vec2 mj = jaw(p);
+    float cj = carve(p, mj.x, 1.0 - uQ[9]);
+    if (cj > mj.x) mj = vec2(cj, 2.0);
+    if (mj.x < sh.x) { sh = mj; gId = 9.0; gEdge = 1.0; }
+    return sh;
+  }
+  vec2 best = vec2(1000.0, 0.0);
+  vec3 pf = vec3(p.x, p.y, abs(p.z));
+  for (int i = 0; i < 10; i++) {
+    float k = float(i);
+    vec3 off, cen; float rad;
+    boneParams(k, off, cen, rad);
+    vec3 q = pf - uEx * 0.62 * off;
+    float bd = length(q - cen) - rad;
+    float di = bd, mi = 0.0, edge = 1.0;
+    if (bd < 0.04) {
+      vec2 sh; float s;
+      if (i == 9) { sh = jaw(q); s = -1.0; }
+      else { sh = shape(q); s = boneAt(q, k).y; }
+      if (off.z > 0.0) s = max(s, -q.z);
+      float dmg = (1.0 - qOf(k)) * smoothstep(0.0, 0.02, -s);
+      float c = carve(q, sh.x, dmg);
+      di = sh.x; mi = sh.y;
+      if (c > di) { di = c; mi = 2.0; }
+      if (s > di) { di = s; mi = 4.0; }
+      edge = -s;
+    }
+    if (di < best.x) { best = vec2(di, mi); gId = k; gPos = q; gEdge = edge; }
+  }
+  return best;
+}
+
+vec2 map(vec3 pw) {
+  vec2 s = skull(toSkull(pw));
+  float fl = pw.y - FLOOR + 0.5 * uEx;
+  if (fl < s.x) return vec2(fl, 3.0);
+  return s;
+}
+
+vec3 calcNormal(vec3 p) {
+  vec2 e = vec2(0.0012, -0.0012);
+  return normalize(e.xyy * map(p + e.xyy).x + e.yyx * map(p + e.yyx).x +
+                   e.yxy * map(p + e.yxy).x + e.xxx * map(p + e.xxx).x);
+}
+float shadow(vec3 ro, vec3 rd) {
+  float res = 1.0, t = 0.015;
+  for (int i = 0; i < 22; i++) {
+    float h = map(ro + rd * t).x;
+    res = min(res, 9.0 * h / t);
+    t += clamp(h, 0.012, 0.08);
+    if (res < 0.01 || t > 1.2) break;
+  }
+  return clamp(res, 0.0, 1.0);
+}
+float ao(vec3 p, vec3 n) {
+  float o = 0.0, s = 1.0;
+  for (int i = 1; i <= 4; i++) {
+    float h = 0.018 * float(i);
+    o += (h - map(p + n * h).x) * s;
+    s *= 0.7;
+  }
+  return clamp(1.0 - 5.0 * o, 0.0, 1.0);
+}
+
+void main() {
+  vec2 uv = (gl_FragCoord.xy - 0.5 * uRes) / uRes.y;
+  vec3 rd = normalize(uv.x * uRight + uv.y * uUp + 2.2 * uFwd);
+  vec3 bg = vec3(0.012, 0.010, 0.008);
+  vec3 col = bg;
+
+  float t = max(0.0, length(uRo) - 1.6);
+  vec2 hit = vec2(0.0);
+  bool found = false;
+  for (int i = 0; i < 120; i++) {
+    vec3 p = uRo + rd * t;
+    hit = map(p);
+    if (hit.x < 0.0008 * t) { found = true; break; }
+    t += hit.x * 0.85;
+    if (t > 9.0) break;
+  }
+
+  if (found) {
+    vec3 p = uRo + rd * t;
+    vec3 n = calcNormal(p);
+    float m = map(p).y;
+    bool cutf = m > 3.5;
+    if (cutf) m = 0.0;
+    vec3 ps = gPos;
+    float bid = gId;
+    float dmg = 1.0 - qOf(bid);
+
+    vec3 key = normalize(-0.55 * uRight + 0.8 * uUp - 0.5 * uFwd);
+    vec3 fill = normalize(0.8 * uRight + 0.15 * uUp - 0.5 * uFwd);
+    vec3 alb; float spec = 0.08; float gloss = 12.0;
+
+    if (m > 2.5) {
+      float g = fbm(p * 14.0);
+      alb = vec3(0.045, 0.04, 0.035) * (0.7 + 0.6 * g);
+      spec = 0.03;
+    } else {
+      // surface relief
+      float bs = m > 1.5 ? 0.9 : (m > 0.5 ? 0.12 : 0.35);
+      float fq = m > 1.5 ? 90.0 : 38.0;
+      float b0 = fbm(ps * fq);
+      float b1 = noise(ps * 160.0);
+      vec3 g = vec3(fbm(ps * fq + vec3(0.04, 0, 0)), fbm(ps * fq + vec3(0, 0.04, 0)), fbm(ps * fq + vec3(0, 0, 0.04))) - b0;
+      n = normalize(n - bs * g * 7.0);
+
+      float stain = fbm(ps * 5.0 + 3.0);
+      if (m < 0.5) {
+        alb = mix(vec3(0.66, 0.56, 0.40), vec3(0.36, 0.26, 0.15), smoothstep(0.3, 0.72, stain + 0.25 * dmg));
+        alb *= 0.85 + 0.3 * b0;
+        // fine cracks, more of them on damaged zones
+        alb *= 0.93 + 0.14 * b1;
+        if (cutf) alb = mix(alb, vec3(0.50, 0.40, 0.27), 0.7) * (0.85 + 0.3 * noise(ps * 120.0));
+        float cr = abs(noise(ps * 11.0) + 0.5 * noise(ps * 27.0) - 0.75);
+        float cm = smoothstep(0.42, 0.6, noise(ps * 3.5 + 5.0)) * 0.6 + dmg;
+        alb *= 1.0 - clamp(cm, 0.0, 1.0) * 0.6 * (1.0 - smoothstep(0.0, 0.006, cr));
+        // small nerve openings on the muzzle
+        alb *= 1.0 - 0.4 * smoothstep(0.86, 0.9, noise(ps * 95.0)) * ((bid > 0.5 && bid < 3.5) || bid > 8.5 ? 1.0 : 0.0);
+        // seams where two bones meet, slightly wavy
+        vec3 pw2 = ps + 0.006 * vec3(sin(ps.z * 150.0 + ps.y * 90.0), sin(ps.x * 160.0), sin(ps.x * 140.0 + ps.y * 120.0));
+        vec2 bw = boneAt(pw2, -1.0);
+        float sk = bid < 8.5 ? 1.0 - uEx : 0.0;
+        alb *= 1.0 - 0.6 * (1.0 - smoothstep(0.0006, 0.0035, -bw.y)) * sk;
+        alb *= 1.0 - 0.12 * (1.0 - smoothstep(0.0, 0.02, -bw.y)) * sk;
+      } else if (m < 1.5) {
+        float root = bid > 8.5 ? smoothstep(-0.125, -0.165, ps.y) : smoothstep(-0.11, -0.06, ps.y);
+        alb = mix(vec3(0.74, 0.68, 0.53), vec3(0.46, 0.35, 0.21), root * 0.8);
+        float lc = abs(noise(vec3(ps.x * 70.0, ps.y * 5.0, ps.z * 70.0)) - 0.5);
+        alb *= 1.0 - 0.45 * (1.0 - smoothstep(0.0, 0.02, lc));
+        alb *= 0.9 + 0.2 * stain;
+        alb *= 0.88 + 0.24 * noise(vec3(ps.x * 130.0, ps.y * 9.0, ps.z * 130.0));
+        spec = 0.35; gloss = 40.0;
+      } else {
+        alb = vec3(0.36, 0.27, 0.17) * (0.6 + 0.8 * b0);
+        alb *= 1.0 - 0.5 * smoothstep(0.55, 0.7, noise(ps * 70.0));
+        spec = 0.02;
+      }
+
+      // optional quality tint and zone selection
+      vec3 zc = colOf(bid);
+      float lum = dot(alb, vec3(0.3, 0.6, 0.1));
+      alb = mix(alb, zc * (0.35 + 1.1 * lum), 0.62 * uTint);
+      if (uSel > -0.5 && abs(uSel - bid) > 0.5) alb = vec3(lum) * 0.2;
+    }
+
+    float occ = ao(p, n);
+    if (m < 2.5) alb = mix(alb, vec3(0.16, 0.11, 0.065), 0.65 * (1.0 - occ) * (1.0 - occ));
+    float sh = shadow(p + n * 0.004, key);
+    float dif = clamp(dot(n, key) * 0.85 + 0.15, 0.0, 1.0) * sh;
+    float fil = clamp(dot(n, fill) * 0.5 + 0.5, 0.0, 1.0);
+    float sky = 0.5 + 0.5 * n.y;
+    float rim = pow(clamp(1.0 + dot(n, rd), 0.0, 1.0), 3.0);
+    vec3 h = normalize(key - rd);
+    float sp = pow(clamp(dot(n, h), 0.0, 1.0), gloss) * spec * sh;
+
+    vec3 lit = alb * (dif * vec3(1.25, 1.12, 0.95) * 1.15
+                    + fil * vec3(0.30, 0.36, 0.46) * 0.35 * occ
+                    + sky * vec3(0.5, 0.45, 0.4) * 0.35 * occ);
+    lit += sp * vec3(1.0, 0.95, 0.85);
+    if (m < 2.5) lit += alb * rim * 0.25 * occ;
+    lit *= mix(0.3, 1.0, occ * occ);
+
+    if (m > 2.5) {
+      float fade = smoothstep(0.55, 1.6, length(p.xz)) + uEx;
+      fade = clamp(fade, 0.0, 1.0);
+      lit = mix(lit, bg, fade);
+    }
+    col = lit;
+  }
+
+  col = col / (1.0 + col * 0.35);
+  col = pow(clamp(col, 0.0, 1.0), vec3(0.4545));
+  col *= 1.0 - 0.25 * dot(uv, uv);
+  gl_FragColor = vec4(col, 1.0);
+}
+</script>
+
+<script>
+(function () {
+  var TIERS = [
+    { max: 0.25, name: "Fragment", color: "#8A8A8A" },
+    { max: 0.50, name: "Beschädigt", color: "#A0703C" },
+    { max: 0.70, name: "Gut", color: "#5FA35F" },
+    { max: 0.90, name: "Exzellent", color: "#4A90D9" },
+    { max: 9, name: "Museumsreif", color: "#E2B93B" }
+  ];
+  var ZONES = [
+    { id: "occipital", name: "Hinterhaupt" },
+    { id: "premaxilla", name: "Zwischenkiefer" },
+    { id: "nasal", name: "Nasenbein" },
+    { id: "maxilla", name: "Oberkiefer" },
+    { id: "jugal", name: "Jochbein" },
+    { id: "sphenoid", name: "Keilbein" },
+    { id: "temporal", name: "Schläfenbein" },
+    { id: "frontal", name: "Stirnbein" },
+    { id: "parietal", name: "Scheitelbein" },
+    { id: "mandible", name: "Unterkiefer" }
+  ];
+  var state = { q: { occipital: 0.62, premaxilla: 0.9, nasal: 0.78, maxilla: 0.93, jugal: 0.71, sphenoid: 0.8, temporal: 0.84, frontal: 0.88, parietal: 0.91, mandible: 0.86 }, tint: false, selected: null, ex: 0, exTarget: 0 };
+
+  function tierOf(q) { for (var i = 0; i < TIERS.length; i++) if (q < TIERS[i].max) return TIERS[i]; return TIERS[4]; }
+  function pct(q) { return Math.round(q * 100) + " %"; }
+  function rgb(hex) { return [parseInt(hex.substr(1, 2), 16) / 255, parseInt(hex.substr(3, 2), 16) / 255, parseInt(hex.substr(5, 2), 16) / 255]; }
+
+  // ---------- UI ----------
+  var zonesEl = document.getElementById("zones");
+  var rows = {};
+  ZONES.forEach(function (z) {
+    var b = document.createElement("button");
+    b.type = "button"; b.className = "zone"; b.id = "zone-" + z.id;
+    b.setAttribute("aria-pressed", "false");
+    b.innerHTML = '<span class="swatch"></span><span class="txt"><span class="name"></span><br><span class="pct"></span> <span class="tier"></span></span>';
+    b.querySelector(".name").textContent = z.name;
+    b.addEventListener("click", function () {
+      state.selected = state.selected === z.id ? null : z.id;
+      refresh();
+    });
+    zonesEl.appendChild(b);
+    rows[z.id] = b;
+  });
+
+  function refreshUI() {
+    var sum = 0;
+    ZONES.forEach(function (z) {
+      var q = state.q[z.id], t = tierOf(q), r = rows[z.id];
+      sum += q;
+      r.querySelector(".swatch").style.background = t.color;
+      r.querySelector(".tier").textContent = t.name;
+      r.querySelector(".pct").textContent = pct(q);
+      r.setAttribute("aria-pressed", state.selected === z.id ? "true" : "false");
+    });
+    var mean = sum / ZONES.length, mt = tierOf(mean);
+    document.getElementById("pieceQ").textContent = pct(mean);
+    var pt = document.getElementById("pieceTier");
+    pt.textContent = mt.name; pt.style.color = mt.color;
+    document.getElementById("mode").textContent = state.tint ? "Farben ausblenden" : "Qualitätsfarben";
+    document.getElementById("explode").textContent = state.exTarget ? "Zusammenfügen" : "Auseinanderziehen";
+  }
+
+  document.getElementById("roll").addEventListener("click", function () {
+    ZONES.forEach(function (z) {
+      var base = 0.30 + Math.random() * 0.70;
+      var damage = 0.15 * (0.5 + Math.random() * 1.5);
+      state.q[z.id] = Math.max(0, Math.min(1, base - damage));
+    });
+    refresh();
+  });
+  document.getElementById("mode").addEventListener("click", function () { state.tint = !state.tint; refresh(); });
+  document.getElementById("explode").addEventListener("click", function () {
+    state.exTarget = state.exTarget ? 0 : 1;
+    refreshUI(); requestDraw(true);
+  });
+
+  var requestDraw = function () {};
+  function refresh() { refreshUI(); requestDraw(false); }
+  refreshUI();
+
+  // ---------- WebGL ----------
+  var canvas = document.getElementById("gl");
+  var stage = document.getElementById("stage");
+  function fail() { document.getElementById("fail").style.display = "flex"; document.getElementById("hint").style.display = "none"; canvas.style.display = "none"; }
+  var gl = canvas.getContext("webgl", { antialias: false, alpha: false }) || canvas.getContext("experimental-webgl");
+  if (!gl) { fail(); return; }
+
+  function sh(type, src) {
+    var s = gl.createShader(type);
+    gl.shaderSource(s, src); gl.compileShader(s);
+    if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) { console.error(gl.getShaderInfoLog(s)); return null; }
+    return s;
+  }
+  var vs = sh(gl.VERTEX_SHADER, "attribute vec2 a; void main(){ gl_Position = vec4(a, 0.0, 1.0); }");
+  var fs = sh(gl.FRAGMENT_SHADER, document.getElementById("fs").textContent);
+  if (!vs || !fs) { fail(); return; }
+  var prog = gl.createProgram();
+  gl.attachShader(prog, vs); gl.attachShader(prog, fs); gl.linkProgram(prog);
+  if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) { console.error(gl.getProgramInfoLog(prog)); fail(); return; }
+  gl.useProgram(prog);
+  var buf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+  var loc = gl.getAttribLocation(prog, "a");
+  gl.enableVertexAttribArray(loc);
+  gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+  var U = {};
+  ["uRes", "uRo", "uRight", "uUp", "uFwd", "uQ", "uCol", "uTint", "uSel", "uEx"].forEach(function (n) { U[n] = gl.getUniformLocation(prog, n); });
+
+  var yaw = -0.75, pitch = 0.2, zoom = 1, spinUntil = 0;
+  var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var pending = false, wantFine = false, fineTimer = null;
+
+  function render(scale) {
+    var w = stage.clientWidth, h = stage.clientHeight;
+    if (!w || !h) return;
+    var dpr = Math.max(1, Math.min(window.devicePixelRatio || 1, 2) * 0.8) * scale;
+    var cw = Math.max(2, Math.round(w * dpr)), ch = Math.max(2, Math.round(h * dpr));
+    if (canvas.width !== cw || canvas.height !== ch) { canvas.width = cw; canvas.height = ch; }
+    gl.viewport(0, 0, cw, ch);
+
+    var aspect = w / h;
+    var dist = Math.max(0.56 * 2.2 / (0.5 * aspect), 0.46 * 2.2 / 0.5) * zoom * (1 + 0.5 * state.ex);
+    var cp = Math.cos(pitch), sp = Math.sin(pitch), cy = Math.cos(yaw), sy = Math.sin(yaw);
+    var tgt = [0, -0.05 - 0.05 * state.ex, 0];
+    var ro = [tgt[0] + dist * cp * sy, tgt[1] + dist * sp, tgt[2] + dist * cp * cy];
+    var fwd = [-cp * sy, -sp, -cp * cy];
+    var right = [cy, 0, -sy];
+    var up = [right[1] * fwd[2] - right[2] * fwd[1], right[2] * fwd[0] - right[0] * fwd[2], right[0] * fwd[1] - right[1] * fwd[0]];
+
+    gl.uniform2f(U.uRes, cw, ch);
+    gl.uniform3fv(U.uRo, ro);
+    gl.uniform3fv(U.uRight, right);
+    gl.uniform3fv(U.uUp, up);
+    gl.uniform3fv(U.uFwd, fwd);
+    gl.uniform1fv(U.uQ, new Float32Array(ZONES.map(function (z) { return state.q[z.id]; })));
+    gl.uniform1f(U.uEx, state.ex);
+    var cols = [];
+    ZONES.forEach(function (z) { cols = cols.concat(rgb(tierOf(state.q[z.id]).color)); });
+    gl.uniform3fv(U.uCol, new Float32Array(cols));
+    gl.uniform1f(U.uTint, state.tint ? 1 : 0);
+    var si = -1;
+    ZONES.forEach(function (z, i) { if (state.selected === z.id) si = i; });
+    gl.uniform1f(U.uSel, si);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+  }
+
+  // Coarse frames while moving, one sharp frame once things settle.
+  requestDraw = function (moving) {
+    if (moving) {
+      clearTimeout(fineTimer);
+      fineTimer = setTimeout(function () { requestDraw(false); }, 140);
+    } else { wantFine = true; }
+    if (pending) return;
+    pending = true;
+    requestAnimationFrame(function (t) {
+      pending = false;
+      var spinning = t < spinUntil;
+      if (spinning) { yaw += 0.006; }
+      if (state.ex !== state.exTarget) {
+        var stp = reduce ? 1 : 0.09;
+        state.ex = state.exTarget > state.ex ? Math.min(state.exTarget, state.ex + stp) : Math.max(state.exTarget, state.ex - stp);
+        spinning = state.ex !== state.exTarget;
+        if (!spinning) wantFine = true;
+      }
+      if (wantFine && !spinning) { wantFine = false; render(1); }
+      else { render(0.5); }
+      if (spinning) requestDraw(true);
+    });
+  };
+
+  var pointers = {}, lastDist = 0;
+  canvas.addEventListener("pointerdown", function (e) {
+    pointers[e.pointerId] = { x: e.clientX, y: e.clientY };
+    spinUntil = 0;
+    try { canvas.setPointerCapture(e.pointerId); } catch (err) {}
+    lastDist = 0;
+  });
+  canvas.addEventListener("pointermove", function (e) {
+    var p = pointers[e.pointerId];
+    if (!p) return;
+    var ids = Object.keys(pointers);
+    if (ids.length === 1) {
+      yaw -= (e.clientX - p.x) * 0.01;
+      pitch = Math.max(-0.05, Math.min(1.35, pitch + (e.clientY - p.y) * 0.01));
+      p.x = e.clientX; p.y = e.clientY;
+    } else {
+      p.x = e.clientX; p.y = e.clientY;
+      var a = pointers[ids[0]], b = pointers[ids[1]];
+      var d = Math.hypot(a.x - b.x, a.y - b.y);
+      if (lastDist) zoom = Math.max(0.45, Math.min(1.8, zoom * lastDist / d));
+      lastDist = d;
+    }
+    requestDraw(true);
+  });
+  function up(e) { delete pointers[e.pointerId]; lastDist = 0; }
+  canvas.addEventListener("pointerup", up);
+  canvas.addEventListener("pointercancel", up);
+  canvas.addEventListener("wheel", function (e) {
+    e.preventDefault();
+    zoom = Math.max(0.45, Math.min(1.8, zoom * (e.deltaY > 0 ? 1.08 : 0.93)));
+    requestDraw(true);
+  }, { passive: false });
+
+  window.addEventListener("resize", function () { requestDraw(false); });
+  if (window.ResizeObserver) new ResizeObserver(function () { requestDraw(false); }).observe(stage);
+
+  var q = (location.hash || "").replace("#", "");
+  if (q === "back") { yaw = 2.3; pitch = 0.35; }
+  if (q === "top") { yaw = -0.4; pitch = 1.1; }
+  if (q === "front") { yaw = -1.25; pitch = 0.12; zoom = 0.6; }
+  if (q === "rear") { yaw = 1.75; pitch = 0.1; zoom = 0.7; }
+  if (q === "side") { yaw = 0.0; pitch = 0.05; }
+  if (q === "ex") { state.ex = 1; state.exTarget = 1; yaw = -0.6; pitch = 0.3; refreshUI(); }
+  if (q === "tint") { state.tint = true; state.q.jugal = 0.2; state.q.parietal = 0.35; }
+  if (!reduce && !q) spinUntil = performance.now() + 5000;
+  requestDraw(false);
+})();
+</script>
+</body>
+</html>

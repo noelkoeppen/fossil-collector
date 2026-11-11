@@ -1,0 +1,927 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Höhlenbär-Skelett 3D</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600&family=Archivo+Narrow:wght@600;700&display=swap">
+<style>
+/* Layout: one screen. Placard header, lit showcase fills the middle, zone table and controls at the bottom. */
+:root {
+  color-scheme: dark;
+  --ground: #100e0b;
+  --stage: #1d1914;
+  --line: #3a3228;
+  --bone: #e8dfc8;
+  --muted: #a39780;
+  --accent: #e2b93b;
+  --display: "Archivo Narrow", "Arial Narrow", sans-serif;
+  --body: "Archivo", system-ui, sans-serif;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body {
+  background: var(--ground);
+  color: var(--bone);
+  font-family: var(--body);
+  font-size: 15px;
+  display: flex;
+  flex-direction: column;
+}
+header {
+  padding: 14px 16px 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--line);
+}
+h1 {
+  font-family: var(--display);
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin: 0;
+  text-wrap: balance;
+}
+.sub { color: var(--muted); font-size: 13px; margin-top: 2px; }
+.piece { text-align: right; font-variant-numeric: tabular-nums; }
+.piece b { font-family: var(--display); font-size: 20px; }
+.piece span { display: block; font-size: 13px; }
+#stage { flex: 1 1 auto; min-height: 200px; position: relative; background: var(--ground); }
+#stage canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: grab; }
+#hint { position: absolute; left: 16px; right: 16px; bottom: 8px; color: var(--muted); font-size: 12px; pointer-events: none; }
+#fail {
+  position: absolute; inset: 0; display: none;
+  align-items: center; justify-content: center;
+  padding: 24px; text-align: center; color: var(--muted);
+}
+.panel { border-top: 1px solid var(--line); padding: 10px 16px 14px; display: flex; flex-direction: column; gap: 10px; }
+.zones { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; }
+.zone {
+  display: flex; align-items: center; gap: 8px;
+  background: none; color: inherit; font: inherit; text-align: left;
+  border: 1px solid var(--line); border-radius: 4px;
+  padding: 5px 6px; cursor: pointer; min-width: 0; font-size: 13px; line-height: 1.25;
+}
+.zone[aria-pressed="true"] { border-color: var(--bone); background: var(--stage); }
+.swatch { width: 10px; align-self: stretch; border-radius: 2px; flex: none; }
+.zone .txt { min-width: 0; flex: 1; }
+.zone .name { font-family: var(--display); font-weight: 600; letter-spacing: 0.02em; }
+.zone .tier { font-size: 11px; color: var(--muted); }
+.zone .name { font-size: 12.5px; letter-spacing: 0; white-space: nowrap; }
+.zone .pct { font-variant-numeric: tabular-nums; font-family: var(--display); font-weight: 700; }
+.controls { display: flex; gap: 8px; flex-wrap: wrap; }
+.btn {
+  flex: 1 1 100px;
+  font: 600 14px var(--body);
+  padding: 10px 12px; border-radius: 4px; cursor: pointer;
+  background: var(--stage); color: var(--bone); border: 1px solid var(--line);
+}
+.btn.primary { background: var(--accent); color: #1c1608; border-color: var(--accent); }
+button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>Höhlenbär · Skelett</h1>
+    <div class="sub">Quartär · vollständiges Skelett in 10 Teilen</div>
+  </div>
+  <div class="piece"><b id="pieceQ">–</b><span id="pieceTier">–</span></div>
+</header>
+
+<div id="stage">
+  <canvas id="gl"></canvas>
+  <div id="hint">Ziehen dreht, zwei Finger zoomen und verschieben</div>
+  <div id="fail">Die 3D-Ansicht konnte nicht gestartet werden. Dieser Browser stellt kein WebGL bereit.</div>
+</div>
+
+<div class="panel">
+  <div class="zones" id="zones"></div>
+  <div class="controls">
+    <button class="btn primary" id="explode" type="button">Auseinanderziehen</button>
+    <button class="btn" id="roll" type="button">Neu würfeln</button>
+    <button class="btn" id="mode" type="button">Qualitätsfarben</button>
+  </div>
+</div>
+
+<script id="fs" type="x-shader/x-fragment">
+precision highp float;
+uniform vec2 uRes;
+uniform vec3 uRo;
+uniform vec3 uRight;
+uniform vec3 uUp;
+uniform vec3 uFwd;
+uniform float uQ[10];
+uniform vec3 uCol[10];
+uniform float uEx;
+uniform float uTint;
+uniform float uSel;
+
+const float FLOOR = -1.635;
+float gId;
+vec3 gPos;
+float gEdge;
+const float TILT = 0.0;
+
+float smin(float a, float b, float k) {
+  float h = clamp(0.5 + 0.5 * (b - a) / k, 0.0, 1.0);
+  return mix(b, a, h) - k * h * (1.0 - h);
+}
+float smax(float a, float b, float k) { return -smin(-a, -b, k); }
+float sdEll(vec3 p, vec3 r) {
+  float k0 = length(p / r);
+  float k1 = length(p / (r * r));
+  return k0 * (k0 - 1.0) / k1;
+}
+float sdCap(vec3 p, vec3 a, vec3 b, float r) {
+  vec3 pa = p - a, ba = b - a;
+  float h = clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0);
+  return length(pa - ba * h) - r;
+}
+float sdCone(vec3 p, vec3 a, vec3 b, float r1, float r2) {
+  vec3 pa = p - a, ba = b - a;
+  float h = clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0);
+  return length(pa - ba * h) - mix(r1, r2, h);
+}
+float sdBox(vec3 p, vec3 b, float r) {
+  vec3 q = abs(p) - b;
+  return length(max(q, 0.0)) + min(max(q.x, max(q.y, q.z)), 0.0) - r;
+}
+float hash(vec3 p) {
+  p = fract(p * 0.3183099 + 0.1);
+  p *= 17.0;
+  return fract(p.x * p.y * p.z * (p.x + p.y + p.z));
+}
+float noise(vec3 x) {
+  vec3 i = floor(x), f = fract(x);
+  f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(mix(hash(i), hash(i + vec3(1, 0, 0)), f.x),
+                 mix(hash(i + vec3(0, 1, 0)), hash(i + vec3(1, 1, 0)), f.x), f.y),
+             mix(mix(hash(i + vec3(0, 0, 1)), hash(i + vec3(1, 0, 1)), f.x),
+                 mix(hash(i + vec3(0, 1, 1)), hash(i + vec3(1, 1, 1)), f.x), f.y), f.z);
+}
+float fbm(vec3 p) {
+  float a = 0.5, s = 0.0;
+  for (int i = 0; i < 4; i++) { s += a * noise(p); p = p * 2.03 + 7.1; a *= 0.5; }
+  return s;
+}
+
+vec3 toSkull(vec3 p) {
+  float c = cos(TILT), s = sin(TILT);
+  return vec3(c * p.x + s * p.y, -s * p.x + c * p.y, p.z);
+}
+
+// the whole skull as one form: distance, material (0 bone, 1 tooth)
+vec2 shape(vec3 p) {
+  vec3 q = vec3(p.x, p.y, abs(p.z));
+
+  // braincase, forehead with its two bosses, muzzle
+  float d = sdEll(q - vec3(0.22, 0.06, 0.0), vec3(0.25, 0.135, 0.115));
+  d = smin(d, sdEll(q - vec3(0.0, 0.09, 0.0), vec3(0.15, 0.14, 0.115)), 0.06);
+  d = smin(d, sdEll(q - vec3(-0.025, 0.165, 0.055), vec3(0.07, 0.06, 0.055)), 0.04);
+  d = smin(d, sdEll(q - vec3(-0.28, 0.012, 0.0), vec3(0.25, 0.105, 0.105)), 0.09);
+  d = smin(d, sdEll(q - vec3(-0.30, -0.02, 0.06), vec3(0.20, 0.075, 0.06)), 0.05);
+  d = smin(d, sdEll(q - vec3(-0.41, -0.03, 0.075), vec3(0.06, 0.07, 0.045)), 0.04);
+  d = smin(d, sdEll(q - vec3(-0.47, -0.035, 0.0), vec3(0.05, 0.045, 0.07)), 0.04);
+  d = smin(d, sdCap(q, vec3(-0.27, -0.06, 0.085), vec3(-0.09, -0.06, 0.09), 0.028), 0.03);
+  d = smin(d, sdEll(q - vec3(-0.12, -0.035, 0.11), vec3(0.09, 0.05, 0.06)), 0.05);
+
+  // crests
+  d = smin(d, sdEll(q - vec3(0.35, 0.175, 0.0), vec3(0.15, 0.06, 0.011)), 0.04);
+  float disc = sdEll(q - vec3(0.475, 0.055, 0.0), vec3(0.016, 0.105, 0.10));
+  disc = max(disc, (q.z - 0.115 + 0.55 * max(q.y - 0.02, 0.0)) * 0.85);
+  d = smin(d, disc, 0.05);
+  d = smin(d, sdCap(q, vec3(-0.01, 0.17, 0.09), vec3(0.13, 0.185, 0.008), 0.012), 0.03);
+
+  // jaw joint region, processes at the skull base
+  d = smin(d, sdEll(q - vec3(0.30, -0.03, 0.13), vec3(0.06, 0.035, 0.06)), 0.05);
+  d = smin(d, sdCone(q, vec3(0.37, -0.03, 0.125), vec3(0.38, -0.10, 0.13), 0.03, 0.014), 0.03);
+  d = smin(d, sdCone(q, vec3(0.43, -0.03, 0.07), vec3(0.44, -0.095, 0.075), 0.022, 0.010), 0.03);
+  d = smin(d, sdEll(q - vec3(0.33, -0.07, 0.06), vec3(0.045, 0.02, 0.035)), 0.02);
+
+  // temple hollow, eye socket
+  d = smax(d, -sdEll(q - vec3(0.12, 0.02, 0.21), vec3(0.16, 0.13, 0.105)), 0.04);
+  d = smax(d, -sdEll(q - vec3(-0.065, 0.04, 0.115), vec3(0.065, 0.06, 0.075)), 0.02);
+  d = smax(d, -sdCap(q, vec3(-0.05, 0.03, 0.14), vec3(0.10, 0.0, 0.19), 0.048), 0.02);
+  d = smax(d, -sdCap(q, vec3(-0.02, 0.02, 0.155), vec3(0.01, -0.11, 0.155), 0.038), 0.02);
+
+  // cheek arch: a deep, flat band, widest part of the skull
+  vec3 qa = vec3(q.x, q.y * 0.4, q.z);
+  float a = sdCap(qa, vec3(-0.10, -0.016, 0.15), vec3(0.04, -0.024, 0.268), 0.0125);
+  a = min(a, sdCap(qa, vec3(0.04, -0.024, 0.268), vec3(0.20, -0.018, 0.273), 0.0125));
+  a = min(a, sdCap(qa, vec3(0.20, -0.018, 0.273), vec3(0.31, -0.006, 0.17), 0.0125));
+  d = smin(d, a, 0.03);
+  d = smin(d, sdCone(q, vec3(-0.02, 0.15, 0.09), vec3(0.0, 0.118, 0.142), 0.024, 0.012), 0.035);
+
+  // back of the head: slanted plate under the overhanging crest
+  d = smax(d, q.x - 0.5 - 0.15 * q.y, 0.012);
+  d = smin(d, sdEll(q - vec3(0.495, -0.04, 0.04), vec3(0.03, 0.025, 0.03)), 0.015);
+  d = smax(d, -(length(q - vec3(0.515, -0.03, 0.0)) - 0.025), 0.008);
+
+  // openings
+  d = smax(d, -sdEll(q - vec3(-0.51, 0.045, 0.0), vec3(0.10, 0.05, 0.06)), 0.018);
+  d = smax(d, -sdEll(q - vec3(-0.2, -0.16, 0.0), vec3(0.3, 0.07, 0.05)), 0.03);
+  float cav = sdEll(q - vec3(-0.35, 0.03, 0.0), vec3(0.20, 0.058, 0.058));
+  cav = max(cav, -max(q.z - 0.006, -(q.x + 0.42)));
+  d = smax(d, -cav, 0.012);
+  d = smax(d, -sdCap(q, vec3(-0.215, -0.014, 0.118), vec3(-0.13, 0.0, 0.09), 0.011), 0.008);
+  d = smax(d, -sdEll(q - vec3(0.27, 0.04, 0.0), vec3(0.19, 0.075, 0.065)), 0.015);
+  d = smax(d, -sdCap(q, vec3(0.40, 0.0, 0.0), vec3(0.54, -0.03, 0.0), 0.024), 0.008);
+
+  // teeth: curved canine, three incisors, then a gap and three cheek teeth
+  float t = sdCone(q, vec3(-0.42, -0.05, 0.088), vec3(-0.410, -0.110, 0.096), 0.024, 0.019);
+  t = smin(t, sdCone(q, vec3(-0.410, -0.110, 0.096), vec3(-0.392, -0.152, 0.099), 0.019, 0.010), 0.006);
+  t = smin(t, sdCone(q, vec3(-0.392, -0.152, 0.099), vec3(-0.374, -0.180, 0.098), 0.010, 0.002), 0.004);
+  t = min(t, sdEll(q - vec3(-0.506, -0.070, 0.009), vec3(0.006, 0.014, 0.0075)));
+  t = min(t, sdEll(q - vec3(-0.502, -0.072, 0.026), vec3(0.006, 0.015, 0.0075)));
+  t = min(t, sdEll(q - vec3(-0.490, -0.076, 0.045), vec3(0.008, 0.019, 0.009)));
+  float tm = sdBox(q - vec3(-0.257, -0.098, 0.088), vec3(0.012, 0.014, 0.007), 0.007);
+  tm = min(tm, sdBox(q - vec3(-0.203, -0.100, 0.090), vec3(0.021, 0.015, 0.011), 0.008));
+  tm = min(tm, sdBox(q - vec3(-0.127, -0.100, 0.090), vec3(0.036, 0.015, 0.013), 0.008));
+  tm += (0.0026 * sin(q.x * 118.0 + 0.7) * cos((q.z - 0.09) * 200.0) + 0.0015 * sin(q.x * 47.0)) * smoothstep(-0.105, -0.12, q.y);
+  t = min(t, tm);
+
+  float m = t < d ? 1.0 : 0.0;
+  d = min(d, t);
+
+  return vec2(d, m);
+}
+
+// lower jaw: two branches joined at the chin, rising at the back to the jaw joint
+vec2 jaw(vec3 p) {
+  vec3 q = vec3(p.x, p.y, abs(p.z));
+  vec3 qa = vec3(q.x, q.y * 0.5, q.z);
+  float d = sdCap(qa, vec3(-0.46, -0.097, 0.02), vec3(-0.38, -0.104, 0.062), 0.022);
+  d = min(d, sdCap(qa, vec3(-0.38, -0.104, 0.062), vec3(-0.10, -0.10, 0.10), 0.022));
+  d = min(d, sdCap(qa, vec3(-0.10, -0.10, 0.10), vec3(0.16, -0.088, 0.15), 0.022));
+  d = smin(d, sdEll(q - vec3(-0.455, -0.19, 0.0), vec3(0.055, 0.05, 0.05)), 0.03);
+  d = smin(d, sdEll(q - vec3(0.19, -0.08, 0.165), vec3(0.08, 0.12, 0.018)), 0.04);
+  d = smin(d, sdCap(q, vec3(0.23, -0.10, 0.16), vec3(0.29, -0.085, 0.15), 0.02), 0.03);
+  d = smin(d, sdCap(q, vec3(0.29, -0.085, 0.11), vec3(0.29, -0.085, 0.19), 0.017), 0.02);
+  d = smin(d, sdCone(q, vec3(0.20, -0.18, 0.15), vec3(0.30, -0.20, 0.14), 0.022, 0.01), 0.03);
+
+  float t = sdCone(q, vec3(-0.445, -0.170, 0.058), vec3(-0.456, -0.130, 0.069), 0.021, 0.016);
+  t = smin(t, sdCone(q, vec3(-0.456, -0.130, 0.069), vec3(-0.453, -0.100, 0.077), 0.016, 0.008), 0.006);
+  t = smin(t, sdCone(q, vec3(-0.453, -0.100, 0.077), vec3(-0.445, -0.080, 0.080), 0.008, 0.002), 0.004);
+  t = min(t, sdEll(q - vec3(-0.492, -0.140, 0.008), vec3(0.0055, 0.014, 0.007)));
+  t = min(t, sdEll(q - vec3(-0.488, -0.141, 0.023), vec3(0.0055, 0.014, 0.007)));
+  t = min(t, sdEll(q - vec3(-0.480, -0.143, 0.037), vec3(0.006, 0.015, 0.007)));
+  float tm = sdBox(q - vec3(-0.27, -0.148, 0.078), vec3(0.011, 0.014, 0.006), 0.006);
+  tm = min(tm, sdBox(q - vec3(-0.215, -0.148, 0.083), vec3(0.022, 0.015, 0.008), 0.007));
+  tm = min(tm, sdBox(q - vec3(-0.147, -0.148, 0.090), vec3(0.023, 0.015, 0.009), 0.007));
+  tm = min(tm, sdBox(q - vec3(-0.087, -0.146, 0.097), vec3(0.018, 0.014, 0.008), 0.007));
+  tm += (0.0026 * sin(q.x * 118.0 + 2.1) * cos((q.z - 0.088) * 200.0) + 0.0015 * sin(q.x * 47.0)) * smoothstep(-0.145, -0.13, q.y);
+  t = min(t, tm);
+  return vec2(min(d, t), t < d ? 1.0 : 0.0);
+}
+
+// ---------- trunk ----------
+// 0 skull with lower jaw, 1 neck vertebrae, 2 chest vertebrae, 3 ribs, 4 breastbone,
+// 5 loin vertebrae, 6 pelvis with sacrum, 7 tail
+float qOf(float k) {
+  if (k < 0.5) return uQ[0]; if (k < 1.5) return uQ[1]; if (k < 2.5) return uQ[2];
+  if (k < 3.5) return uQ[3]; if (k < 4.5) return uQ[4]; if (k < 5.5) return uQ[5];
+  if (k < 6.5) return uQ[6]; if (k < 7.5) return uQ[7]; if (k < 8.5) return uQ[8]; return uQ[9];
+}
+vec3 colOf(float k) {
+  if (k < 0.5) return uCol[0]; if (k < 1.5) return uCol[1]; if (k < 2.5) return uCol[2];
+  if (k < 3.5) return uCol[3]; if (k < 4.5) return uCol[4]; if (k < 5.5) return uCol[5];
+  if (k < 6.5) return uCol[6]; if (k < 7.5) return uCol[7]; if (k < 8.5) return uCol[8]; return uCol[9];
+}
+
+// damage: chunks break out of the surface where quality is low
+float carve(vec3 p, float d, float dmg) {
+  float n = (dot(sin(p * 23.0 + 1.3), cos(p.zxy * 19.0)) + 0.5 * dot(sin(p * 47.0), cos(p.yzx * 41.0))) / 1.6;
+  float thr = mix(3.0, 0.1, pow(dmg, 0.8));
+  return min((n - thr) * 0.02, d + 0.03);
+}
+
+// one vertebra in its own cell. l: x along the spine, y up, z sideways (folded)
+// ls: the same point in the sheared frame used for the leaning spine on top
+float vertebra(vec3 l, vec3 ls, float s, float rb, float hs, float wt, float droop) {
+  vec2 c = vec2(length(l.yz) - rb * 0.8, abs(l.x) - 0.36 * s);
+  float d = length(max(c, 0.0)) + min(max(c.x, c.y), 0.0) - rb * 0.2;
+  d = smin(d, sdEll(l - vec3(0.0, rb * 1.05, 0.0), vec3(0.34 * s, rb * 0.65, rb * 0.75)), 0.015);
+  d = smin(d, sdBox(vec3(ls.x, ls.y - rb * 1.2 - hs * 0.5, ls.z), vec3(0.2 * s, hs * 0.5, 0.004), 0.008), 0.02);
+  d = smin(d, sdCap(l, vec3(0.0, rb * 0.7, rb * 0.6), vec3(-0.25 * s * droop, rb * 0.9 - droop * wt * 0.35, rb * 0.6 + wt), 0.015), 0.02);
+  // joints to the neighbours
+  d = smin(d, length(vec3(abs(l.x) - 0.36 * s, l.y - rb * 1.35, l.z - rb * 0.55)) - 0.014, 0.012);
+  return d;
+}
+
+// spine frames: origin A, direction angle a, length L, upward bend
+vec3 frame(vec3 p, vec2 A, float a, float L, float bend) {
+  float ca = cos(a), sa = sin(a);
+  vec2 r = p.xy - A;
+  float u = ca * r.x + sa * r.y;
+  float v = -sa * r.x + ca * r.y;
+  float t = clamp(u / L, 0.0, 1.0);
+  return vec3(u, v - bend * 4.0 * t * (1.0 - t), abs(p.z));
+}
+
+float neck(vec3 p) {
+  vec3 f = frame(p, vec2(0.55, -0.03), 0.4405, 0.774, -0.03);
+  float s = 0.1106;
+  float i = clamp(floor(f.x / s), 0.0, 6.0);
+  vec3 l = vec3(f.x - (i + 0.5) * s, f.y, f.z);
+  float hs = i > 5.5 ? 0.13 : (i > 4.5 ? 0.08 : 0.035);
+  float wt = i < 0.5 ? 0.10 : 0.06;
+  return vertebra(l, l, s, 0.05, hs, wt, i < 0.5 ? 0.0 : 0.8);
+}
+
+float chestSpine(vec3 p) {
+  vec3 f = frame(p, vec2(1.25, 0.30), 0.0444, 1.351, 0.05);
+  float s = 0.0965;
+  float i = clamp(floor(f.x / s), 0.0, 13.0);
+  vec3 l = vec3(f.x - (i + 0.5) * s, f.y, f.z);
+  float us = f.x - 0.35 * f.y;
+  float j = clamp(floor(us / s), 0.0, 13.0);
+  float hs = mix(0.30, 0.11, clamp((j - 3.0) / 10.0, 0.0, 1.0)) * (j < 1.5 ? 0.78 + 0.11 * j : 1.0);
+  vec3 ls = vec3((us - (j + 0.5) * s) * 0.94, f.y, f.z);
+  return vertebra(l, ls, s, 0.048, hs, 0.045, 0.0);
+}
+
+float loin(vec3 p) {
+  vec3 f = frame(p, vec2(2.60, 0.36), -0.0615, 0.651, 0.0);
+  float s = 0.1085;
+  float i = clamp(floor(f.x / s), 0.0, 5.0);
+  vec3 l = vec3(f.x - (i + 0.5) * s, f.y, f.z);
+  float us = f.x + 0.2 * f.y;
+  float j = clamp(floor(us / s), 0.0, 5.0);
+  vec3 ls = vec3(us - (j + 0.5) * s, f.y, f.z);
+  return vertebra(l, ls, s, 0.058, 0.10, 0.12, 1.0);
+}
+
+// one rib: part of an elliptical hoop hanging from the spine, leaning backwards
+float rib(float i, float ur, float v, float z, float s) {
+  float a = mix(0.17, 0.40, smoothstep(0.0, 7.0, i)) - 0.05 * smoothstep(10.0, 13.0, i);
+  float b = mix(0.22, 0.40, smoothstep(0.0, 8.0, i)) - 0.07 * smoothstep(10.0, 13.0, i);
+  vec2 e = vec2(z, v + b);
+  vec2 ab = vec2(a, b);
+  float k0 = length(e / ab), k1 = length(e / (ab * ab));
+  float de = k0 * (k0 - 1.0) / k1;
+  float x = (ur - (i + 0.5) * s) * 0.94;
+  float d = length(vec2(de, x * 0.8)) - 0.0125;
+  float k = i < 8.5 ? 0.965 : 0.9 - 0.13 * (i - 8.0);
+  d = max(d, -(v + b) - b * k);
+  d = max(d, v - 0.01);
+  return d;
+}
+float ribs(vec3 p) {
+  vec3 f = frame(p, vec2(1.25, 0.30), 0.0444, 1.351, 0.05);
+  float s = 0.0965;
+  float ur = f.x + 0.35 * f.y;
+  float i = clamp(floor(ur / s), 0.0, 13.0);
+  float d = rib(i, ur, f.y, f.z, s);
+  float i2 = clamp(i + (ur - (i + 0.5) * s > 0.0 ? 1.0 : -1.0), 0.0, 13.0);
+  return min(d, rib(i2, ur, f.y, f.z, s));
+}
+
+float breastbone(vec3 p) {
+  vec3 a = vec3(1.46, -0.15, 0.0), b = vec3(2.36, -0.47, 0.0);
+  vec3 pa = p - a, ba = b - a;
+  float h = clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0);
+  float d = length((pa - ba * h) * vec3(1.0, 1.0, 0.75)) - 0.028;
+  return d + 0.005 * cos(h * 50.3);
+}
+
+float pelvis(vec3 p) {
+  vec3 q = vec3(p.x, p.y, abs(p.z));
+  float d = sdCone(q * vec3(1.0, 1.0, 0.75), vec3(3.25, 0.32, 0.0), vec3(3.56, 0.26, 0.0), 0.06, 0.035);
+  d = smin(d, sdBox(q - vec3(3.40, 0.37, 0.0), vec3(0.12, 0.035, 0.003), 0.008), 0.02);
+  vec3 l = q - vec3(3.28, 0.31, 0.17);
+  l.yz = vec2(0.80 * l.y + 0.60 * l.z, -0.60 * l.y + 0.80 * l.z);
+  d = smin(d, sdEll(l, vec3(0.18, 0.14, 0.026)), 0.04);
+  d = smin(d, sdCap(q, vec3(3.36, 0.20, 0.15), vec3(3.55, 0.03, 0.19), 0.038), 0.04);
+  d = smin(d, length(q - vec3(3.56, 0.02, 0.20)) - 0.072, 0.03);
+  d = smax(d, -(length(q - vec3(3.56, 0.0, 0.26)) - 0.05), 0.015);
+  d = smin(d, sdCap(q, vec3(3.57, 0.02, 0.19), vec3(3.85, 0.0, 0.17), 0.032), 0.03);
+  d = smin(d, length(q - vec3(3.86, 0.0, 0.17)) - 0.045, 0.03);
+  d = smin(d, sdCap(q, vec3(3.56, 0.0, 0.18), vec3(3.62, -0.13, 0.02), 0.026), 0.03);
+  d = smin(d, sdCap(q, vec3(3.85, -0.02, 0.16), vec3(3.72, -0.14, 0.02), 0.024), 0.03);
+  d = smin(d, sdCap(q, vec3(3.62, -0.13, 0.0), vec3(3.73, -0.14, 0.0), 0.027), 0.02);
+  return d;
+}
+
+float tail(vec3 p) {
+  vec3 a = vec3(3.57, 0.25, 0.0), b = vec3(3.93, 0.02, 0.0);
+  vec3 pa = p - a, ba = b - a;
+  float h = clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0);
+  return length(pa - ba * h) - mix(0.03, 0.01, h) - 0.006 * cos(h * 50.3) * (1.0 - 0.5 * h);
+}
+
+// ---------- limbs ----------
+float longBone(vec3 p, vec3 a, vec3 b, float r, float ra, float rb) {
+  float d = sdCap(p, a, b, r);
+  d = smin(d, length(p - a) - ra, 0.05);
+  return smin(d, length(p - b) - rb, 0.05);
+}
+
+// shoulder blade, upper arm, radius and ulna, paw
+float foreleg(vec3 p) {
+  vec3 q = vec3(p.x, p.y, abs(p.z));
+  vec3 l = q - vec3(1.33, -0.12, 0.33);
+  float a = dot(l, vec3(0.4163, 0.8899, -0.1866));
+  float b = dot(l, vec3(0.9092, -0.4075, 0.0855));
+  float c = dot(l, vec3(0.0, 0.2053, 0.9787));
+  // outline: straight top edge with two corners, bulging front edge, straighter rear edge with a flange
+  float poly = max(max(a - 0.67 - 0.12 * b, 0.05 - a), max(-(b + 0.05 + 0.30 * (a - 0.1)) / 1.044, (b - 0.05 - 0.22 * (a - 0.1)) / 1.024)) + 0.012;
+  float s2 = smin(poly - 0.012, length(vec2((a - 0.40) * 0.7, b + 0.09)) - 0.115, 0.03);
+  vec2 pf = vec2(a - 0.30, b - 0.115) / vec2(0.15, 0.05);
+  s2 = smin(s2, (length(pf) - 1.0) * 0.05, 0.02);
+  s2 = smin(s2, length(vec2(a - clamp(a, 0.02, 0.30), b)) - 0.055, 0.05);
+  s2 += 0.006 * sin(a * 23.0 + b * 17.0) * sin(b * 31.0 - a * 11.0) + 0.0015 * sin(a * 97.0 + b * 71.0);
+  // thin in the middle, thick rolled rim
+  float cc = c - 0.35 * b * b;
+  float th = mix(0.011, 0.0035, smoothstep(0.0, 0.05, -s2));
+  float d = max(s2, abs(cc) - th) - 0.004;
+  // ridge down the outer face, tallest near the joint
+  float rh = mix(0.062, 0.014, smoothstep(0.10, 0.62, a));
+  float rd = max(max(abs(b - 0.01) - 0.005, cc - rh), max(-cc, max(0.06 - a, a - 0.63))) - 0.004;
+  d = smin(d, rd, 0.018);
+  d = smin(d, sdCap(vec3(a, b, c), vec3(0.09, 0.0, 0.05), vec3(0.0, 0.035, 0.065), 0.016), 0.02);
+  d = smin(d, sdEll(vec3(a, b, c), vec3(0.055, 0.06, 0.045)), 0.03);
+
+  vec3 E = vec3(1.61, -0.88, 0.33);
+  float hu = longBone(q, vec3(1.36, -0.17, 0.33), E, 0.068, 0.10, 0.078);
+  hu = smin(hu, sdCap(q, E + vec3(0.0, 0.0, -0.06), E + vec3(0.0, 0.0, 0.06), 0.058), 0.03);
+  hu = smin(hu, length(q - vec3(1.33, -0.20, 0.39)) - 0.065, 0.04);
+  d = min(d, hu);
+
+  vec3 W = vec3(1.51, -1.50, 0.31);
+  d = min(d, longBone(q, E + vec3(-0.04, -0.05, 0.02), W + vec3(-0.02, 0.0, 0.035), 0.045, 0.056, 0.062));
+  d = min(d, longBone(q, vec3(1.71, -0.79, 0.32), W + vec3(0.035, 0.0, -0.04), 0.036, 0.064, 0.044));
+
+  float pw = sdEll(q - (W + vec3(-0.02, -0.05, 0.0)), vec3(0.07, 0.05, 0.10));
+  for (int j = 0; j < 5; j++) {
+    float z = float(j) - 2.0;
+    vec3 k = vec3(1.28 + 0.012 * z * z, -1.592, 0.31 + z * 0.042);
+    vec3 tp = vec3(1.16 + 0.014 * z * z, -1.615, 0.31 + z * 0.05);
+    pw = min(pw, sdCap(q, W + vec3(-0.06, -0.07, z * 0.028), k, 0.016));
+    pw = min(pw, sdCap(q, k, tp, 0.0135));
+    pw = min(pw, sdCone(q, tp + vec3(-0.01, 0.01, 0.0), tp + vec3(-0.085, -0.018, 0.0), 0.013, 0.002));
+  }
+  return min(d, pw);
+}
+
+// thigh, kneecap, shin and calf bone, foot flat on the ground
+float hindleg(vec3 p) {
+  vec3 q = vec3(p.x, p.y, abs(p.z));
+  vec3 H = vec3(3.56, 0.0, 0.275), K = vec3(3.17, -0.775, 0.33), A = vec3(3.35, -1.43, 0.30);
+  float d = longBone(q, vec3(3.58, -0.03, 0.34), K, 0.07, 0.07, 0.082);
+  d = smin(d, length(q - H) - 0.07, 0.03);
+  d = smin(d, length(q - vec3(3.61, 0.05, 0.38)) - 0.07, 0.04);
+  d = smin(d, sdCap(q, K + vec3(0.02, -0.01, -0.055), K + vec3(0.02, -0.01, 0.055), 0.065), 0.03);
+  d = min(d, sdEll(q - (K + vec3(-0.09, 0.01, 0.0)), vec3(0.03, 0.05, 0.045)));
+  d = min(d, longBone(q, K + vec3(0.01, -0.08, 0.0), A, 0.056, 0.084, 0.064));
+  d = min(d, sdCap(q, K + vec3(0.05, -0.08, 0.075), A + vec3(0.02, 0.0, 0.07), 0.019));
+
+  float ft = sdEll(q - (A + vec3(0.0, -0.06, 0.0)), vec3(0.075, 0.055, 0.085));
+  ft = min(ft, sdCap(q, A + vec3(0.03, -0.05, 0.0), vec3(3.49, -1.585, 0.30), 0.04));
+  for (int j = 0; j < 5; j++) {
+    float z = float(j) - 2.0;
+    vec3 k = vec3(3.04 + 0.012 * z * z, -1.602, 0.30 + z * 0.04);
+    vec3 tp = vec3(2.90 + 0.014 * z * z, -1.618, 0.30 + z * 0.048);
+    ft = min(ft, sdCap(q, A + vec3(-0.05, -0.09, z * 0.026), k, 0.017));
+    ft = min(ft, sdCap(q, k, tp, 0.0135));
+    ft = min(ft, sdCone(q, tp + vec3(-0.01, 0.01, 0.0), tp + vec3(-0.085, -0.018, 0.0), 0.013, 0.002));
+  }
+  return min(d, ft);
+}
+
+void groupParams(float k, out vec3 off, out vec3 c, out vec3 hb) {
+  if (k < 0.5)      { off = vec3(-0.50, -0.10, 0.0); c = vec3(0.0, -0.02, 0.0);   hb = vec3(0.56, 0.30, 0.31); }
+  else if (k < 1.5) { off = vec3(-0.20, 0.28, 0.0);  c = vec3(0.91, 0.17, 0.0);   hb = vec3(0.42, 0.34, 0.18); }
+  else if (k < 2.5) { off = vec3(0.0, 0.50, 0.0);    c = vec3(1.92, 0.50, 0.0);   hb = vec3(0.76, 0.32, 0.13); }
+  else if (k < 3.5) { off = vec3(0.0, 0.0, 0.32);    c = vec3(2.0, -0.03, 0.22);  hb = vec3(0.86, 0.52, 0.25); }
+  else if (k < 4.5) { off = vec3(0.0, -0.42, 0.0);   c = vec3(1.91, -0.31, 0.0);  hb = vec3(0.50, 0.21, 0.05); }
+  else if (k < 5.5) { off = vec3(0.25, 0.36, 0.0);   c = vec3(2.92, 0.36, 0.0);   hb = vec3(0.38, 0.20, 0.21); }
+  else if (k < 6.5) { off = vec3(0.60, 0.0, 0.0);    c = vec3(3.50, 0.13, 0.15);  hb = vec3(0.45, 0.34, 0.18); }
+  else if (k < 7.5) { off = vec3(1.05, -0.15, 0.0);  c = vec3(3.75, 0.13, 0.0);   hb = vec3(0.22, 0.17, 0.05); }
+  else if (k < 8.5) { off = vec3(-0.15, -0.25, 0.65); c = vec3(1.42, -0.52, 0.28); hb = vec3(0.46, 1.14, 0.22); }
+  else              { off = vec3(0.35, -0.25, 0.65); c = vec3(3.24, -0.77, 0.32); hb = vec3(0.52, 0.90, 0.19); }
+}
+
+vec2 skeleton(vec3 p) {
+  vec2 best = vec2(1000.0, 0.0);
+  vec3 pf = vec3(p.x, p.y, abs(p.z));
+  for (int i = 0; i < 10; i++) {
+    float k = float(i);
+    vec3 off, cen, hb;
+    groupParams(k, off, cen, hb);
+    vec3 q = pf - uEx * off;
+    vec3 bq = abs(q - cen) - hb;
+    float bd = length(max(bq, 0.0));
+    float di = bd + 0.02, mi = 0.0;
+    if (bd < 0.03) {
+      if (i == 0) {
+        vec2 a = shape(q), b = jaw(q);
+        di = min(a.x, b.x); mi = a.x < b.x ? a.y : b.y;
+      }
+      else if (i == 1) di = neck(q);
+      else if (i == 2) di = chestSpine(q);
+      else if (i == 3) di = ribs(q);
+      else if (i == 4) di = breastbone(q);
+      else if (i == 5) di = loin(q);
+      else if (i == 6) di = pelvis(q);
+      else if (i == 7) di = tail(q);
+      else if (i == 8) di = foreleg(q);
+      else di = hindleg(q);
+      float c = carve(q, di, 1.0 - qOf(k));
+      if (c > di) { di = c; mi = 2.0; }
+      if (off.z > 0.0 && uEx > 0.001 && -q.z > di) { di = -q.z; mi = 4.0; }
+    }
+    if (di < best.x) { best = vec2(di, mi); gId = k; gPos = q; }
+  }
+  return best;
+}
+
+vec2 map(vec3 pw) {
+  vec2 s = skeleton(pw);
+  float fl = pw.y - FLOOR + 0.9 * uEx;
+  if (fl < s.x) return vec2(fl, 3.0);
+  return s;
+}
+
+vec3 calcNormal(vec3 p) {
+  vec2 e = vec2(0.0012, -0.0012);
+  return normalize(e.xyy * map(p + e.xyy).x + e.yyx * map(p + e.yyx).x +
+                   e.yxy * map(p + e.yxy).x + e.xxx * map(p + e.xxx).x);
+}
+float shadow(vec3 ro, vec3 rd) {
+  float res = 1.0, t = 0.015;
+  for (int i = 0; i < 34; i++) {
+    float h = map(ro + rd * t).x;
+    res = min(res, 9.0 * h / t);
+    t += clamp(h, 0.012, 0.12);
+    if (res < 0.01 || t > 2.6) break;
+  }
+  return clamp(res, 0.0, 1.0);
+}
+float ao(vec3 p, vec3 n) {
+  float o = 0.0, s = 1.0;
+  for (int i = 1; i <= 4; i++) {
+    float h = 0.018 * float(i);
+    o += (h - map(p + n * h).x) * s;
+    s *= 0.7;
+  }
+  return clamp(1.0 - 5.0 * o, 0.0, 1.0);
+}
+
+void main() {
+  vec2 uv = (gl_FragCoord.xy - 0.5 * uRes) / uRes.y;
+  vec3 rd = normalize(uv.x * uRight + uv.y * uUp + 2.2 * uFwd);
+  vec3 bg = vec3(0.012, 0.010, 0.008);
+  vec3 col = bg;
+
+  float t = max(0.0, length(uRo - vec3(1.7, -0.55, 0.0)) - 3.4 - 1.5 * uEx);
+  vec2 hit = vec2(0.0);
+  bool found = false;
+  for (int i = 0; i < 170; i++) {
+    vec3 p = uRo + rd * t;
+    hit = map(p);
+    if (hit.x < 0.0004 * t) { found = true; break; }
+    t += hit.x * 0.85;
+    if (t > 40.0) break;
+  }
+
+  if (found) {
+    vec3 p = uRo + rd * t;
+    vec3 n = calcNormal(p);
+    float m = map(p).y;
+    bool rodm = m > 5.5;
+    bool cutf = m > 3.5 && !rodm;
+    if (cutf) m = 0.0;
+    vec3 ps = gPos;
+    float bid = gId;
+    float dmg = 1.0 - qOf(bid);
+
+    vec3 key = normalize(-0.55 * uRight + 0.8 * uUp - 0.5 * uFwd);
+    vec3 fill = normalize(0.8 * uRight + 0.15 * uUp - 0.5 * uFwd);
+    vec3 alb; float spec = 0.08; float gloss = 12.0;
+
+    if (m > 2.5) {
+      float g = fbm(p * 14.0);
+      alb = vec3(0.045, 0.04, 0.035) * (0.7 + 0.6 * g);
+      spec = 0.03;
+      if (rodm) { alb = vec3(0.05, 0.05, 0.055); spec = 0.5; gloss = 30.0; }
+    } else {
+      // surface relief
+      float bs = m > 1.5 ? 0.9 : (m > 0.5 ? 0.12 : 0.35);
+      float fq = m > 1.5 ? 90.0 : 38.0;
+      float b0 = fbm(ps * fq);
+      float b1 = noise(ps * 160.0);
+      vec3 g = vec3(fbm(ps * fq + vec3(0.04, 0, 0)), fbm(ps * fq + vec3(0, 0.04, 0)), fbm(ps * fq + vec3(0, 0, 0.04))) - b0;
+      n = normalize(n - bs * g * 7.0);
+
+      float stain = fbm(ps * 5.0 + 3.0);
+      if (m < 0.5) {
+        alb = mix(vec3(0.66, 0.56, 0.40), vec3(0.36, 0.26, 0.15), smoothstep(0.3, 0.72, stain + 0.25 * dmg));
+        alb *= 0.85 + 0.3 * b0;
+        // fine cracks, more of them on damaged zones
+        alb *= 0.93 + 0.14 * b1;
+        if (cutf) alb = mix(alb, vec3(0.50, 0.40, 0.27), 0.7) * (0.85 + 0.3 * noise(ps * 120.0));
+        float cr = abs(noise(ps * 11.0) + 0.5 * noise(ps * 27.0) - 0.75);
+        float cm = smoothstep(0.42, 0.6, noise(ps * 3.5 + 5.0)) * 0.6 + dmg;
+        alb *= 1.0 - clamp(cm, 0.0, 1.0) * 0.6 * (1.0 - smoothstep(0.0, 0.006, cr));
+      } else if (m < 1.5) {
+        float root = ps.y < -0.12 ? smoothstep(-0.125, -0.165, ps.y) : smoothstep(-0.11, -0.06, ps.y);
+        alb = mix(vec3(0.74, 0.68, 0.53), vec3(0.46, 0.35, 0.21), root * 0.8);
+        float lc = abs(noise(vec3(ps.x * 70.0, ps.y * 5.0, ps.z * 70.0)) - 0.5);
+        alb *= 1.0 - 0.45 * (1.0 - smoothstep(0.0, 0.02, lc));
+        alb *= 0.9 + 0.2 * stain;
+        alb *= 0.88 + 0.24 * noise(vec3(ps.x * 130.0, ps.y * 9.0, ps.z * 130.0));
+        spec = 0.35; gloss = 40.0;
+      } else {
+        alb = vec3(0.36, 0.27, 0.17) * (0.6 + 0.8 * b0);
+        alb *= 1.0 - 0.5 * smoothstep(0.55, 0.7, noise(ps * 70.0));
+        spec = 0.02;
+      }
+
+      // optional quality tint and zone selection
+      vec3 zc = colOf(bid);
+      float lum = dot(alb, vec3(0.3, 0.6, 0.1));
+      alb = mix(alb, zc * (0.35 + 1.1 * lum), 0.62 * uTint);
+      if (uSel > -0.5 && abs(uSel - bid) > 0.5) alb = vec3(lum) * 0.2;
+    }
+
+    float occ = ao(p, n);
+    if (m < 2.5) alb = mix(alb, vec3(0.16, 0.11, 0.065), 0.65 * (1.0 - occ) * (1.0 - occ));
+    float sh = shadow(p + n * 0.004, key);
+    float dif = clamp(dot(n, key) * 0.85 + 0.15, 0.0, 1.0) * sh;
+    float fil = clamp(dot(n, fill) * 0.5 + 0.5, 0.0, 1.0);
+    float sky = 0.5 + 0.5 * n.y;
+    float rim = pow(clamp(1.0 + dot(n, rd), 0.0, 1.0), 3.0);
+    vec3 h = normalize(key - rd);
+    float sp = pow(clamp(dot(n, h), 0.0, 1.0), gloss) * spec * sh;
+
+    vec3 lit = alb * (dif * vec3(1.25, 1.12, 0.95) * 1.15
+                    + fil * vec3(0.30, 0.36, 0.46) * 0.35 * occ
+                    + sky * vec3(0.5, 0.45, 0.4) * 0.35 * occ);
+    lit += sp * vec3(1.0, 0.95, 0.85);
+    if (m < 2.5) lit += alb * rim * 0.25 * occ;
+    lit *= mix(0.3, 1.0, occ * occ);
+
+    if (m > 2.5 && !rodm) {
+      float fade = smoothstep(2.2, 5.0, length(p.xz - vec2(1.7, 0.0))) + uEx;
+      fade = clamp(fade, 0.0, 1.0);
+      lit = mix(lit, bg, fade);
+    }
+    col = lit;
+  }
+
+  col = col / (1.0 + col * 0.35);
+  col = pow(clamp(col, 0.0, 1.0), vec3(0.4545));
+  col *= 1.0 - 0.25 * dot(uv, uv);
+  gl_FragColor = vec4(col, 1.0);
+}
+</script>
+
+<script>
+(function () {
+  var TIERS = [
+    { max: 0.25, name: "Fragment", color: "#8A8A8A" },
+    { max: 0.50, name: "Beschädigt", color: "#A0703C" },
+    { max: 0.70, name: "Gut", color: "#5FA35F" },
+    { max: 0.90, name: "Exzellent", color: "#4A90D9" },
+    { max: 9, name: "Museumsreif", color: "#E2B93B" }
+  ];
+  var ZONES = [
+    { id: "skull", name: "Schädel" },
+    { id: "cervical", name: "Halswirbel" },
+    { id: "thoracic", name: "Brustwirbel" },
+    { id: "ribs", name: "Rippen" },
+    { id: "sternum", name: "Brustbein" },
+    { id: "lumbar", name: "Lendenwirbel" },
+    { id: "pelvis", name: "Becken" },
+    { id: "tail", name: "Schwanzwirbel" },
+    { id: "forelimb", name: "Vorderbeine" },
+    { id: "hindlimb", name: "Hinterbeine" }
+  ];
+  var state = { q: { skull: 0.91, cervical: 0.84, thoracic: 0.88, ribs: 0.79, sternum: 0.72, lumbar: 0.9, pelvis: 0.86, tail: 0.68, forelimb: 0.87, hindlimb: 0.83 }, tint: false, selected: null, ex: 0, exTarget: 0 };
+
+  function tierOf(q) { for (var i = 0; i < TIERS.length; i++) if (q < TIERS[i].max) return TIERS[i]; return TIERS[4]; }
+  function pct(q) { return Math.round(q * 100) + " %"; }
+  function rgb(hex) { return [parseInt(hex.substr(1, 2), 16) / 255, parseInt(hex.substr(3, 2), 16) / 255, parseInt(hex.substr(5, 2), 16) / 255]; }
+
+  // ---------- UI ----------
+  var zonesEl = document.getElementById("zones");
+  var rows = {};
+  ZONES.forEach(function (z) {
+    var b = document.createElement("button");
+    b.type = "button"; b.className = "zone"; b.id = "zone-" + z.id;
+    b.setAttribute("aria-pressed", "false");
+    b.innerHTML = '<span class="swatch"></span><span class="txt"><span class="name"></span><br><span class="pct"></span> <span class="tier"></span></span>';
+    b.querySelector(".name").textContent = z.name;
+    b.addEventListener("click", function () {
+      state.selected = state.selected === z.id ? null : z.id;
+      focusOn(state.selected);
+      refresh();
+    });
+    zonesEl.appendChild(b);
+    rows[z.id] = b;
+  });
+
+  function refreshUI() {
+    var sum = 0;
+    ZONES.forEach(function (z) {
+      var q = state.q[z.id], t = tierOf(q), r = rows[z.id];
+      sum += q;
+      r.querySelector(".swatch").style.background = t.color;
+      r.querySelector(".tier").textContent = t.name;
+      r.querySelector(".pct").textContent = pct(q);
+      r.setAttribute("aria-pressed", state.selected === z.id ? "true" : "false");
+    });
+    var mean = sum / ZONES.length, mt = tierOf(mean);
+    document.getElementById("pieceQ").textContent = pct(mean);
+    var pt = document.getElementById("pieceTier");
+    pt.textContent = mt.name; pt.style.color = mt.color;
+    document.getElementById("mode").textContent = state.tint ? "Farben ausblenden" : "Qualitätsfarben";
+    document.getElementById("explode").textContent = state.exTarget ? "Zusammenfügen" : "Auseinanderziehen";
+  }
+
+  document.getElementById("roll").addEventListener("click", function () {
+    ZONES.forEach(function (z) {
+      var base = 0.30 + Math.random() * 0.70;
+      var damage = 0.15 * (0.5 + Math.random() * 1.5);
+      state.q[z.id] = Math.max(0, Math.min(1, base - damage));
+    });
+    refresh();
+  });
+  document.getElementById("mode").addEventListener("click", function () { state.tint = !state.tint; refresh(); });
+  document.getElementById("explode").addEventListener("click", function () {
+    state.exTarget = state.exTarget ? 0 : 1;
+    refreshUI(); requestDraw(true);
+  });
+
+  var requestDraw = function () {};
+  var focusOn = function () {};
+  function refresh() { refreshUI(); requestDraw(false); }
+  refreshUI();
+
+  // ---------- WebGL ----------
+  var canvas = document.getElementById("gl");
+  var stage = document.getElementById("stage");
+  function fail() { document.getElementById("fail").style.display = "flex"; document.getElementById("hint").style.display = "none"; canvas.style.display = "none"; }
+  var gl = canvas.getContext("webgl", { antialias: false, alpha: false }) || canvas.getContext("experimental-webgl");
+  if (!gl) { fail(); return; }
+
+  function sh(type, src) {
+    var s = gl.createShader(type);
+    gl.shaderSource(s, src); gl.compileShader(s);
+    if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) { console.error(gl.getShaderInfoLog(s)); return null; }
+    return s;
+  }
+  var vs = sh(gl.VERTEX_SHADER, "attribute vec2 a; void main(){ gl_Position = vec4(a, 0.0, 1.0); }");
+  var fs = sh(gl.FRAGMENT_SHADER, document.getElementById("fs").textContent);
+  if (!vs || !fs) { fail(); return; }
+  var prog = gl.createProgram();
+  gl.attachShader(prog, vs); gl.attachShader(prog, fs); gl.linkProgram(prog);
+  if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) { console.error(gl.getProgramInfoLog(prog)); fail(); return; }
+  gl.useProgram(prog);
+  var buf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+  var loc = gl.getAttribLocation(prog, "a");
+  gl.enableVertexAttribArray(loc);
+  gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+  var U = {};
+  ["uRes", "uRo", "uRight", "uUp", "uFwd", "uQ", "uCol", "uTint", "uSel", "uEx"].forEach(function (n) { U[n] = gl.getUniformLocation(prog, n); });
+
+  var yaw = -0.85, pitch = 0.18, zoom = 1, spinUntil = 0, testScale = 1;
+  var HOME = [1.75, -0.46, 0], tgt = HOME.slice(), cam = { right: [1, 0, 0], up: [0, 1, 0], dist: 10, h: 500 };
+  var FOCUS = { skull: [0, -0.05, 0.3], cervical: [0.9, 0.15, 0.3], thoracic: [1.9, 0.45, 0.42], ribs: [2.0, -0.05, 0.5], sternum: [1.9, -0.3, 0.38], lumbar: [2.9, 0.36, 0.3], pelvis: [3.5, 0.1, 0.3], tail: [3.75, 0.13, 0.22], forelimb: [1.4, -0.75, 0.6], hindlimb: [3.25, -0.8, 0.55] };
+  var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var pending = false, wantFine = false, fineTimer = null;
+
+  function render(scale) {
+    var w = stage.clientWidth, h = stage.clientHeight;
+    if (!w || !h) return;
+    var dpr = Math.max(1, Math.min(window.devicePixelRatio || 1, 2) * 0.8) * scale * testScale;
+    var cw = Math.max(2, Math.round(w * dpr)), ch = Math.max(2, Math.round(h * dpr));
+    if (canvas.width !== cw || canvas.height !== ch) { canvas.width = cw; canvas.height = ch; }
+    gl.viewport(0, 0, cw, ch);
+
+    var aspect = w / h;
+    var dist = Math.max(2.45 * 2.2 / (0.5 * aspect), 1.3 * 2.2 / 0.5) * zoom * (1 + 0.5 * state.ex);
+    var cp = Math.cos(pitch), sp = Math.sin(pitch), cy = Math.cos(yaw), sy = Math.sin(yaw);
+    var ro = [tgt[0] + dist * cp * sy, tgt[1] + dist * sp, tgt[2] + dist * cp * cy];
+    var fwd = [-cp * sy, -sp, -cp * cy];
+    var right = [cy, 0, -sy];
+    var up = [right[1] * fwd[2] - right[2] * fwd[1], right[2] * fwd[0] - right[0] * fwd[2], right[0] * fwd[1] - right[1] * fwd[0]];
+
+    cam.right = right; cam.up = up; cam.dist = dist; cam.h = h;
+    gl.uniform2f(U.uRes, cw, ch);
+    gl.uniform3fv(U.uRo, ro);
+    gl.uniform3fv(U.uRight, right);
+    gl.uniform3fv(U.uUp, up);
+    gl.uniform3fv(U.uFwd, fwd);
+    gl.uniform1fv(U.uQ, new Float32Array(ZONES.map(function (z) { return state.q[z.id]; })));
+    gl.uniform1f(U.uEx, state.ex);
+    var cols = [];
+    ZONES.forEach(function (z) { cols = cols.concat(rgb(tierOf(state.q[z.id]).color)); });
+    gl.uniform3fv(U.uCol, new Float32Array(cols));
+    gl.uniform1f(U.uTint, state.tint ? 1 : 0);
+    var si = -1;
+    ZONES.forEach(function (z, i) { if (state.selected === z.id) si = i; });
+    gl.uniform1f(U.uSel, si);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+  }
+
+  // Coarse frames while moving, one sharp frame once things settle.
+  requestDraw = function (moving) {
+    if (moving) {
+      clearTimeout(fineTimer);
+      fineTimer = setTimeout(function () { requestDraw(false); }, 140);
+    } else { wantFine = true; }
+    if (pending) return;
+    pending = true;
+    requestAnimationFrame(function (t) {
+      pending = false;
+      var spinning = t < spinUntil;
+      if (spinning) { yaw += 0.006; }
+      if (state.ex !== state.exTarget) {
+        var stp = reduce ? 1 : 0.09;
+        state.ex = state.exTarget > state.ex ? Math.min(state.exTarget, state.ex + stp) : Math.max(state.exTarget, state.ex - stp);
+        spinning = state.ex !== state.exTarget;
+        if (!spinning) wantFine = true;
+      }
+      if (wantFine && !spinning) { wantFine = false; render(1); }
+      else { render(0.5); }
+      if (spinning) requestDraw(true);
+    });
+  };
+
+  focusOn = function (id) {
+    var f = id && FOCUS[id];
+    if (f) { tgt = [f[0], f[1], 0]; zoom = f[2]; }
+    else { tgt = HOME.slice(); zoom = 1; }
+  };
+  var pointers = {}, lastDist = 0, lastMid = null;
+  canvas.addEventListener("pointerdown", function (e) {
+    pointers[e.pointerId] = { x: e.clientX, y: e.clientY };
+    spinUntil = 0;
+    try { canvas.setPointerCapture(e.pointerId); } catch (err) {}
+    lastDist = 0; lastMid = null;
+  });
+  canvas.addEventListener("pointermove", function (e) {
+    var p = pointers[e.pointerId];
+    if (!p) return;
+    var ids = Object.keys(pointers);
+    if (ids.length === 1) {
+      yaw -= (e.clientX - p.x) * 0.01;
+      pitch = Math.max(-0.05, Math.min(1.35, pitch + (e.clientY - p.y) * 0.01));
+      p.x = e.clientX; p.y = e.clientY;
+    } else {
+      p.x = e.clientX; p.y = e.clientY;
+      var a = pointers[ids[0]], b = pointers[ids[1]];
+      var d = Math.hypot(a.x - b.x, a.y - b.y);
+      if (lastDist) zoom = Math.max(0.18, Math.min(1.6, zoom * lastDist / d));
+      lastDist = d;
+      var mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+      if (lastMid) {
+        var kk = cam.dist / 2.2 / cam.h, dx = (mx - lastMid.x) * kk, dy = (my - lastMid.y) * kk;
+        for (var ai = 0; ai < 3; ai++) tgt[ai] += -cam.right[ai] * dx + cam.up[ai] * dy;
+        tgt[0] = Math.max(-0.6, Math.min(4.0, tgt[0]));
+        tgt[1] = Math.max(-1.7, Math.min(0.8, tgt[1]));
+        tgt[2] = Math.max(-0.8, Math.min(0.8, tgt[2]));
+      }
+      lastMid = { x: mx, y: my };
+    }
+    requestDraw(true);
+  });
+  function up(e) { delete pointers[e.pointerId]; lastDist = 0; lastMid = null; }
+  canvas.addEventListener("pointerup", up);
+  canvas.addEventListener("pointercancel", up);
+  canvas.addEventListener("wheel", function (e) {
+    e.preventDefault();
+    zoom = Math.max(0.18, Math.min(1.6, zoom * (e.deltaY > 0 ? 1.08 : 0.93)));
+    requestDraw(true);
+  }, { passive: false });
+
+  window.addEventListener("resize", function () { requestDraw(false); });
+  if (window.ResizeObserver) new ResizeObserver(function () { requestDraw(false); }).observe(stage);
+
+  var q = (location.hash || "").replace("#", "");
+  if (q === "back") { yaw = 2.3; pitch = 0.35; }
+  if (q === "top") { yaw = -0.4; pitch = 1.1; }
+  if (q === "front") { yaw = -1.25; pitch = 0.12; zoom = 0.6; }
+  if (q === "rear") { yaw = 1.75; pitch = 0.1; zoom = 0.7; }
+  if (q === "side") { yaw = 0.0; pitch = 0.05; }
+  if (q === "ribs") { yaw = -0.5; pitch = 0.25; zoom = 0.45; }
+  if (q === "q3") { yaw = -0.85; pitch = 0.16; }
+  if (q === "paw") { yaw = -0.9; pitch = 0.2; zoom = 0.3; tgt = [1.5, -1.3, 0]; }
+  if (q === "scap") { yaw = -0.35; pitch = 0.15; zoom = 0.5; tgt = [1.5, 0.0, 0]; }
+  if (q === "ex") { state.ex = 1; state.exTarget = 1; yaw = -0.6; pitch = 0.3; refreshUI(); }
+  if (q === "tint") { state.tint = true; state.q.jugal = 0.2; state.q.parietal = 0.35; }
+  if (q) testScale = 0.5;
+  if (!reduce && !q) spinUntil = performance.now() + 5000;
+  requestDraw(false);
+})();
+</script>
+</body>
+</html>
