@@ -1,11 +1,15 @@
 # Fossil Collector
 
-Incremental-/Idle-Spiel für Android: Fossilien ausgraben, präparieren, erforschen und im
-eigenen Museum ausstellen. Hobbyprojekt, umgesetzt mit Claude-Code-Agenten.
+Grabungsspiel für Android: Fossilien von Hand ausgraben, freilegen, bergen, am 3D-Skelett
+zusammensetzen und im eigenen Museum ausstellen. Hobbyprojekt, umgesetzt mit Claude-Code-Agenten.
 
-- Design und Aufgabenliste: [`docs/GAME_DESIGN.md`](docs/GAME_DESIGN.md)
+- Design und Aufgabenliste: [`docs/GAME_DESIGN.md`](docs/GAME_DESIGN.md) (Version 2.0)
 - Regeln für Agenten: [`CLAUDE.md`](CLAUDE.md)
-- Balancing-Simulation: `tools/sim/fossil_sim.py`
+- 3D-Modelle: `art/models3d/<speciesId>/` (eine `.glb` pro Knochen plus `bones.json`)
+
+> **Umbau läuft.** Das Projekt war bis Version 1.1 ein Incremental-/Idle-Spiel. Dieser Stand liegt auf
+> dem Branch `archive/incremental-v1.1`. Der Code auf `main` wird schrittweise auf das neue Design
+> umgestellt (Arbeitspakete `AP2-XX`); bis AP2-02 beschreiben die Abschnitte unten noch den alten Stand.
 
 ## Projektstruktur
 
@@ -14,7 +18,8 @@ eigenen Museum ausstellen. Hobbyprojekt, umgesetzt mit Claude-Code-Agenten.
 | `core` | Reines Kotlin/JVM. Gesamte Spiellogik, Daten (`src/main/resources/data/`), JUnit-5-Tests. Keine Android-Abhängigkeiten. |
 | `app` | Android-App (Jetpack Compose, Material 3). UI, ViewModel, Plattformanbindung. |
 | `tools` | Hilfsskripte (Balancing-Simulation, SVG-Konvertierung der Skelette, später Datenvalidierung). |
-| `art/skeletons` | Quell-SVGs der Skelett-Grafiken (Kapitel 8.5). |
+| `art/skeletons` | Quell-SVGs der alten 2D-Skelett-Grafiken (entfallen mit dem Umbau). |
+| `art/models3d` | 3D-Modelle der Skelette als Einzelknochen (glTF). |
 
 Abhängigkeiten und Versionen stehen im Version Catalog `gradle/libs.versions.toml`.
 
