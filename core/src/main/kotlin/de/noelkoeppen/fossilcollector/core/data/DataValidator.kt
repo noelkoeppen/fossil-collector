@@ -96,6 +96,28 @@ object DataValidator {
                 errors += "$ctx: statLimits.${stat.serialName} min > max"
             }
         }
+        validateFinds(balance.finds, "$ctx/finds", errors)
+    }
+
+    /** Fundsystem (Kapitel 4): Groessen >= 1 ohne Duplikate, Gewichte > 0, Qualitaeten in 0..1. */
+    private fun validateFinds(finds: FindBalance, ctx: String, errors: MutableList<String>) {
+        if (finds.sizeWeights.isEmpty()) errors += "$ctx: sizeWeights leer"
+        finds.sizeWeights.forEach { entry ->
+            if (entry.size < 1) errors += "$ctx: sizeWeights.size ${entry.size} muss >= 1 sein"
+            if (!(entry.weight > 0.0 && entry.weight.isFinite())) {
+                errors += "$ctx: sizeWeights.weight fuer Groesse ${entry.size} muss > 0 sein"
+            }
+        }
+        finds.sizeWeights.groupingBy { it.size }.eachCount().filterValues { it > 1 }.keys
+            .forEach { errors += "$ctx: sizeWeights.size $it doppelt" }
+        val fractions = listOf(
+            "baseQualityMin" to finds.baseQualityMin,
+            "baseQualityMax" to finds.baseQualityMax,
+            "boneQualityDeviation" to finds.boneQualityDeviation,
+        )
+        fractions.filterNot { (_, value) -> value in 0.0..1.0 }
+            .forEach { (name, value) -> errors += "$ctx: $name $value liegt nicht in 0..1" }
+        if (finds.baseQualityMin > finds.baseQualityMax) errors += "$ctx: baseQualityMin > baseQualityMax"
     }
 
     private fun validateLocales(data: GameData, errors: MutableList<String>) {

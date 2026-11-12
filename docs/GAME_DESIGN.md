@@ -76,6 +76,20 @@ Ausgrabung wählen (Schicht / Fundort)
   3. Anzahl zusammenhängender Knochen: Erweiterung entlang anatomischer Nachbarn
      (Nachbarschaftsgraph pro Art in den Daten)
   4. Grundqualität des Fundes
+
+  Umsetzung (AP2-04, `FindRoller` in `core`, Parameter in `balance.json: finds`, Startwerte vorläufig
+  bis zum Playtest):
+  1. Art gewichtet nach `rarityWeight` unter den Arten der Schicht.
+  2. Fundgröße aus der gewichteten Tabelle `sizeWeights` (Startwerte: 1 Knochen 35, 2: 25, 3: 17,
+     4: 11, 5: 7, 6: 5), gekappt auf die Knochenanzahl der Art.
+  3. Startknochen gleichverteilt unter allen Knochen der Art.
+  4. Erweiterung: Bis die Fundgröße erreicht ist, kommt jeweils ein gleichverteilt gewählter Knochen
+     vom Rand des Fundes dazu (Nachbar eines schon gewählten Knochens).
+  5. Grundqualität gleichverteilt zwischen Untergrenze und `baseQualityMax` (Start 0.95). Die
+     Untergrenze ist der Stat `quality_base_min` mit Basiswert `baseQualityMin` (Start 0.4), also über
+     das Modifier-System anhebbar, und wird höchstens bis `baseQualityMax` angehoben.
+  6. Jeder Knochen weicht gleichverteilt um höchstens `boneQualityDeviation` (Start 0.05) nach oben
+     oder unten ab; das Ergebnis wird auf 0 bis 1 begrenzt.
 - **Nachbarschaftsgraph:** wird aus den Meshes des Modells abgeleitet (plus Korrekturdatei), nicht
   von Hand gepflegt. `tools/models3d/neighbors.py` verbindet zwei Knochen, wenn ihre Oberflächen
   höchstens einen Schwellwert auseinanderliegen (Skript-Parameter, Standard 0.03 Modelleinheiten),
@@ -181,6 +195,10 @@ Ausgrabung wählen (Schicht / Fundort)
   Hinweis; übernommen wird nur die Spracheinstellung (Bedienvorliebe, kein Fortschritt; wie beim
   „Spielstand löschen“). Beim Import werden alte Spielstände abgelehnt und importierte Spielstände
   zusätzlich gegen die Spieldaten geprüft (unbekannte Arten oder Knochen werden abgelehnt).
+- **Stand nach AP2-04:** `FindRoller` würfelt einen Fund für eine Schicht nach Kapitel 4 (Eingabe
+  Schicht-ID und `GameRandom`, Ausgabe der `Find` samt Grundqualität). Parameter in
+  `balance.json: finds`, geprüft im Schema und im `DataValidator`. Der Stat `quality_base_min` hebt
+  die Untergrenze der Grundqualität an. Platziert und gespeichert werden Funde erst mit AP2-05.
 
 ## 11. Entscheidungen im Überblick
 
@@ -289,3 +307,7 @@ AP2-06 und AP2-10 hängen nur an AP2-01 und können vorgezogen werden.
   abgeleitet, nicht aus `bones.json` (Kapitel 4, 12). Spieldaten nur noch mit Quartär und Höhlenbär
   (Kapitel 9). Kapitel 10 um den Stand nach AP2-03 ergänzt (Datenmodell, Spielstand Version 3,
   Verwerfen alter Spielstände mit Übernahme der Sprache, Inventar, Import-Prüfung).
+- **AP2-04 (2026-11-12):** Kapitel 4 um die konkrete Umsetzung des Würfelns ergänzt (gewichtete
+  Fundgrößen-Tabelle, gleichverteilter Startknochen und Erweiterung über den Rand, gleichverteilte
+  Grundqualität mit `quality_base_min` als Untergrenze, gleichverteilte Abweichung pro Knochen,
+  Startwerte vorläufig). Kapitel 10 um den Stand nach AP2-04 ergänzt.

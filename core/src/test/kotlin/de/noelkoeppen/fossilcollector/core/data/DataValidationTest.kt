@@ -89,7 +89,51 @@ class DataValidationTest {
         assertEquals(listOf(0.0, 0.25, 0.5, 0.7, 0.9), b.qualityTiers.map { it.minQuality })
     }
 
+    @Test
+    fun balanceContainsFindParameters() {
+        val finds = data.balance.finds
+        assertTrue(finds.sizeWeights.isNotEmpty())
+        assertEquals(1, finds.sizeWeights.minOf { it.size }, "Einzelknochen-Funde muessen moeglich sein")
+        assertTrue(finds.baseQualityMin < finds.baseQualityMax)
+        assertTrue(finds.boneQualityDeviation > 0.0)
+    }
+
     // --- Der Validator erkennt kaputte Daten ---
+
+    @Test
+    fun detectsInvalidFindSizeWeights() {
+        val errors = errorsOf(DataRepository.BALANCE) {
+            it.replace("{\"size\": 1, \"weight\": 35}", "{\"size\": 0, \"weight\": 35}")
+                .replace("{\"size\": 3, \"weight\": 17}", "{\"size\": 2, \"weight\": 0}")
+        }
+        assertTrue(errors.any { "finds: sizeWeights.size 0 muss >= 1 sein" in it }, errors.toString())
+        assertTrue(errors.any { "finds: sizeWeights.weight fuer Groesse 2 muss > 0 sein" in it }, errors.toString())
+        assertTrue(errors.any { "finds: sizeWeights.size 2 doppelt" in it }, errors.toString())
+    }
+
+    @Test
+    fun detectsEmptyFindSizeWeights() {
+        val errors = errorsOf(DataRepository.BALANCE) { it.replace(Regex("\"sizeWeights\": \\[[^\\]]*\\]"), "\"sizeWeights\": []") }
+        assertTrue(errors.any { "finds: sizeWeights leer" in it }, errors.toString())
+    }
+
+    @Test
+    fun detectsInvalidFindQualities() {
+        val errors = errorsOf(DataRepository.BALANCE) {
+            it.replace("\"baseQualityMin\": 0.4", "\"baseQualityMin\": 1.2")
+                .replace("\"boneQualityDeviation\": 0.05", "\"boneQualityDeviation\": -0.1")
+        }
+        assertTrue(errors.any { "finds: baseQualityMin 1.2 liegt nicht in 0..1" in it }, errors.toString())
+        assertTrue(errors.any { "finds: boneQualityDeviation -0.1 liegt nicht in 0..1" in it }, errors.toString())
+        assertTrue(errors.any { "finds: baseQualityMin > baseQualityMax" in it }, errors.toString())
+    }
+
+    @Test
+    fun rejectsMissingFindParameters() {
+        val repo = patchedRepository(DataRepository.BALANCE) { it.replace(Regex(",\\s*\"boneQualityDeviation\": [0-9.]+"), "") }
+        val e = assertThrows<DataValidationException> { repo.load() }
+        assertTrue(e.errors.single().startsWith(DataRepository.BALANCE), e.errors.toString())
+    }
 
     @Test
     fun detectsUnknownLayerReference() {

@@ -9,5 +9,18 @@
   "statLimits": {
     "quality_base_min": {"min": 0, "max": 1},
     "damage_reduction": {"min": 0}
+  },
+  "finds": {
+    "sizeWeights": [
+      {"size": 1, "weight": 35},
+      {"size": 2, "weight": 25},
+      {"size": 3, "weight": 17},
+      {"size": 4, "weight": 11},
+      {"size": 5, "weight": 7},
+      {"size": 6, "weight": 5}
+    ],
+    "baseQualityMin": 0.4,
+    "baseQualityMax": 0.95,
+    "boneQualityDeviation": 0.05
   }
 }
