@@ -1,15 +1,13 @@
 package de.noelkoeppen.fossilcollector.platform
 
 import de.noelkoeppen.fossilcollector.core.model.LanguageSetting
-import de.noelkoeppen.fossilcollector.core.number.NumberLanguage
 import de.noelkoeppen.fossilcollector.ui.resolveContentLanguage
-import de.noelkoeppen.fossilcollector.ui.resolveNumberLanguage
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
-/** Tests fuer die Sprachaufloesung der UI (AP-24, Kapitel 12). */
+/** Tests fuer die Sprachaufloesung der UI (AP-24). */
 class AppLanguageTest {
 
     private val systems = listOf("de", "en", "fr", "DE", "")
@@ -32,15 +30,13 @@ class AppLanguageTest {
     }
 
     @Test
-    fun `UI-Texte, Inhaltstexte und Zahlen haben immer dieselbe Sprache`() {
+    fun `UI-Texte und Inhaltstexte haben immer dieselbe Sprache`() {
         for (setting in LanguageSetting.entries) {
             for (system in systems) {
                 val ui = AppLocale.uiLanguageTag(setting, system)
                 assertEquals(resolveContentLanguage(setting, system), ui)
                 // Innerhalb der App ist die Konfiguration auf `ui` gesetzt; auch dann bleibt alles gleich.
                 assertEquals(ui, resolveContentLanguage(setting, ui))
-                val number = resolveNumberLanguage(setting, ui)
-                assertEquals(if (ui == "de") NumberLanguage.DE else NumberLanguage.EN, number)
             }
         }
     }

@@ -6,7 +6,7 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.intOrNull
 
 /**
- * Ein Migrationsschritt `v(fromVersion) -> v(fromVersion + 1)` auf JSON-Ebene (Kapitel 7.2).
+ * Ein Migrationsschritt `v(fromVersion) -> v(fromVersion + 1)` auf JSON-Ebene.
  *
  * Arbeitet auf [JsonObject] statt auf `GameState`, weil alte Formate nicht mehr zu den
  * aktuellen Klassen passen. Das Feld `saveVersion` setzt der [SaveMigrator], nicht der Schritt.

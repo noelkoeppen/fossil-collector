@@ -23,7 +23,7 @@ import kotlin.math.sin
  * einer `Box` mit `Modifier.matchParentSize()`.
  *
  * Leistung: Das Muster und die Pfade entstehen in `drawWithCache` nur, wenn sich Groesse, Schicht
- * oder Palette aendern, nicht bei jedem Tick. Die eigene `graphicsLayer` haelt die Zeichnung als
+ * oder Palette aendern, nicht bei jeder Neuzeichnung. Die eigene `graphicsLayer` haelt die Zeichnung als
  * Anzeigeliste, damit Aenderungen am Text darueber sie nicht neu aufzeichnen.
  */
 @Composable

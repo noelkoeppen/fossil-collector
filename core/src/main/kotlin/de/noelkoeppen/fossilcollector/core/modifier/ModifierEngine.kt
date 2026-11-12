@@ -4,7 +4,7 @@ import de.noelkoeppen.fossilcollector.core.data.GameData
 import de.noelkoeppen.fossilcollector.core.data.StatLimit
 
 /**
- * Verrechnet alle aktiven Modifier zu Stat-Werten (GAME_DESIGN.md, Kapitel 6.1 und 6.2).
+ * Verrechnet alle aktiven Modifier zu Stat-Werten.
  *
  * Formel fuer einen Stat mit Basiswert `base`:
  * ```
@@ -15,23 +15,22 @@ import de.noelkoeppen.fossilcollector.core.data.StatLimit
  * `balance.statLimits` gelten fuer den Endwert.
  *
  * Die Engine kennt den Spielzustand nicht. Sie verwaltet benannte **Quellen**: Jede Quelle hat eine
- * frei waehlbare ID und eine Liste von Modifiern. Spielsysteme (Upgrades, Skills, Buch-Boni,
- * Meilensteine) setzen ihre Quellen mit [setSource] und entfernen sie mit [removeSource].
- * Empfohlene ID-Konvention: `<art>:<definitionsId>`, z. B. `skill:lab_1`, `upgrade:tools`,
- * `book:triceratops`, `milestone:first_find`.
+ * frei waehlbare ID und eine Liste von Modifiern. Spielsysteme (z. B. Upgrades) setzen ihre Quellen
+ * mit [setSource] und entfernen sie mit [removeSource].
+ * Empfohlene ID-Konvention: `<art>:<definitionsId>`, z. B. `upgrade:trowel`.
  *
- * Basiswerte kommen vom Aufrufer (aus `balance.json` bzw. den Generatoren); die Engine enthaelt
+ * Basiswerte kommen vom Aufrufer (aus den JSON-Daten); die Engine enthaelt
  * keine Spielwerte. Fuer Faktor-Stats (Basis 1.0) gibt es [factor], fuer rein additive Stats
  * (Basis 0.0) [additive].
  *
  * Cache: Ergebnisse werden pro Paar (Stat, Basiswert) gespeichert und bei jeder Aenderung der
  * Quellen ([setSource], [removeSource], [clearSources]) vollstaendig verworfen.
  *
- * Fehler: Ist das Ergebnis vor dem Clamp `NaN` oder unendlich (Kapitel 6.6), wirft die Engine eine
+ * Fehler: Ist das Ergebnis vor dem Clamp `NaN` oder unendlich, wirft die Engine eine
  * [IllegalStateException]. Ein solches Ergebnis wird nicht gecacht.
  *
  * Die Klasse ist **nicht thread-safe**. Sie ist fuer die Nutzung aus einem einzigen Thread
- * (Spielschleife) gedacht; bei Zugriffen aus mehreren Threads muss der Aufrufer synchronisieren.
+ * (Spiel-Thread) gedacht; bei Zugriffen aus mehreren Threads muss der Aufrufer synchronisieren.
  *
  * @param statLimits Clamps je Stat, in der Regel `GameData.balance.statLimits` (siehe [fromGameData]).
  */
@@ -43,8 +42,8 @@ class ModifierEngine(
 
     /**
      * Zaehler fuer Aenderungen der Quellen: steigt bei jedem [setSource], jedem erfolgreichen
-     * [removeSource] und jedem [clearSources], das Quellen entfernt. Erlaubt Aufrufern (z. B.
-     * `ModifierSources.sync`), einen Abgleich zu ueberspringen, wenn sich weder Spielstand noch Quellen
+     * [removeSource] und jedem [clearSources], das Quellen entfernt. Erlaubt Aufrufern, einen
+     * Abgleich zu ueberspringen, wenn sich weder Spielstand noch Quellen
      * geaendert haben. Kein Spielwert.
      */
     var revision: Long = 0L
@@ -74,7 +73,7 @@ class ModifierEngine(
         return removed
     }
 
-    /** Entfernt alle Quellen (z. B. beim Neuaufbau nach Laden oder Prestige). */
+    /** Entfernt alle Quellen (z. B. beim Neuaufbau nach dem Laden). */
     fun clearSources() {
         if (sources.isNotEmpty()) {
             sources.clear()
@@ -103,11 +102,11 @@ class ModifierEngine(
         return result
     }
 
-    /** Endwert eines Faktor-Stats mit Basis 1.0 (z. B. `lab_speed`, `museum_income`). */
+    /** Endwert eines Faktor-Stats mit Basis 1.0 (z. B. `sell_price`). */
     fun factor(stat: StatId): Double = value(stat, FACTOR_BASE)
 
     /**
-     * Endwert eines additiven Stats mit Basis 0.0 (z. B. `damage_reduction`, `start_teams`).
+     * Endwert eines additiven Stats mit Basis 0.0 (z. B. `damage_reduction`).
      * Hinweis: Bei Basis 0.0 und ohne `add`-Modifier ergeben `mult`-Modifier immer 0.
      */
     fun additive(stat: StatId): Double = value(stat, ADDITIVE_BASE)

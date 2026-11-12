@@ -1,8 +1,6 @@
 package de.noelkoeppen.fossilcollector.platform
 
 import de.noelkoeppen.fossilcollector.core.model.GameState
-import de.noelkoeppen.fossilcollector.core.model.RunStartValues
-import de.noelkoeppen.fossilcollector.core.number.GameNumber
 import de.noelkoeppen.fossilcollector.core.save.SaveCodec
 import de.noelkoeppen.fossilcollector.core.save.SaveException
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -18,21 +16,8 @@ class SaveStorageTest {
     @TempDir
     lateinit var dir: File
 
-    private val start = RunStartValues(
-        money = GameNumber.ZERO,
-        researchPoints = GameNumber.ZERO,
-        teamsInFirstLayer = GameNumber.ONE,
-        preparators = GameNumber.ZERO,
-        halls = GameNumber.ONE,
-        labSlots = GameNumber.ONE,
-        toolLevel = GameNumber.ZERO,
-    )
-
-    /** Spielstand, der sich ueber [id] (Geld und Zeitstempel) unterscheiden laesst. */
-    private fun state(id: Long): GameState {
-        val base = GameState.newGame(firstLayerId = "layer_a", start = start, now = id)
-        return base.copy(run = base.run.copy(money = GameNumber(id.toDouble())))
-    }
+    /** Spielstand, der sich ueber [id] (Zeitstempel) unterscheiden laesst. */
+    private fun state(id: Long): GameState = GameState.newGame(now = id)
 
     private fun storage() = SaveStorage(dir)
 
@@ -184,23 +169,6 @@ class SaveStorageTest {
     fun onlyTempFileMeansNoSave() {
         storage().tempFile.writeText(SaveCodec.DEFAULT.encode(state(1)))
         assertEquals(SaveLoadResult.NoSave, storage().load())
-    }
-
-    @Test
-    fun notEncodableStateLeavesFilesUntouched() {
-        val storage = storage()
-        storage.save(state(1))
-        val broken = state(2).let { it.copy(run = it.run.copy(money = GameNumber(Double.NaN))) }
-
-        try {
-            storage.save(broken)
-            error("NotEncodable erwartet")
-        } catch (_: SaveException.NotEncodable) {
-            // erwartet
-        }
-        assertEquals(1L, idOf(storage.mainFile))
-        assertTrue(storage.backupFiles.none { it.exists() })
-        assertFalse(storage.tempFile.exists())
     }
 
     @Test

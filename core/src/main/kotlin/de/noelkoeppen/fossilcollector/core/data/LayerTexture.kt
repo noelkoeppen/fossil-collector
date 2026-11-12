@@ -4,7 +4,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 /**
- * Gesteinstextur eines Schichtbands im Grabungs-Screen (Kapitel 8.5, AP-26). Reine Gestaltung ohne
+ * Gesteinstextur einer Schicht (AP-26). Reine Gestaltung ohne
  * Spielwirkung; die App erzeugt daraus deterministisch ein Muster (Seed aus der Schicht-ID).
  *
  * @property serialName Name im JSON (`layers.json: texture`)

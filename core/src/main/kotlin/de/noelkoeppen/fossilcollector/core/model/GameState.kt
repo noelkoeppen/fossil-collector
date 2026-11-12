@@ -1,23 +1,26 @@
 package de.noelkoeppen.fossilcollector.core.model
 
-import de.noelkoeppen.fossilcollector.core.number.GameNumber
 import kotlinx.serialization.Serializable
 
 /**
- * Vollstaendiger Spielstand (Kapitel 7.2 und 11, "Spielstand (Auszug)").
+ * Spielstand.
  *
- * Unveraenderlich: Engine-Funktionen geben einen neuen Zustand zurueck (Kapitel 10.3).
+ * Uebergangsstand nach AP2-02: Die Idle-Systeme sind entfernt, das neue Datenmodell (Funde,
+ * Sammelbuch, Geld und Ansehen) kommt mit AP2-03 (`saveVersion` 3). Bis dahin enthaelt der
+ * Spielstand nur, was Speichern und Einstellungen brauchen. Aeltere Spielstaende der Version 1
+ * laden weiter; ihre Felder `meta` und `run` werden beim Laden ignoriert (siehe `SaveCodec`).
+ *
+ * Unveraenderlich: Aenderungen erzeugen einen neuen Zustand.
  *
  * @property saveVersion Version des Speicherformats, siehe [CURRENT_SAVE_VERSION]
  * @property lastSavedAt Zeitpunkt des letzten Speicherns in Millisekunden seit 1970 (UTC);
- *   Zeitstempel, kein Spielwert, deshalb `Long`
+ *   Zeitstempel, kein Spielwert
+ * @property settings Einstellungen
  */
 @Serializable
 data class GameState(
     val saveVersion: Int = CURRENT_SAVE_VERSION,
     val lastSavedAt: Long,
-    val meta: MetaState,
-    val run: RunState,
     val settings: Settings = Settings(),
 ) {
     companion object {
@@ -25,148 +28,15 @@ data class GameState(
         const val CURRENT_SAVE_VERSION: Int = 1
 
         /**
-         * Neuer Spielstand (Startzustand). Legt nur die Struktur an; alle Startwerte, die das
-         * Balancing betreffen, kommen ueber [start] aus den Daten (Kapitel 0, Regel 3).
+         * Neuer Spielstand (Startzustand).
          *
-         * @param firstLayerId ID der ersten Schicht (laut Kapitel 4.1 von Beginn an offen)
-         * @param start Startwerte des Durchlaufs
          * @param now aktueller Zeitpunkt in Millisekunden, wird als [lastSavedAt] gesetzt
          */
-        fun newGame(firstLayerId: String, start: RunStartValues, now: Long): GameState =
+        fun newGame(now: Long): GameState =
             GameState(
                 saveVersion = CURRENT_SAVE_VERSION,
                 lastSavedAt = now,
-                meta = MetaState(),
-                run = RunState.newRun(firstLayerId, start),
                 settings = Settings(),
             )
     }
 }
-
-/**
- * Permanenter Teil des Spielstands, bleibt beim Prestige erhalten (Kapitel 5.3).
- *
- * @property fame unverteilter Ruhm
- * @property fameTotal insgesamt verdienter Ruhm
- * @property prestigeCount Anzahl der Prestiges
- * @property skills IDs der gekauften Skills (`skilltree.json`)
- * @property fameSpent fuer die aktuell gekauften Skills tatsaechlich bezahlter Ruhm (AP-13); wird beim
- *   Respec zu 100 % erstattet und dabei auf 0 gesetzt. Standardwert 0, aeltere Spielstaende laden
- *   ohne Migration (vor AP-13 gab es keinen Skillkauf).
- * @property book Sammelbuch: bester Fund je [PieceKey]
- * @property researchedSpecies Arten mit Completion-Stufe 1 (Kapitel 4.7)
- * @property milestonesDone IDs erreichter Meilensteine
- * @property stats Statistiken
- * @property revealedTabs IDs der bereits gezeigten Tabs der unteren Navigation (AP-25, Kapitel 8.2),
- *   z. B. `dig`, `museum`. Reiner UI-Fortschritt ohne Spielwirkung: Tabs bleiben nach einem Neustart
- *   sichtbar und ihr Hinweistext erscheint nur einmal. Bleibt beim Prestige erhalten. Standardwert
- *   leer, aeltere Spielstaende laden ohne Migration. Die Bedeutung der IDs kennt nur die App.
- */
-@Serializable
-data class MetaState(
-    val fame: GameNumber = GameNumber.ZERO,
-    val fameTotal: GameNumber = GameNumber.ZERO,
-    val prestigeCount: GameNumber = GameNumber.ZERO,
-    val skills: Set<String> = emptySet(),
-    val fameSpent: GameNumber = GameNumber.ZERO,
-    val book: Map<PieceKey, BookEntry> = emptyMap(),
-    val researchedSpecies: Set<String> = emptySet(),
-    val milestonesDone: Set<String> = emptySet(),
-    val stats: Stats = Stats(),
-    val revealedTabs: Set<String> = emptySet(),
-)
-
-/**
- * Statistiken (bleiben beim Prestige erhalten). Neue Felder immer mit Standardwert ergaenzen, dann
- * laden aeltere Spielstaende ohne Migration.
- *
- * @property piecesFound gefundene Fossilien insgesamt (Praeparation, AP-08)
- * @property pristineFound davon Funde in der hoechsten Qualitaetsstufe (Museumsreif), gezaehlt von
- *   der Praeparation (AP-11, Meilenstein `pristine_found`)
- * @property researchCompleted abgeschlossene Laborforschungen (AP-11, Meilenstein `research_completed`)
- * @property reconstructions durchgefuehrte Rekonstruktionen (AP-11, Meilenstein `reconstructions`)
- */
-@Serializable
-data class Stats(
-    val piecesFound: GameNumber = GameNumber.ZERO,
-    val pristineFound: GameNumber = GameNumber.ZERO,
-    val researchCompleted: GameNumber = GameNumber.ZERO,
-    val reconstructions: GameNumber = GameNumber.ZERO,
-)
-
-/**
- * Zustand des aktuellen Durchlaufs, wird beim Prestige zurueckgesetzt (Kapitel 5.3).
- *
- * Alle Mengen und Zaehler sind [GameNumber] (Kapitel 0, Regel 6).
- *
- * @property money Geld
- * @property researchPoints Forschungspunkte (FP)
- * @property unlockedLayers Anzahl freigeschalteter Schichten (in Reihenfolge `layers.json: order`)
- * @property teams Grabungsteams je Schicht-ID
- * @property preparators Anzahl Praeparatoren
- * @property halls Anzahl Museumshallen
- * @property labSlots Anzahl Laborplaetze
- * @property toolLevel Werkzeugstufe
- * @property blocks Rohbloecke im Lager je Schicht-ID
- * @property pieces bester Run-Fund je [PieceKey] (im Museum ausgestellt)
- * @property spareZones bestes Ersatzteil je [SpareZoneKey], Wert = Zonen-Qualitaet 0..1
- * @property labQueue Duplikate, die auf einen Laborplatz warten
- * @property labJobs laufende Forschungen
- * @property specialExhibit Art-ID fuer die Capstone-Sonderausstellung oder `null`
- * @property prepProgress angefangener Praeparationsfortschritt in Bloecken, immer in `[0, 1)`
- *   (Bruchteil-Verarbeitung, Kapitel 4.2; Standardwert 0, damit aeltere Spielstaende ohne
- *   Migration laden)
- */
-@Serializable
-data class RunState(
-    val money: GameNumber,
-    val researchPoints: GameNumber,
-    val unlockedLayers: GameNumber,
-    val teams: Map<String, GameNumber>,
-    val preparators: GameNumber,
-    val halls: GameNumber,
-    val labSlots: GameNumber,
-    val toolLevel: GameNumber,
-    val blocks: Map<String, GameNumber>,
-    val pieces: Map<PieceKey, Piece> = emptyMap(),
-    val spareZones: Map<SpareZoneKey, Double> = emptyMap(),
-    val labQueue: List<QueuedPiece> = emptyList(),
-    val labJobs: List<LabJob> = emptyList(),
-    val specialExhibit: String? = null,
-    val prepProgress: GameNumber = GameNumber.ZERO,
-) {
-    companion object {
-        /**
-         * Neuer Durchlauf (Spielbeginn und spaeter nach dem Prestige). Legt nur die Struktur an:
-         * die erste Schicht ist offen, Lager und Bestaende sind leer. Balancing-Startwerte
-         * kommen ueber [start].
-         */
-        fun newRun(firstLayerId: String, start: RunStartValues): RunState =
-            RunState(
-                money = start.money,
-                researchPoints = start.researchPoints,
-                unlockedLayers = GameNumber.ONE,
-                teams = mapOf(firstLayerId to start.teamsInFirstLayer),
-                preparators = start.preparators,
-                halls = start.halls,
-                labSlots = start.labSlots,
-                toolLevel = start.toolLevel,
-                blocks = mapOf(firstLayerId to GameNumber.ZERO),
-            )
-    }
-}
-
-/**
- * Startwerte eines Durchlaufs. Sie betreffen das Balancing und werden deshalb vom Aufrufer
- * aus den JSON-Daten bzw. Modifiern (z. B. `start_teams`, `start_lab_slots`, Gratis-Hallen
- * aus `generators.json: free`) ermittelt. Bewusst ohne Standardwerte.
- */
-data class RunStartValues(
-    val money: GameNumber,
-    val researchPoints: GameNumber,
-    val teamsInFirstLayer: GameNumber,
-    val preparators: GameNumber,
-    val halls: GameNumber,
-    val labSlots: GameNumber,
-    val toolLevel: GameNumber,
-)

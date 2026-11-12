@@ -8,19 +8,10 @@
     "properties": {
       "id": {
         "$ref": "common.schema.json#/$defs/id"
-      },
-      "zones": {
-        "type": "array",
-        "items": {
-          "$ref": "common.schema.json#/$defs/id"
-        },
-        "minItems": 1,
-        "uniqueItems": true
       }
     },
     "required": [
-      "id",
-      "zones"
+      "id"
     ],
     "additionalProperties": false
   },

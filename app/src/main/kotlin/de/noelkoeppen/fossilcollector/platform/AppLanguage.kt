@@ -9,12 +9,12 @@ import de.noelkoeppen.fossilcollector.ui.resolveContentLanguage
 import java.util.Locale
 
 /**
- * Sprache der UI-Texte (`strings.xml`) passend zur Einstellung im Spielstand (AP-24, Kapitel 12).
+ * Sprache der UI-Texte (`strings.xml`) passend zur Einstellung im Spielstand (AP-24).
  *
  * Umsetzung ohne AppCompat: `MainActivity.attachBaseContext` ersetzt die Locale der Activity-
  * Ressourcen per [Context.createConfigurationContext] durch [uiLanguageTag]. Damit sehen alle
  * Composables (auch Dialoge, die eigene Fenster haben), `LocalConfiguration` und damit auch
- * Inhaltstexte (`rememberTextProvider`) und Zahlenformat (`rememberGameNumberFormat`) dieselbe Sprache.
+ * die Inhaltstexte (`rememberTextProvider`) dieselbe Sprache.
  * Bei einer Aenderung wird die Activity neu erstellt (`recreate`, das ViewModel bleibt erhalten).
  *
  * Die Activity braucht die Sprache, bevor der Spielstand geladen ist; deshalb spiegelt
@@ -24,10 +24,10 @@ import java.util.Locale
 object AppLocale {
 
     /**
-     * Sprachcode der UI (`de` oder `en`). Dieselbe Regel wie fuer Inhaltstexte und Zahlen
+     * Sprachcode der UI (`de` oder `en`). Dieselbe Regel wie fuer Inhaltstexte
      * ([resolveContentLanguage]): DE/EN fest, bei "System" Deutsch fuer `de`, sonst Englisch.
      * Auch bei "System" wird die Locale ueberschrieben: Ohne Ueberschreiben bekaeme z. B. ein
-     * franzoesisches System die Standardressourcen (Deutsch), Inhaltstexte und Zahlen aber Englisch.
+     * franzoesisches System die Standardressourcen (Deutsch), Inhaltstexte aber Englisch.
      *
      * @param systemLanguage ISO-639-Sprachcode des Systems, z. B. `de`
      */

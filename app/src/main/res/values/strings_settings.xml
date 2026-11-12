@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Einstellungen (AP-24, Kapitel 8.3) -->
+<!-- Einstellungen (AP-24) -->
 <resources>
     <string name="settings_title">Einstellungen</string>
 
@@ -9,12 +9,7 @@
     <!-- Sprachnamen in der jeweiligen Sprache selbst, deshalb nicht uebersetzt -->
     <string name="settings_language_de" translatable="false">Deutsch</string>
     <string name="settings_language_en" translatable="false">English</string>
-    <string name="settings_language_hint">Gilt für Texte, Namen und Zahlen. Die Anzeige wird kurz neu aufgebaut.</string>
-
-    <!-- Zahlenformat; %1$s ist eine Beispielzahl im jeweiligen Format -->
-    <string name="settings_number_format_title">Zahlenformat</string>
-    <string name="settings_number_format_short">Kurz (%1$s)</string>
-    <string name="settings_number_format_scientific">Wissenschaftlich (%1$s)</string>
+    <string name="settings_language_hint">Gilt für Texte und Namen. Die Anzeige wird kurz neu aufgebaut.</string>
 
     <!-- Spielstand: Export und Import -->
     <string name="settings_save_title">Spielstand</string>
@@ -28,7 +23,7 @@
     <string name="settings_import_paste">Einfügen</string>
     <string name="settings_import_button">Importieren</string>
     <string name="settings_import_confirm_title">Spielstand importieren?</string>
-    <string name="settings_import_confirm_text">Dein aktueller Spielstand wird überschrieben. Für den importierten Stand gibt es keinen Offline-Fortschritt.</string>
+    <string name="settings_import_confirm_text">Dein aktueller Spielstand wird überschrieben.</string>
     <string name="settings_import_confirm_button">Überschreiben</string>
     <string name="settings_import_success">Spielstand importiert.</string>
 
@@ -41,10 +36,9 @@
     <string name="settings_import_error_unsupported">Diese Spielstand-Version wird nicht unterstützt.</string>
     <string name="settings_import_error_migration">Der Spielstand konnte nicht auf die aktuelle Version umgestellt werden.</string>
     <string name="settings_import_error_content">Der Spielstand ist unvollständig oder beschädigt.</string>
-    <string name="settings_import_error_unknown_content">Der Spielstand enthält Inhalte, die diese Version der App nicht kennt.</string>
 
     <!-- Spielstand loeschen (doppelte Bestaetigung) -->
-    <string name="settings_delete_text">Löscht deinen gesamten Fortschritt einschließlich Ruhm, Skills und Sammelbuch und startet ein neues Spiel. Die Einstellungen bleiben erhalten.</string>
+    <string name="settings_delete_text">Löscht deinen gesamten Fortschritt und startet ein neues Spiel. Die Einstellungen bleiben erhalten.</string>
     <string name="settings_delete_button">Spielstand löschen</string>
     <string name="settings_delete_confirm_title">Spielstand löschen?</string>
     <string name="settings_delete_confirm_text">Dein gesamter Fortschritt geht verloren. Das kann nicht rückgängig gemacht werden. Tipp: Exportiere vorher eine Sicherung.</string>

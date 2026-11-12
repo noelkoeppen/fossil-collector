@@ -4,7 +4,7 @@ import de.noelkoeppen.fossilcollector.core.data.GameData
 import de.noelkoeppen.fossilcollector.core.data.QualityTierDefinition
 
 /**
- * Zuordnung Qualitaet -> Qualitaetsstufe (Kapitel 4.2, Grenzen aus `balance.qualityTiers`).
+ * Zuordnung Qualitaet -> Qualitaetsstufe (Grenzen aus `balance.qualityTiers`).
  *
  * Eine Stufe gilt ab ihrer `minQuality` (inklusive) bis ausschliesslich zur Untergrenze der
  * naechsten Stufe. Qualitaeten unter der ersten Grenze (oder `NaN`) gehoeren zur niedrigsten Stufe,
@@ -22,8 +22,7 @@ class QualityTiers(tiers: List<QualityTierDefinition>) {
     }
 
     /**
-     * Index der Stufe von [quality] in [tiers] (0 = niedrigste). Passt zur Reihenfolge von
-     * `balance.bookTierFactor` (Kapitel 4.7).
+     * Index der Stufe von [quality] in [tiers] (0 = niedrigste).
      */
     fun indexOf(quality: Double): Int {
         var index = 0

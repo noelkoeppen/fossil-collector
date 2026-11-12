@@ -44,9 +44,6 @@ import androidx.compose.ui.unit.dp
 import de.noelkoeppen.fossilcollector.R
 import de.noelkoeppen.fossilcollector.core.model.LanguageSetting
 import de.noelkoeppen.fossilcollector.core.model.Settings
-import de.noelkoeppen.fossilcollector.core.number.NumberFormatter
-import de.noelkoeppen.fossilcollector.core.number.NumberNotation
-import de.noelkoeppen.fossilcollector.ui.rememberGameNumberFormat
 import de.noelkoeppen.fossilcollector.ui.theme.FossilCollectorTheme
 import de.noelkoeppen.fossilcollector.vm.ImportError
 import de.noelkoeppen.fossilcollector.vm.SaveExportResult
@@ -54,8 +51,8 @@ import de.noelkoeppen.fossilcollector.vm.SaveImportResult
 import kotlinx.coroutines.launch
 
 /**
- * Einstellungs-Screen (AP-24, Kapitel 8.3): Sprache, Zahlenformat, Export/Import, Spielstand
- * loeschen (doppelte Bestaetigung) und Version. Erreichbar ueber das Zahnrad der oberen Leiste;
+ * Einstellungs-Screen (AP-24): Sprache, Export/Import, Spielstand loeschen (doppelte
+ * Bestaetigung) und Version. Erreichbar ueber das Zahnrad der oberen Leiste;
  * Zurueck schliesst ihn (in der Shell).
  *
  * @param settings Einstellungen des Spielstands
@@ -92,8 +89,6 @@ fun SettingsScreen(
         Text(stringResource(R.string.settings_title), style = MaterialTheme.typography.headlineSmall)
 
         LanguageSection(selected = settings.language, onSelect = actions.onSetLanguage)
-
-        NumberFormatSection(settings = settings, onSelect = actions.onSetNumberFormat)
 
         SaveSection(
             importText = importText,
@@ -197,23 +192,6 @@ private fun LanguageSection(selected: LanguageSetting, onSelect: (LanguageSettin
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-    }
-}
-
-@Composable
-private fun NumberFormatSection(settings: Settings, onSelect: (NumberNotation) -> Unit) {
-    val language = rememberGameNumberFormat(settings).language
-    SectionCard(stringResource(R.string.settings_number_format_title)) {
-        Column(modifier = Modifier.selectableGroup()) {
-            for (option in NumberNotation.entries) {
-                val example = NumberFormatter.format(SettingsLogic.EXAMPLE_NUMBER, language, option)
-                RadioRow(
-                    label = stringResource(option.labelRes, example),
-                    selected = option == settings.numberFormat,
-                    onClick = { onSelect(option) },
-                )
-            }
-        }
     }
 }
 
@@ -351,12 +329,6 @@ private val LanguageSetting.labelRes: Int
         LanguageSetting.EN -> R.string.settings_language_en
     }
 
-private val NumberNotation.labelRes: Int
-    get() = when (this) {
-        NumberNotation.SHORT -> R.string.settings_number_format_short
-        NumberNotation.SCIENTIFIC -> R.string.settings_number_format_scientific
-    }
-
 /** Sichtbare Zeilen des Import-Felds; laengere Texte scrollen im Feld. */
 private const val IMPORT_FIELD_LINES = 4
 
@@ -377,11 +349,11 @@ private fun SettingsScreenPreview() {
 
 @Preview
 @Composable
-private fun SettingsScreenScientificPreview() {
+private fun SettingsScreenEnglishPreview() {
     FossilCollectorTheme {
         Surface {
             SettingsScreen(
-                settings = Settings(language = LanguageSetting.EN, numberFormat = NumberNotation.SCIENTIFIC),
+                settings = Settings(language = LanguageSetting.EN),
                 versionName = "0.1.0",
                 actions = SettingsActions.NONE,
                 onMessage = {},

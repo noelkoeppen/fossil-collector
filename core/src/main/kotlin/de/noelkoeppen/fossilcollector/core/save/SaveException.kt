@@ -1,7 +1,7 @@
 package de.noelkoeppen.fossilcollector.core.save
 
 /**
- * Fehler beim Lesen oder Schreiben eines Spielstands (Kapitel 7.2).
+ * Fehler beim Lesen oder Schreiben eines Spielstands.
  *
  * Die App (AP-16 `SaveStorage`, AP-24 Import) unterscheidet anhand des Typs, ob sie auf ein
  * Backup ausweicht bzw. welche Meldung sie zeigt.

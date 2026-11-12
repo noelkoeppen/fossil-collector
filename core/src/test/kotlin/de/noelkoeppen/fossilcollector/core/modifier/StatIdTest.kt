@@ -5,23 +5,13 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
-/** Tests fuer [StatId.isFraction] (AP-25, Anzeige additiver Boni auf Anteile als Prozent). */
+/** Tests fuer [StatId.isFraction] (Anzeige additiver Boni auf Anteile als Prozent). */
 class StatIdTest {
 
     @Test
-    fun `Chancen, Qualitaet, Bruchschutz und Offline-Effizienz sind Anteile`() {
+    fun `Qualitaet und Bruchschutz sind Anteile`() {
         val fractions = StatId.entries.filter { it.isFraction }.toSet()
-        assertEquals(
-            setOf(
-                StatId.FIND_CHANCE,
-                StatId.GUARANTEED_FOSSIL_CHANCE,
-                StatId.NO_DAMAGE_CHANCE,
-                StatId.QUALITY_BASE_MIN,
-                StatId.DAMAGE_REDUCTION,
-                StatId.OFFLINE_EFFICIENCY,
-            ),
-            fractions,
-        )
+        assertEquals(setOf(StatId.QUALITY_BASE_MIN, StatId.DAMAGE_REDUCTION), fractions)
     }
 
     @Test

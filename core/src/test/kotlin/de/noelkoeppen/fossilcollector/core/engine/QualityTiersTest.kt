@@ -6,7 +6,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 
-/** Stufen-Grenzen aus `balance.qualityTiers` (Kapitel 4.2): 0.25 / 0.50 / 0.70 / 0.90. */
+/** Stufen-Grenzen aus `balance.qualityTiers`: 0.25 / 0.50 / 0.70 / 0.90. */
 class QualityTiersTest {
 
     private val tiers = QualityTiers.fromGameData(DataRepository().load())
@@ -35,7 +35,7 @@ class QualityTiersTest {
     }
 
     @Test
-    fun `Index passt zur Reihenfolge von bookTierFactor`() {
+    fun `Index entspricht der Reihenfolge der Stufen`() {
         assertEquals(0, tiers.indexOf(0.1))
         assertEquals(1, tiers.indexOf(0.3))
         assertEquals(2, tiers.indexOf(0.6))

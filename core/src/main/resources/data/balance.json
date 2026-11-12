@@ -1,26 +1,4 @@
 {
-  "findChance": 0.08,
-  "qualityBaseMin": 0.3,
-  "qualityBaseMax": 1.0,
-  "damageRollMin": 0.5,
-  "damageRollMax": 2.0,
-  "rockSellFactor": 0.5,
-  "duplicateSellFactor": 20,
-  "labDuration": 30,
-  "labQueuePerSlot": 3,
-  "reconstructionCap": 0.89,
-  "reconstructionMissingZoneQuality": 0.5,
-  "skeletonMult": 2.0,
-  "slotsPerHall": 8,
-  "missingBoneWeight": 3,
-  "tapDigAmount": 0.25,
-  "tapPrepAmount": 0.25,
-  "skillCostGrowth": 1.25,
-  "offlineEfficiency": 0.5,
-  "offlineCapHours": 4,
-  "maxDetailedOfflineFinds": 2000,
-  "teamMilestones": [25, 50, 100, 200],
-  "teamMilestoneFactor": 2,
   "qualityTiers": [
     {"id": "fragment", "minQuality": 0.0, "color": "#8A8A8A"},
     {"id": "damaged", "minQuality": 0.25, "color": "#A0703C"},
@@ -28,17 +6,8 @@
     {"id": "excellent", "minQuality": 0.7, "color": "#4A90D9"},
     {"id": "pristine", "minQuality": 0.9, "color": "#E2B93B"}
   ],
-  "bookTierFactor": [1, 2, 3, 5, 8],
-  "researchedBonus": {"stat": "museum_income", "op": "mult", "value": 0.01, "category": "book"},
   "statLimits": {
-    "find_chance": {"min": 0, "max": 1},
-    "guaranteed_fossil_chance": {"min": 0, "max": 1},
-    "no_damage_chance": {"min": 0, "max": 1},
     "quality_base_min": {"min": 0, "max": 1},
-    "damage_reduction": {"min": 0},
-    "lab_speed": {"min": 0.1},
-    "layer_unlock_cost": {"min": 0.1},
-    "hall_cost": {"min": 0.1},
-    "offline_efficiency": {"min": 0, "max": 1}
+    "damage_reduction": {"min": 0}
   }
 }

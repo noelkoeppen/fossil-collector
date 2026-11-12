@@ -28,7 +28,7 @@ val OnSandstone = Color(0xFF2A1C08)
 val Slate = Color(0xFF9DB0B8)
 val SlateDark = Color(0xFF34444B)
 
-/** Ocker fuer den dritten Akzent (z. B. Ruhm). */
+/** Ocker fuer den dritten Akzent. */
 val Ochre = Color(0xFFC98E4E)
 val OchreDark = Color(0xFF5A3816)
 

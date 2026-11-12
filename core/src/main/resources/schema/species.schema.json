@@ -16,12 +16,6 @@
         "type": "number",
         "exclusiveMinimum": 0
       },
-      "bodyPlan": {
-        "enum": [
-          "biped",
-          "quadruped"
-        ]
-      },
       "bones": {
         "type": "array",
         "items": {
@@ -29,43 +23,13 @@
         },
         "minItems": 1,
         "uniqueItems": true
-      },
-      "art": {
-        "type": "string",
-        "pattern": "^skeleton_[a-z][a-z0-9_]*\\.json$",
-        "description": "skeleton_<id>.json; fehlt die Datei in data/skeletons/, gilt skeleton_<bodyPlan>.json (Kapitel 8.5)"
-      },
-      "bookBonus": {
-        "type": "object",
-        "description": "Buch-Bonus, Kategorie immer book",
-        "properties": {
-          "stat": {
-            "$ref": "common.schema.json#/$defs/statId"
-          },
-          "op": {
-            "$ref": "common.schema.json#/$defs/modifierOp"
-          },
-          "value": {
-            "type": "number",
-            "exclusiveMinimum": 0
-          }
-        },
-        "required": [
-          "stat",
-          "op",
-          "value"
-        ],
-        "additionalProperties": false
       }
     },
     "required": [
       "id",
       "layer",
       "rarityWeight",
-      "bodyPlan",
-      "bones",
-      "art",
-      "bookBonus"
+      "bones"
     ],
     "additionalProperties": false
   },

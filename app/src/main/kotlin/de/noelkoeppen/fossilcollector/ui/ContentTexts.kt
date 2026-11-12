@@ -6,18 +6,18 @@ import androidx.compose.ui.platform.LocalConfiguration
 import de.noelkoeppen.fossilcollector.core.data.TextProvider
 import de.noelkoeppen.fossilcollector.core.model.LanguageSetting
 import de.noelkoeppen.fossilcollector.core.model.Settings
-import de.noelkoeppen.fossilcollector.core.number.NumberLanguage
 
 /**
- * Sprachcode der Inhaltstexte (`data/locale/<code>.json`, Kapitel 12). Folgt derselben Regel wie
- * die Zahlenformatierung ([resolveNumberLanguage]): Einstellung DE/EN fest, bei "System" Deutsch
- * fuer `de`, sonst Englisch. So passen Texte und Zahlen immer zusammen.
+ * Sprachcode der Inhaltstexte (`data/locale/<code>.json`): Einstellung DE/EN fest, bei "System"
+ * Deutsch fuer `de`, sonst Englisch.
+ *
+ * @param systemLanguage ISO-639-Sprachcode der Konfiguration, z. B. `de` oder `en`
  */
-fun resolveContentLanguage(setting: LanguageSetting, systemLanguage: String): String =
-    when (resolveNumberLanguage(setting, systemLanguage)) {
-        NumberLanguage.DE -> CONTENT_DE
-        NumberLanguage.EN -> CONTENT_EN
-    }
+fun resolveContentLanguage(setting: LanguageSetting, systemLanguage: String): String = when (setting) {
+    LanguageSetting.DE -> CONTENT_DE
+    LanguageSetting.EN -> CONTENT_EN
+    LanguageSetting.SYSTEM -> if (systemLanguage.equals(CONTENT_DE, ignoreCase = true)) CONTENT_DE else CONTENT_EN
+}
 
 private const val CONTENT_DE = "de"
 private const val CONTENT_EN = "en"

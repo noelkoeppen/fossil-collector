@@ -3,10 +3,10 @@ package de.noelkoeppen.fossilcollector.core.random
 import kotlin.random.Random
 
 /**
- * Zufallsquelle der Spiellogik (GAME_DESIGN.md, Kapitel 0 Regel 7 und Kapitel 10.2).
+ * Zufallsquelle der Spiellogik (GAME_DESIGN.md, Kapitel 0 Regel 5).
  *
- * `core` erzeugt nie selbst Zufall, sondern bekommt eine Instanz injiziert (z. B. ueber
- * `GameEngine.advance(state, dt, rng)`). Tests verwenden [SeededRandom] mit festem Seed.
+ * `core` erzeugt nie selbst Zufall, sondern bekommt eine Instanz injiziert (z. B.
+ * als Parameter einer Spieleraktion). Tests verwenden [SeededRandom] mit festem Seed.
  *
  * Implementierungen sind in der Regel zustandsbehaftet (jeder Aufruf schreitet die Folge fort)
  * und nicht thread-safe.

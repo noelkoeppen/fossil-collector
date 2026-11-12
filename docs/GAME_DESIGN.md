@@ -149,6 +149,15 @@ Ausgrabung wählen (Schicht / Fundort)
   Speichern (atomar, Backups, Export/Import), Lokalisierung DE/EN, Einstellungen, Startbildschirm,
   Trennung `core` und `app`.
 - Das 3D-Modell liegt auf dem Branch `art-3d-cave-bear` und kommt mit AP-01 nach `main`.
+- **Stand nach AP2-02:** Alle Idle-Systeme samt Screens, Daten und Texten sind entfernt. Mit ihnen
+  entfallen auch Teile, die nur ihnen dienten: Meilensteine, Generatoren und Käufe des alten Designs,
+  Buch-Boni und Completion, Rekonstruktion, die 2D-Skelettgrafiken (`art/skeletons`, `svg2json`,
+  zonenbasiert) und die Einstellung „Zahlenformat“ (nur für große Zahlen nötig). Der Spielstand
+  enthält bis AP2-03 nur `saveVersion` (weiter 1), `lastSavedAt` und die Einstellungen; ältere
+  Spielstände laden weiter, ihre alten Felder werden ignoriert. `GameNumber` ist entfernt; Geld und
+  Ansehen kommen als `Long` in den Spielstand, sobald ein AP sie braucht. Das Modifier-System behält nur die
+  Stats `damage_reduction`, `quality_base_min`, `sell_price` und die Kategorien `upgrade` und
+  `event`; die endgültigen Stats legt AP2-14 fest.
 
 ## 11. Entscheidungen im Überblick
 
@@ -250,3 +259,5 @@ AP2-06 und AP2-10 hängen nur an AP2-01 und können vorgezogen werden.
 
 - **2.0 (2026-11-12):** Neues Design als aktives Grabungsspiel. Alle Entscheidungen aus Kapitel 11,
   Umfang des ersten Stands, Agenten-Regeln und Arbeitspakete AP2-01 bis AP2-15.
+- **AP2-02 (2026-11-12):** Kapitel 10 um den Stand nach dem Entfernen der Idle-Systeme ergänzt
+  (mitentfernte Teile, minimaler Spielstand bis AP2-03, verbleibende Stats).

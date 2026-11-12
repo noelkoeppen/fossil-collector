@@ -1,10 +1,10 @@
 [
-  {"id": "skull", "zones": ["snout", "orbit", "skull_roof", "occiput"]},
-  {"id": "jaw", "zones": ["tip", "tooth_row", "lower_edge", "joint"]},
-  {"id": "cervical", "zones": ["centrum", "spinous", "transverse_l", "transverse_r"]},
-  {"id": "dorsal", "zones": ["centrum", "spinous", "transverse_l", "transverse_r"]},
-  {"id": "ribs", "zones": ["head", "neck", "shaft", "end"]},
-  {"id": "pelvis", "zones": ["ilium", "ischium", "pubis", "acetabulum"]},
-  {"id": "forelimb", "zones": ["humerus", "radius_ulna", "carpus", "digits"]},
-  {"id": "hindlimb", "zones": ["femur", "tibia", "tarsus", "toes"]}
+  {"id": "skull"},
+  {"id": "jaw"},
+  {"id": "cervical"},
+  {"id": "dorsal"},
+  {"id": "ribs"},
+  {"id": "pelvis"},
+  {"id": "forelimb"},
+  {"id": "hindlimb"}
 ]

@@ -1,7 +1,7 @@
 package de.noelkoeppen.fossilcollector.core.save
 
 import de.noelkoeppen.fossilcollector.core.model.GameState
-import de.noelkoeppen.fossilcollector.core.save.SaveFixtures.n
+import de.noelkoeppen.fossilcollector.core.model.LanguageSetting
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
@@ -27,16 +27,14 @@ class SaveMigratorTest {
 
     /**
      * Test-Migration v1 -> v2 fuer `migration/renamed_field_v1.json`: In der gedachten
-     * Version 1 hiess `run.halls` noch `run.museumHalls`.
+     * Version 1 hiess `lastSavedAt` noch `savedAt`.
      */
-    private object RenameHallsStep : SaveMigration {
+    private object RenameSavedAtStep : SaveMigration {
         override val fromVersion: Int = 1
 
         override fun migrate(save: JsonObject): JsonObject {
-            val run = save.getValue("run").jsonObject
-            val halls = run.getValue("museumHalls")
-            val newRun = JsonObject(run - "museumHalls" + ("halls" to halls))
-            return JsonObject(save + ("run" to newRun))
+            val savedAt = save.getValue("savedAt")
+            return JsonObject(save - "savedAt" + ("lastSavedAt" to savedAt))
         }
     }
 
@@ -115,13 +113,11 @@ class SaveMigratorTest {
 
     @Test
     fun codecMigratesFixtureWithTestMigration() {
-        val codec = SaveCodec(SaveMigrator(listOf(RenameHallsStep), currentVersion = 2))
+        val codec = SaveCodec(SaveMigrator(listOf(RenameSavedAtStep), currentVersion = 2))
         val loaded = codec.decode(SaveFixtures.read("migration/renamed_field_v1.json"))
         assertEquals(2, loaded.saveVersion)
-        assertEquals(n(3.0), loaded.run.halls)
-        assertEquals(n(50.0), loaded.run.money)
-        assertEquals(n(3.0), loaded.meta.fame)
         assertEquals(1762351200000L, loaded.lastSavedAt)
+        assertEquals(LanguageSetting.DE, loaded.settings.language)
     }
 
     @Test
