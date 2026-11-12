@@ -1,0 +1,2212 @@
+{
+ "species": "cave_bear",
+ "unit": "1 unit = skull length, about 0.45 m",
+ "axes": "x to the rear, y up, z to the animal's left",
+ "bones": [
+  {
+   "id": "occipital",
+   "file": "occipital.glb",
+   "group": "skull",
+   "side": "center",
+   "name": {
+    "de": "Hinterhauptbein",
+    "en": "Occipital bone"
+   },
+   "min": [
+    0.4149,
+    -0.1066,
+    -0.1002
+   ],
+   "max": [
+    0.5263,
+    0.2285,
+    0.0994
+   ],
+   "triangles": 3002
+  },
+  {
+   "id": "sphenoid",
+   "file": "sphenoid.glb",
+   "group": "skull",
+   "side": "center",
+   "name": {
+    "de": "Keilbein",
+    "en": "Sphenoid bone"
+   },
+   "min": [
+    -0.13,
+    -0.0908,
+    -0.07
+   ],
+   "max": [
+    0.416,
+    -0.0198,
+    0.07
+   ],
+   "triangles": 3520
+  },
+  {
+   "id": "premaxilla_l",
+   "file": "premaxilla_l.glb",
+   "group": "skull",
+   "side": "left",
+   "name": {
+    "de": "Zwischenkieferbein links",
+    "en": "Left Premaxilla"
+   },
+   "min": [
+    -0.5297,
+    -0.095,
+    -0.0
+   ],
+   "max": [
+    -0.4507,
+    0.05,
+    0.0996
+   ],
+   "triangles": 1200
+  },
+  {
+   "id": "premaxilla_r",
+   "file": "premaxilla_r.glb",
+   "group": "skull",
+   "side": "right",
+   "name": {
+    "de": "Zwischenkieferbein rechts",
+    "en": "Right Premaxilla"
+   },
+   "min": [
+    -0.5297,
+    -0.095,
+    -0.0996
+   ],
+   "max": [
+    -0.4507,
+    0.05,
+    0.0
+   ],
+   "triangles": 1200
+  },
+  {
+   "id": "nasal_l",
+   "file": "nasal_l.glb",
+   "group": "skull",
+   "side": "left",
+   "name": {
+    "de": "Nasenbein links",
+    "en": "Left Nasal bone"
+   },
+   "min": [
+    -0.4439,
+    0.0548,
+    0.0
+   ],
+   "max": [
+    -0.13,
+    0.162,
+    0.035
+   ],
+   "triangles": 1200
+  },
+  {
+   "id": "nasal_r",
+   "file": "nasal_r.glb",
+   "group": "skull",
+   "side": "right",
+   "name": {
+    "de": "Nasenbein rechts",
+    "en": "Right Nasal bone"
+   },
+   "min": [
+    -0.4439,
+    0.0548,
+    -0.035
+   ],
+   "max": [
+    -0.13,
+    0.162,
+    -0.0
+   ],
+   "triangles": 1200
+  },
+  {
+   "id": "maxilla_l",
+   "file": "maxilla_l.glb",
+   "group": "skull",
+   "side": "left",
+   "name": {
+    "de": "Oberkieferbein links",
+    "en": "Left Maxilla"
+   },
+   "min": [
+    -0.475,
+    -0.1805,
+    -0.0
+   ],
+   "max": [
+    -0.04,
+    0.162,
+    0.1693
+   ],
+   "triangles": 6150
+  },
+  {
+   "id": "maxilla_r",
+   "file": "maxilla_r.glb",
+   "group": "skull",
+   "side": "right",
+   "name": {
+    "de": "Oberkieferbein rechts",
+    "en": "Right Maxilla"
+   },
+   "min": [
+    -0.475,
+    -0.1805,
+    -0.1693
+   ],
+   "max": [
+    -0.04,
+    0.162,
+    0.0
+   ],
+   "triangles": 6150
+  },
+  {
+   "id": "jugal_l",
+   "file": "jugal_l.glb",
+   "group": "skull",
+   "side": "left",
+   "name": {
+    "de": "Jochbein links",
+    "en": "Left Zygomatic bone"
+   },
+   "min": [
+    -0.1301,
+    -0.0913,
+    0.1344
+   ],
+   "max": [
+    0.18,
+    0.01,
+    0.2846
+   ],
+   "triangles": 1256
+  },
+  {
+   "id": "jugal_r",
+   "file": "jugal_r.glb",
+   "group": "skull",
+   "side": "right",
+   "name": {
+    "de": "Jochbein rechts",
+    "en": "Right Zygomatic bone"
+   },
+   "min": [
+    -0.1301,
+    -0.0913,
+    -0.2846
+   ],
+   "max": [
+    0.18,
+    0.01,
+    -0.1344
+   ],
+   "triangles": 1256
+  },
+  {
+   "id": "temporal_l",
+   "file": "temporal_l.glb",
+   "group": "skull",
+   "side": "left",
+   "name": {
+    "de": "Schläfenbein links",
+    "en": "Left Temporal bone"
+   },
+   "min": [
+    0.1796,
+    -0.114,
+    0.0166
+   ],
+   "max": [
+    0.4154,
+    0.0453,
+    0.2856
+   ],
+   "triangles": 2642
+  },
+  {
+   "id": "temporal_r",
+   "file": "temporal_r.glb",
+   "group": "skull",
+   "side": "right",
+   "name": {
+    "de": "Schläfenbein rechts",
+    "en": "Right Temporal bone"
+   },
+   "min": [
+    0.1796,
+    -0.114,
+    -0.2856
+   ],
+   "max": [
+    0.4154,
+    0.0453,
+    -0.0166
+   ],
+   "triangles": 2642
+  },
+  {
+   "id": "frontal_l",
+   "file": "frontal_l.glb",
+   "group": "skull",
+   "side": "left",
+   "name": {
+    "de": "Stirnbein links",
+    "en": "Left Frontal bone"
+   },
+   "min": [
+    -0.13,
+    -0.09,
+    -0.0
+   ],
+   "max": [
+    0.1,
+    0.2323,
+    0.1549
+   ],
+   "triangles": 4076
+  },
+  {
+   "id": "frontal_r",
+   "file": "frontal_r.glb",
+   "group": "skull",
+   "side": "right",
+   "name": {
+    "de": "Stirnbein rechts",
+    "en": "Right Frontal bone"
+   },
+   "min": [
+    -0.13,
+    -0.09,
+    -0.1549
+   ],
+   "max": [
+    0.1,
+    0.2323,
+    0.0
+   ],
+   "triangles": 4076
+  },
+  {
+   "id": "parietal_l",
+   "file": "parietal_l.glb",
+   "group": "skull",
+   "side": "left",
+   "name": {
+    "de": "Scheitelbein links",
+    "en": "Left Parietal bone"
+   },
+   "min": [
+    0.0999,
+    -0.042,
+    -0.0
+   ],
+   "max": [
+    0.4154,
+    0.234,
+    0.1137
+   ],
+   "triangles": 3612
+  },
+  {
+   "id": "parietal_r",
+   "file": "parietal_r.glb",
+   "group": "skull",
+   "side": "right",
+   "name": {
+    "de": "Scheitelbein rechts",
+    "en": "Right Parietal bone"
+   },
+   "min": [
+    0.0999,
+    -0.042,
+    -0.1137
+   ],
+   "max": [
+    0.4154,
+    0.234,
+    0.0
+   ],
+   "triangles": 3612
+  },
+  {
+   "id": "mandible_l",
+   "file": "mandible_l.glb",
+   "group": "skull",
+   "side": "left",
+   "name": {
+    "de": "Unterkieferhälfte links",
+    "en": "Left Mandible half"
+   },
+   "min": [
+    -0.5098,
+    -0.2529,
+    -0.0
+   ],
+   "max": [
+    0.3146,
+    0.0414,
+    0.2069
+   ],
+   "triangles": 5538
+  },
+  {
+   "id": "mandible_r",
+   "file": "mandible_r.glb",
+   "group": "skull",
+   "side": "right",
+   "name": {
+    "de": "Unterkieferhälfte rechts",
+    "en": "Right Mandible half"
+   },
+   "min": [
+    -0.5098,
+    -0.2529,
+    -0.2069
+   ],
+   "max": [
+    0.3146,
+    0.0414,
+    0.0
+   ],
+   "triangles": 5538
+  },
+  {
+   "id": "cervical_1",
+   "file": "cervical_1.glb",
+   "group": "cervical",
+   "side": "center",
+   "name": {
+    "de": "1. Halswirbel",
+    "en": "Cervical vertebra 1"
+   },
+   "min": [
+    0.5207,
+    -0.0719,
+    -0.146
+   ],
+   "max": [
+    0.6699,
+    0.0881,
+    0.1457
+   ],
+   "triangles": 1632
+  },
+  {
+   "id": "cervical_2",
+   "file": "cervical_2.glb",
+   "group": "cervical",
+   "side": "center",
+   "name": {
+    "de": "2. Halswirbel",
+    "en": "Cervical vertebra 2"
+   },
+   "min": [
+    0.6267,
+    -0.0374,
+    -0.106
+   ],
+   "max": [
+    0.7736,
+    0.124,
+    0.1051
+   ],
+   "triangles": 1496
+  },
+  {
+   "id": "cervical_3",
+   "file": "cervical_3.glb",
+   "group": "cervical",
+   "side": "center",
+   "name": {
+    "de": "3. Halswirbel",
+    "en": "Cervical vertebra 3"
+   },
+   "min": [
+    0.7314,
+    0.0013,
+    -0.1062
+   ],
+   "max": [
+    0.8757,
+    0.1658,
+    0.1051
+   ],
+   "triangles": 1506
+  },
+  {
+   "id": "cervical_4",
+   "file": "cervical_4.glb",
+   "group": "cervical",
+   "side": "center",
+   "name": {
+    "de": "4. Halswirbel",
+    "en": "Cervical vertebra 4"
+   },
+   "min": [
+    0.834,
+    0.0439,
+    -0.107
+   ],
+   "max": [
+    0.9765,
+    0.2131,
+    0.1054
+   ],
+   "triangles": 1506
+  },
+  {
+   "id": "cervical_5",
+   "file": "cervical_5.glb",
+   "group": "cervical",
+   "side": "center",
+   "name": {
+    "de": "5. Halswirbel",
+    "en": "Cervical vertebra 5"
+   },
+   "min": [
+    0.934,
+    0.0917,
+    -0.105
+   ],
+   "max": [
+    1.0746,
+    0.262,
+    0.1058
+   ],
+   "triangles": 1504
+  },
+  {
+   "id": "cervical_6",
+   "file": "cervical_6.glb",
+   "group": "cervical",
+   "side": "center",
+   "name": {
+    "de": "6. Halswirbel",
+    "en": "Cervical vertebra 6"
+   },
+   "min": [
+    1.0209,
+    0.1446,
+    -0.1051
+   ],
+   "max": [
+    1.1704,
+    0.3591,
+    0.1055
+   ],
+   "triangles": 1632
+  },
+  {
+   "id": "cervical_7",
+   "file": "cervical_7.glb",
+   "group": "cervical",
+   "side": "center",
+   "name": {
+    "de": "7. Halswirbel",
+    "en": "Cervical vertebra 7"
+   },
+   "min": [
+    1.0955,
+    0.2002,
+    -0.105
+   ],
+   "max": [
+    1.264,
+    0.4624,
+    0.1048
+   ],
+   "triangles": 1776
+  },
+  {
+   "id": "thoracic_1",
+   "file": "thoracic_1.glb",
+   "group": "thoracic",
+   "side": "center",
+   "name": {
+    "de": "1. Brustwirbel",
+    "en": "Thoracic vertebra 1"
+   },
+   "min": [
+    1.245,
+    0.254,
+    -0.0889
+   ],
+   "max": [
+    1.4156,
+    0.629,
+    0.089
+   ],
+   "triangles": 1834
+  },
+  {
+   "id": "thoracic_2",
+   "file": "thoracic_2.glb",
+   "group": "thoracic",
+   "side": "center",
+   "name": {
+    "de": "2. Brustwirbel",
+    "en": "Thoracic vertebra 2"
+   },
+   "min": [
+    1.3415,
+    0.2715,
+    -0.0887
+   ],
+   "max": [
+    1.5221,
+    0.6784,
+    0.0891
+   ],
+   "triangles": 1924
+  },
+  {
+   "id": "thoracic_3",
+   "file": "thoracic_3.glb",
+   "group": "thoracic",
+   "side": "center",
+   "name": {
+    "de": "3. Brustwirbel",
+    "en": "Thoracic vertebra 3"
+   },
+   "min": [
+    1.4361,
+    0.2867,
+    -0.089
+   ],
+   "max": [
+    1.6277,
+    0.7232,
+    0.089
+   ],
+   "triangles": 2016
+  },
+  {
+   "id": "thoracic_4",
+   "file": "thoracic_4.glb",
+   "group": "thoracic",
+   "side": "center",
+   "name": {
+    "de": "4. Brustwirbel",
+    "en": "Thoracic vertebra 4"
+   },
+   "min": [
+    1.5325,
+    0.2999,
+    -0.0889
+   ],
+   "max": [
+    1.7235,
+    0.7331,
+    0.0888
+   ],
+   "triangles": 2014
+  },
+  {
+   "id": "thoracic_5",
+   "file": "thoracic_5.glb",
+   "group": "thoracic",
+   "side": "center",
+   "name": {
+    "de": "5. Brustwirbel",
+    "en": "Thoracic vertebra 5"
+   },
+   "min": [
+    1.6289,
+    0.3114,
+    -0.087
+   ],
+   "max": [
+    1.8149,
+    0.7207,
+    0.0887
+   ],
+   "triangles": 1946
+  },
+  {
+   "id": "thoracic_6",
+   "file": "thoracic_6.glb",
+   "group": "thoracic",
+   "side": "center",
+   "name": {
+    "de": "6. Brustwirbel",
+    "en": "Thoracic vertebra 6"
+   },
+   "min": [
+    1.7254,
+    0.3201,
+    -0.0913
+   ],
+   "max": [
+    1.9059,
+    0.7065,
+    0.0887
+   ],
+   "triangles": 1884
+  },
+  {
+   "id": "thoracic_7",
+   "file": "thoracic_7.glb",
+   "group": "thoracic",
+   "side": "center",
+   "name": {
+    "de": "7. Brustwirbel",
+    "en": "Thoracic vertebra 7"
+   },
+   "min": [
+    1.8216,
+    0.3279,
+    -0.0899
+   ],
+   "max": [
+    1.9967,
+    0.6911,
+    0.0888
+   ],
+   "triangles": 1832
+  },
+  {
+   "id": "thoracic_8",
+   "file": "thoracic_8.glb",
+   "group": "thoracic",
+   "side": "center",
+   "name": {
+    "de": "8. Brustwirbel",
+    "en": "Thoracic vertebra 8"
+   },
+   "min": [
+    1.9193,
+    0.3324,
+    -0.0906
+   ],
+   "max": [
+    2.086,
+    0.6736,
+    0.0882
+   ],
+   "triangles": 1768
+  },
+  {
+   "id": "thoracic_9",
+   "file": "thoracic_9.glb",
+   "group": "thoracic",
+   "side": "center",
+   "name": {
+    "de": "9. Brustwirbel",
+    "en": "Thoracic vertebra 9"
+   },
+   "min": [
+    2.0152,
+    0.3357,
+    -0.0899
+   ],
+   "max": [
+    2.1777,
+    0.655,
+    0.0889
+   ],
+   "triangles": 1704
+  },
+  {
+   "id": "thoracic_10",
+   "file": "thoracic_10.glb",
+   "group": "thoracic",
+   "side": "center",
+   "name": {
+    "de": "10. Brustwirbel",
+    "en": "Thoracic vertebra 10"
+   },
+   "min": [
+    2.1123,
+    0.336,
+    -0.0888
+   ],
+   "max": [
+    2.2691,
+    0.6346,
+    0.0889
+   ],
+   "triangles": 1644
+  },
+  {
+   "id": "thoracic_11",
+   "file": "thoracic_11.glb",
+   "group": "thoracic",
+   "side": "center",
+   "name": {
+    "de": "11. Brustwirbel",
+    "en": "Thoracic vertebra 11"
+   },
+   "min": [
+    2.2088,
+    0.3334,
+    -0.089
+   ],
+   "max": [
+    2.3594,
+    0.613,
+    0.0891
+   ],
+   "triangles": 1598
+  },
+  {
+   "id": "thoracic_12",
+   "file": "thoracic_12.glb",
+   "group": "thoracic",
+   "side": "center",
+   "name": {
+    "de": "12. Brustwirbel",
+    "en": "Thoracic vertebra 12"
+   },
+   "min": [
+    2.3049,
+    0.3287,
+    -0.0893
+   ],
+   "max": [
+    2.4505,
+    0.5894,
+    0.0889
+   ],
+   "triangles": 1560
+  },
+  {
+   "id": "thoracic_13",
+   "file": "thoracic_13.glb",
+   "group": "thoracic",
+   "side": "center",
+   "name": {
+    "de": "13. Brustwirbel",
+    "en": "Thoracic vertebra 13"
+   },
+   "min": [
+    2.4008,
+    0.3219,
+    -0.0887
+   ],
+   "max": [
+    2.5418,
+    0.5636,
+    0.089
+   ],
+   "triangles": 1496
+  },
+  {
+   "id": "thoracic_14",
+   "file": "thoracic_14.glb",
+   "group": "thoracic",
+   "side": "center",
+   "name": {
+    "de": "14. Brustwirbel",
+    "en": "Thoracic vertebra 14"
+   },
+   "min": [
+    2.4988,
+    0.3135,
+    -0.0893
+   ],
+   "max": [
+    2.6333,
+    0.5372,
+    0.089
+   ],
+   "triangles": 1440
+  },
+  {
+   "id": "lumbar_1",
+   "file": "lumbar_1.glb",
+   "group": "lumbar",
+   "side": "center",
+   "name": {
+    "de": "1. Lendenwirbel",
+    "en": "Lumbar vertebra 1"
+   },
+   "min": [
+    2.6008,
+    0.2963,
+    -0.1712
+   ],
+   "max": [
+    2.713,
+    0.5379,
+    0.1713
+   ],
+   "triangles": 2104
+  },
+  {
+   "id": "lumbar_2",
+   "file": "lumbar_2.glb",
+   "group": "lumbar",
+   "side": "center",
+   "name": {
+    "de": "2. Lendenwirbel",
+    "en": "Lumbar vertebra 2"
+   },
+   "min": [
+    2.7089,
+    0.2899,
+    -0.1704
+   ],
+   "max": [
+    2.8203,
+    0.5309,
+    0.1703
+   ],
+   "triangles": 2090
+  },
+  {
+   "id": "lumbar_3",
+   "file": "lumbar_3.glb",
+   "group": "lumbar",
+   "side": "center",
+   "name": {
+    "de": "3. Lendenwirbel",
+    "en": "Lumbar vertebra 3"
+   },
+   "min": [
+    2.8173,
+    0.2829,
+    -0.171
+   ],
+   "max": [
+    2.93,
+    0.5247,
+    0.1702
+   ],
+   "triangles": 2096
+  },
+  {
+   "id": "lumbar_4",
+   "file": "lumbar_4.glb",
+   "group": "lumbar",
+   "side": "center",
+   "name": {
+    "de": "4. Lendenwirbel",
+    "en": "Lumbar vertebra 4"
+   },
+   "min": [
+    2.9256,
+    0.2763,
+    -0.17
+   ],
+   "max": [
+    3.0392,
+    0.5174,
+    0.1705
+   ],
+   "triangles": 2100
+  },
+  {
+   "id": "lumbar_5",
+   "file": "lumbar_5.glb",
+   "group": "lumbar",
+   "side": "center",
+   "name": {
+    "de": "5. Lendenwirbel",
+    "en": "Lumbar vertebra 5"
+   },
+   "min": [
+    3.0335,
+    0.2697,
+    -0.171
+   ],
+   "max": [
+    3.1456,
+    0.5108,
+    0.1702
+   ],
+   "triangles": 2084
+  },
+  {
+   "id": "lumbar_6",
+   "file": "lumbar_6.glb",
+   "group": "lumbar",
+   "side": "center",
+   "name": {
+    "de": "6. Lendenwirbel",
+    "en": "Lumbar vertebra 6"
+   },
+   "min": [
+    3.1422,
+    0.2632,
+    -0.1711
+   ],
+   "max": [
+    3.2554,
+    0.5043,
+    0.1702
+   ],
+   "triangles": 2070
+  },
+  {
+   "id": "sacrum",
+   "file": "sacrum.glb",
+   "group": "pelvis",
+   "side": "center",
+   "name": {
+    "de": "Kreuzbein",
+    "en": "Sacrum"
+   },
+   "min": [
+    3.19,
+    0.2249,
+    -0.0805
+   ],
+   "max": [
+    3.5957,
+    0.4132,
+    0.0803
+   ],
+   "triangles": 3742
+  },
+  {
+   "id": "hip_l",
+   "file": "hip_l.glb",
+   "group": "pelvis",
+   "side": "left",
+   "name": {
+    "de": "Hüftbein links",
+    "en": "Left Hip bone"
+   },
+   "min": [
+    3.0983,
+    -0.1688,
+    -0.0
+   ],
+   "max": [
+    3.9059,
+    0.4239,
+    0.2601
+   ],
+   "triangles": 5902
+  },
+  {
+   "id": "hip_r",
+   "file": "hip_r.glb",
+   "group": "pelvis",
+   "side": "right",
+   "name": {
+    "de": "Hüftbein rechts",
+    "en": "Right Hip bone"
+   },
+   "min": [
+    3.0983,
+    -0.1688,
+    -0.2601
+   ],
+   "max": [
+    3.9059,
+    0.4239,
+    0.0
+   ],
+   "triangles": 5902
+  },
+  {
+   "id": "caudal_1",
+   "file": "caudal_1.glb",
+   "group": "tail",
+   "side": "center",
+   "name": {
+    "de": "1. Schwanzwirbel",
+    "en": "Caudal vertebra 1"
+   },
+   "min": [
+    3.5514,
+    0.1935,
+    -0.0365
+   ],
+   "max": [
+    3.6326,
+    0.2794,
+    0.0359
+   ],
+   "triangles": 1200
+  },
+  {
+   "id": "caudal_2",
+   "file": "caudal_2.glb",
+   "group": "tail",
+   "side": "center",
+   "name": {
+    "de": "2. Schwanzwirbel",
+    "en": "Caudal vertebra 2"
+   },
+   "min": [
+    3.5975,
+    0.1672,
+    -0.0327
+   ],
+   "max": [
+    3.6752,
+    0.2486,
+    0.0327
+   ],
+   "triangles": 1200
+  },
+  {
+   "id": "caudal_3",
+   "file": "caudal_3.glb",
+   "group": "tail",
+   "side": "center",
+   "name": {
+    "de": "3. Schwanzwirbel",
+    "en": "Caudal vertebra 3"
+   },
+   "min": [
+    3.6444,
+    0.1417,
+    -0.0304
+   ],
+   "max": [
+    3.7194,
+    0.2178,
+    0.0301
+   ],
+   "triangles": 1200
+  },
+  {
+   "id": "caudal_4",
+   "file": "caudal_4.glb",
+   "group": "tail",
+   "side": "center",
+   "name": {
+    "de": "4. Schwanzwirbel",
+    "en": "Caudal vertebra 4"
+   },
+   "min": [
+    3.6906,
+    0.1147,
+    -0.0271
+   ],
+   "max": [
+    3.7625,
+    0.1857,
+    0.0273
+   ],
+   "triangles": 1200
+  },
+  {
+   "id": "caudal_5",
+   "file": "caudal_5.glb",
+   "group": "tail",
+   "side": "center",
+   "name": {
+    "de": "5. Schwanzwirbel",
+    "en": "Caudal vertebra 5"
+   },
+   "min": [
+    3.7379,
+    0.0887,
+    -0.0242
+   ],
+   "max": [
+    3.8062,
+    0.1553,
+    0.0243
+   ],
+   "triangles": 1200
+  },
+  {
+   "id": "caudal_6",
+   "file": "caudal_6.glb",
+   "group": "tail",
+   "side": "center",
+   "name": {
+    "de": "6. Schwanzwirbel",
+    "en": "Caudal vertebra 6"
+   },
+   "min": [
+    3.7838,
+    0.0629,
+    -0.0215
+   ],
+   "max": [
+    3.8494,
+    0.1239,
+    0.0214
+   ],
+   "triangles": 1200
+  },
+  {
+   "id": "caudal_7",
+   "file": "caudal_7.glb",
+   "group": "tail",
+   "side": "center",
+   "name": {
+    "de": "7. Schwanzwirbel",
+    "en": "Caudal vertebra 7"
+   },
+   "min": [
+    3.8308,
+    0.0354,
+    -0.0186
+   ],
+   "max": [
+    3.8931,
+    0.0923,
+    0.0186
+   ],
+   "triangles": 1200
+  },
+  {
+   "id": "caudal_8",
+   "file": "caudal_8.glb",
+   "group": "tail",
+   "side": "center",
+   "name": {
+    "de": "8. Schwanzwirbel",
+    "en": "Caudal vertebra 8"
+   },
+   "min": [
+    3.877,
+    0.0102,
+    -0.0157
+   ],
+   "max": [
+    3.9366,
+    0.0619,
+    0.0156
+   ],
+   "triangles": 1200
+  },
+  {
+   "id": "rib_1_l",
+   "file": "rib_1_l.glb",
+   "group": "ribs",
+   "side": "left",
+   "name": {
+    "de": "1. Rippe links",
+    "en": "Left Rib 1"
+   },
+   "min": [
+    1.2804,
+    -0.0998,
+    0.0003
+   ],
+   "max": [
+    1.4835,
+    0.3197,
+    0.1827
+   ],
+   "triangles": 1200
+  },
+  {
+   "id": "rib_1_r",
+   "file": "rib_1_r.glb",
+   "group": "ribs",
+   "side": "right",
+   "name": {
+    "de": "1. Rippe rechts",
+    "en": "Right Rib 1"
+   },
+   "min": [
+    1.2804,
+    -0.0998,
+    -0.1827
+   ],
+   "max": [
+    1.4835,
+    0.3197,
+    -0.0003
+   ],
+   "triangles": 1200
+  },
+  {
+   "id": "rib_2_l",
+   "file": "rib_2_l.glb",
+   "group": "ribs",
+   "side": "left",
+   "name": {
+    "de": "2. Rippe links",
+    "en": "Left Rib 2"
+   },
+   "min": [
+    1.3757,
+    -0.1006,
+    -0.0002
+   ],
+   "max": [
+    1.5843,
+    0.3366,
+    0.1956
+   ],
+   "triangles": 1200
+  },
+  {
+   "id": "rib_2_r",
+   "file": "rib_2_r.glb",
+   "group": "ribs",
+   "side": "right",
+   "name": {
+    "de": "2. Rippe rechts",
+    "en": "Right Rib 2"
+   },
+   "min": [
+    1.3757,
+    -0.1006,
+    -0.1956
+   ],
+   "max": [
+    1.5843,
+    0.3366,
+    0.0002
+   ],
+   "triangles": 1200
+  },
+  {
+   "id": "rib_3_l",
+   "file": "rib_3_l.glb",
+   "group": "ribs",
+   "side": "left",
+   "name": {
+    "de": "3. Rippe links",
+    "en": "Left Rib 3"
+   },
+   "min": [
+    1.472,
+    -0.1278,
+    0.0
+   ],
+   "max": [
+    1.6961,
+    0.3514,
+    0.2281
+   ],
+   "triangles": 1200
+  },
+  {
+   "id": "rib_3_r",
+   "file": "rib_3_r.glb",
+   "group": "ribs",
+   "side": "right",
+   "name": {
+    "de": "3. Rippe rechts",
+    "en": "Right Rib 3"
+   },
+   "min": [
+    1.472,
+    -0.1278,
+    -0.2281
+   ],
+   "max": [
+    1.6961,
+    0.3514,
+    -0.0
+   ],
+   "triangles": 1200
+  },
+  {
+   "id": "rib_4_l",
+   "file": "rib_4_l.glb",
+   "group": "ribs",
+   "side": "left",
+   "name": {
+    "de": "4. Rippe links",
+    "en": "Left Rib 4"
+   },
+   "min": [
+    1.5682,
+    -0.1737,
+    0.0001
+   ],
+   "max": [
+    1.8152,
+    0.3632,
+    0.2732
+   ],
+   "triangles": 1320
+  },
+  {
+   "id": "rib_4_r",
+   "file": "rib_4_r.glb",
+   "group": "ribs",
+   "side": "right",
+   "name": {
+    "de": "4. Rippe rechts",
+    "en": "Right Rib 4"
+   },
+   "min": [
+    1.5682,
+    -0.1737,
+    -0.2732
+   ],
+   "max": [
+    1.8152,
+    0.3632,
+    -0.0001
+   ],
+   "triangles": 1320
+  },
+  {
+   "id": "rib_5_l",
+   "file": "rib_5_l.glb",
+   "group": "ribs",
+   "side": "left",
+   "name": {
+    "de": "5. Rippe links",
+    "en": "Left Rib 5"
+   },
+   "min": [
+    1.6647,
+    -0.2306,
+    -0.0001
+   ],
+   "max": [
+    1.9371,
+    0.3735,
+    0.3219
+   ],
+   "triangles": 1526
+  },
+  {
+   "id": "rib_5_r",
+   "file": "rib_5_r.glb",
+   "group": "ribs",
+   "side": "right",
+   "name": {
+    "de": "5. Rippe rechts",
+    "en": "Right Rib 5"
+   },
+   "min": [
+    1.6647,
+    -0.2306,
+    -0.3219
+   ],
+   "max": [
+    1.9371,
+    0.3735,
+    0.0001
+   ],
+   "triangles": 1526
+  },
+  {
+   "id": "rib_6_l",
+   "file": "rib_6_l.glb",
+   "group": "ribs",
+   "side": "left",
+   "name": {
+    "de": "6. Rippe links",
+    "en": "Left Rib 6"
+   },
+   "min": [
+    1.7596,
+    -0.2906,
+    -0.0002
+   ],
+   "max": [
+    2.0594,
+    0.3816,
+    0.3669
+   ],
+   "triangles": 1718
+  },
+  {
+   "id": "rib_6_r",
+   "file": "rib_6_r.glb",
+   "group": "ribs",
+   "side": "right",
+   "name": {
+    "de": "6. Rippe rechts",
+    "en": "Right Rib 6"
+   },
+   "min": [
+    1.7596,
+    -0.2906,
+    -0.3669
+   ],
+   "max": [
+    2.0594,
+    0.3816,
+    0.0002
+   ],
+   "triangles": 1718
+  },
+  {
+   "id": "rib_7_l",
+   "file": "rib_7_l.glb",
+   "group": "ribs",
+   "side": "left",
+   "name": {
+    "de": "7. Rippe links",
+    "en": "Left Rib 7"
+   },
+   "min": [
+    1.8573,
+    -0.3456,
+    0.0004
+   ],
+   "max": [
+    2.1782,
+    0.3877,
+    0.4001
+   ],
+   "triangles": 1866
+  },
+  {
+   "id": "rib_7_r",
+   "file": "rib_7_r.glb",
+   "group": "ribs",
+   "side": "right",
+   "name": {
+    "de": "7. Rippe rechts",
+    "en": "Right Rib 7"
+   },
+   "min": [
+    1.8573,
+    -0.3456,
+    -0.4001
+   ],
+   "max": [
+    2.1782,
+    0.3877,
+    -0.0004
+   ],
+   "triangles": 1866
+  },
+  {
+   "id": "rib_8_l",
+   "file": "rib_8_l.glb",
+   "group": "ribs",
+   "side": "left",
+   "name": {
+    "de": "8. Rippe links",
+    "en": "Left Rib 8"
+   },
+   "min": [
+    1.9531,
+    -0.3873,
+    0.0001
+   ],
+   "max": [
+    2.2909,
+    0.3918,
+    0.4125
+   ],
+   "triangles": 1944
+  },
+  {
+   "id": "rib_8_r",
+   "file": "rib_8_r.glb",
+   "group": "ribs",
+   "side": "right",
+   "name": {
+    "de": "8. Rippe rechts",
+    "en": "Right Rib 8"
+   },
+   "min": [
+    1.9531,
+    -0.3873,
+    -0.4125
+   ],
+   "max": [
+    2.2909,
+    0.3918,
+    -0.0001
+   ],
+   "triangles": 1944
+  },
+  {
+   "id": "rib_9_l",
+   "file": "rib_9_l.glb",
+   "group": "ribs",
+   "side": "left",
+   "name": {
+    "de": "9. Rippe links",
+    "en": "Left Rib 9"
+   },
+   "min": [
+    2.0502,
+    -0.4066,
+    -0.0001
+   ],
+   "max": [
+    2.3936,
+    0.3943,
+    0.4126
+   ],
+   "triangles": 1968
+  },
+  {
+   "id": "rib_9_r",
+   "file": "rib_9_r.glb",
+   "group": "ribs",
+   "side": "right",
+   "name": {
+    "de": "9. Rippe rechts",
+    "en": "Right Rib 9"
+   },
+   "min": [
+    2.0502,
+    -0.4066,
+    -0.4126
+   ],
+   "max": [
+    2.3936,
+    0.3943,
+    0.0001
+   ],
+   "triangles": 1968
+  },
+  {
+   "id": "rib_10_l",
+   "file": "rib_10_l.glb",
+   "group": "ribs",
+   "side": "left",
+   "name": {
+    "de": "10. Rippe links",
+    "en": "Left Rib 10"
+   },
+   "min": [
+    2.1464,
+    -0.3326,
+    0.0003
+   ],
+   "max": [
+    2.4597,
+    0.3948,
+    0.4123
+   ],
+   "triangles": 1660
+  },
+  {
+   "id": "rib_10_r",
+   "file": "rib_10_r.glb",
+   "group": "ribs",
+   "side": "right",
+   "name": {
+    "de": "10. Rippe rechts",
+    "en": "Right Rib 10"
+   },
+   "min": [
+    2.1464,
+    -0.3326,
+    -0.4123
+   ],
+   "max": [
+    2.4597,
+    0.3948,
+    -0.0003
+   ],
+   "triangles": 1660
+  },
+  {
+   "id": "rib_11_l",
+   "file": "rib_11_l.glb",
+   "group": "ribs",
+   "side": "left",
+   "name": {
+    "de": "11. Rippe links",
+    "en": "Left Rib 11"
+   },
+   "min": [
+    2.2425,
+    -0.2864,
+    0.0003
+   ],
+   "max": [
+    2.5366,
+    0.3929,
+    0.4127
+   ],
+   "triangles": 1534
+  },
+  {
+   "id": "rib_11_r",
+   "file": "rib_11_r.glb",
+   "group": "ribs",
+   "side": "right",
+   "name": {
+    "de": "11. Rippe rechts",
+    "en": "Right Rib 11"
+   },
+   "min": [
+    2.2425,
+    -0.2864,
+    -0.4127
+   ],
+   "max": [
+    2.5366,
+    0.3929,
+    -0.0003
+   ],
+   "triangles": 1534
+  },
+  {
+   "id": "rib_12_l",
+   "file": "rib_12_l.glb",
+   "group": "ribs",
+   "side": "left",
+   "name": {
+    "de": "12. Rippe links",
+    "en": "Left Rib 12"
+   },
+   "min": [
+    2.3399,
+    -0.2126,
+    0.0001
+   ],
+   "max": [
+    2.6009,
+    0.3892,
+    0.3999
+   ],
+   "triangles": 1370
+  },
+  {
+   "id": "rib_12_r",
+   "file": "rib_12_r.glb",
+   "group": "ribs",
+   "side": "right",
+   "name": {
+    "de": "12. Rippe rechts",
+    "en": "Right Rib 12"
+   },
+   "min": [
+    2.3399,
+    -0.2126,
+    -0.3999
+   ],
+   "max": [
+    2.6009,
+    0.3892,
+    -0.0001
+   ],
+   "triangles": 1370
+  },
+  {
+   "id": "rib_13_l",
+   "file": "rib_13_l.glb",
+   "group": "ribs",
+   "side": "left",
+   "name": {
+    "de": "13. Rippe links",
+    "en": "Left Rib 13"
+   },
+   "min": [
+    2.4378,
+    -0.1194,
+    0.0003
+   ],
+   "max": [
+    2.6591,
+    0.3836,
+    0.3756
+   ],
+   "triangles": 1200
+  },
+  {
+   "id": "rib_13_r",
+   "file": "rib_13_r.glb",
+   "group": "ribs",
+   "side": "right",
+   "name": {
+    "de": "13. Rippe rechts",
+    "en": "Right Rib 13"
+   },
+   "min": [
+    2.4378,
+    -0.1194,
+    -0.3756
+   ],
+   "max": [
+    2.6591,
+    0.3836,
+    -0.0003
+   ],
+   "triangles": 1200
+  },
+  {
+   "id": "rib_14_l",
+   "file": "rib_14_l.glb",
+   "group": "ribs",
+   "side": "left",
+   "name": {
+    "de": "14. Rippe links",
+    "en": "Left Rib 14"
+   },
+   "min": [
+    2.5333,
+    -0.0482,
+    -0.0002
+   ],
+   "max": [
+    2.7301,
+    0.3755,
+    0.3624
+   ],
+   "triangles": 1200
+  },
+  {
+   "id": "rib_14_r",
+   "file": "rib_14_r.glb",
+   "group": "ribs",
+   "side": "right",
+   "name": {
+    "de": "14. Rippe rechts",
+    "en": "Right Rib 14"
+   },
+   "min": [
+    2.5333,
+    -0.0482,
+    -0.3624
+   ],
+   "max": [
+    2.7301,
+    0.3755,
+    0.0002
+   ],
+   "triangles": 1200
+  },
+  {
+   "id": "sternum",
+   "file": "sternum.glb",
+   "group": "sternum",
+   "side": "center",
+   "name": {
+    "de": "Brustbein",
+    "en": "Sternum"
+   },
+   "min": [
+    1.4366,
+    -0.4934,
+    -0.0452
+   ],
+   "max": [
+    2.3838,
+    -0.127,
+    0.0443
+   ],
+   "triangles": 4638
+  },
+  {
+   "id": "scapula_l",
+   "file": "scapula_l.glb",
+   "group": "forelimb",
+   "side": "left",
+   "name": {
+    "de": "Schulterblatt links",
+    "en": "Left Scapula"
+   },
+   "min": [
+    1.2693,
+    -0.1791,
+    0.1868
+   ],
+   "max": [
+    1.7928,
+    0.5451,
+    0.4133
+   ],
+   "triangles": 7000
+  },
+  {
+   "id": "scapula_r",
+   "file": "scapula_r.glb",
+   "group": "forelimb",
+   "side": "right",
+   "name": {
+    "de": "Schulterblatt rechts",
+    "en": "Right Scapula"
+   },
+   "min": [
+    1.2693,
+    -0.1791,
+    -0.4133
+   ],
+   "max": [
+    1.7928,
+    0.5451,
+    -0.1868
+   ],
+   "triangles": 7000
+  },
+  {
+   "id": "humerus_l",
+   "file": "humerus_l.glb",
+   "group": "forelimb",
+   "side": "left",
+   "name": {
+    "de": "Oberarmknochen links",
+    "en": "Left Humerus"
+   },
+   "min": [
+    1.2575,
+    -0.9662,
+    0.2118
+   ],
+   "max": [
+    1.6973,
+    -0.0676,
+    0.4557
+   ],
+   "triangles": 6884
+  },
+  {
+   "id": "humerus_r",
+   "file": "humerus_r.glb",
+   "group": "forelimb",
+   "side": "right",
+   "name": {
+    "de": "Oberarmknochen rechts",
+    "en": "Right Humerus"
+   },
+   "min": [
+    1.2575,
+    -0.9662,
+    -0.4557
+   ],
+   "max": [
+    1.6973,
+    -0.0676,
+    -0.2118
+   ],
+   "triangles": 6884
+  },
+  {
+   "id": "radius_l",
+   "file": "radius_l.glb",
+   "group": "forelimb",
+   "side": "left",
+   "name": {
+    "de": "Speiche links",
+    "en": "Left Radius"
+   },
+   "min": [
+    1.4227,
+    -1.5679,
+    0.2764
+   ],
+   "max": [
+    1.6339,
+    -0.8664,
+    0.4139
+   ],
+   "triangles": 3884
+  },
+  {
+   "id": "radius_r",
+   "file": "radius_r.glb",
+   "group": "forelimb",
+   "side": "right",
+   "name": {
+    "de": "Speiche rechts",
+    "en": "Right Radius"
+   },
+   "min": [
+    1.4227,
+    -1.5679,
+    -0.4139
+   ],
+   "max": [
+    1.6339,
+    -0.8664,
+    -0.2764
+   ],
+   "triangles": 3884
+  },
+  {
+   "id": "ulna_l",
+   "file": "ulna_l.glb",
+   "group": "forelimb",
+   "side": "left",
+   "name": {
+    "de": "Elle links",
+    "en": "Left Ulna"
+   },
+   "min": [
+    1.4923,
+    -1.5524,
+    0.2177
+   ],
+   "max": [
+    1.7772,
+    -0.7232,
+    0.3867
+   ],
+   "triangles": 3882
+  },
+  {
+   "id": "ulna_r",
+   "file": "ulna_r.glb",
+   "group": "forelimb",
+   "side": "right",
+   "name": {
+    "de": "Elle rechts",
+    "en": "Right Ulna"
+   },
+   "min": [
+    1.4923,
+    -1.5524,
+    -0.3867
+   ],
+   "max": [
+    1.7772,
+    -0.7232,
+    -0.2177
+   ],
+   "triangles": 3882
+  },
+  {
+   "id": "forepaw_l",
+   "file": "forepaw_l.glb",
+   "group": "forelimb",
+   "side": "left",
+   "name": {
+    "de": "Vorderpfote links",
+    "en": "Left Forepaw"
+   },
+   "min": [
+    1.0789,
+    -1.6348,
+    0.1964
+   ],
+   "max": [
+    1.56,
+    -1.5,
+    0.4238
+   ],
+   "triangles": 5664
+  },
+  {
+   "id": "forepaw_r",
+   "file": "forepaw_r.glb",
+   "group": "forelimb",
+   "side": "right",
+   "name": {
+    "de": "Vorderpfote rechts",
+    "en": "Right Forepaw"
+   },
+   "min": [
+    1.0789,
+    -1.6348,
+    -0.4238
+   ],
+   "max": [
+    1.56,
+    -1.5,
+    -0.1964
+   ],
+   "triangles": 5664
+  },
+  {
+   "id": "femur_l",
+   "file": "femur_l.glb",
+   "group": "hindlimb",
+   "side": "left",
+   "name": {
+    "de": "Oberschenkelknochen links",
+    "en": "Left Femur"
+   },
+   "min": [
+    3.0803,
+    -0.8657,
+    0.2044
+   ],
+   "max": [
+    3.6804,
+    0.1208,
+    0.4501
+   ],
+   "triangles": 7000
+  },
+  {
+   "id": "femur_r",
+   "file": "femur_r.glb",
+   "group": "hindlimb",
+   "side": "right",
+   "name": {
+    "de": "Oberschenkelknochen rechts",
+    "en": "Right Femur"
+   },
+   "min": [
+    3.0803,
+    -0.8657,
+    -0.4501
+   ],
+   "max": [
+    3.6804,
+    0.1208,
+    -0.2044
+   ],
+   "triangles": 7000
+  },
+  {
+   "id": "patella_l",
+   "file": "patella_l.glb",
+   "group": "hindlimb",
+   "side": "left",
+   "name": {
+    "de": "Kniescheibe links",
+    "en": "Left Patella"
+   },
+   "min": [
+    3.0498,
+    -0.8153,
+    0.2848
+   ],
+   "max": [
+    3.1104,
+    -0.7149,
+    0.375
+   ],
+   "triangles": 1200
+  },
+  {
+   "id": "patella_r",
+   "file": "patella_r.glb",
+   "group": "hindlimb",
+   "side": "right",
+   "name": {
+    "de": "Kniescheibe rechts",
+    "en": "Right Patella"
+   },
+   "min": [
+    3.0498,
+    -0.8153,
+    -0.375
+   ],
+   "max": [
+    3.1104,
+    -0.7149,
+    -0.2848
+   ],
+   "triangles": 1200
+  },
+  {
+   "id": "tibia_l",
+   "file": "tibia_l.glb",
+   "group": "hindlimb",
+   "side": "left",
+   "name": {
+    "de": "Schienbein links",
+    "en": "Left Tibia"
+   },
+   "min": [
+    3.0936,
+    -1.5024,
+    0.2272
+   ],
+   "max": [
+    3.4235,
+    -0.7685,
+    0.4167
+   ],
+   "triangles": 4342
+  },
+  {
+   "id": "tibia_r",
+   "file": "tibia_r.glb",
+   "group": "hindlimb",
+   "side": "right",
+   "name": {
+    "de": "Schienbein rechts",
+    "en": "Right Tibia"
+   },
+   "min": [
+    3.0936,
+    -1.5024,
+    -0.4167
+   ],
+   "max": [
+    3.4235,
+    -0.7685,
+    -0.2272
+   ],
+   "triangles": 4342
+  },
+  {
+   "id": "fibula_l",
+   "file": "fibula_l.glb",
+   "group": "hindlimb",
+   "side": "left",
+   "name": {
+    "de": "Wadenbein links",
+    "en": "Left Fibula"
+   },
+   "min": [
+    3.2005,
+    -1.4498,
+    0.3494
+   ],
+   "max": [
+    3.3903,
+    -0.8357,
+    0.4238
+   ],
+   "triangles": 1608
+  },
+  {
+   "id": "fibula_r",
+   "file": "fibula_r.glb",
+   "group": "hindlimb",
+   "side": "right",
+   "name": {
+    "de": "Wadenbein rechts",
+    "en": "Right Fibula"
+   },
+   "min": [
+    3.2005,
+    -1.4498,
+    -0.4238
+   ],
+   "max": [
+    3.3903,
+    -0.8357,
+    -0.3494
+   ],
+   "triangles": 1608
+  },
+  {
+   "id": "hindpaw_l",
+   "file": "hindpaw_l.glb",
+   "group": "hindlimb",
+   "side": "left",
+   "name": {
+    "de": "Hinterpfote links",
+    "en": "Left Hindpaw"
+   },
+   "min": [
+    2.8146,
+    -1.6374,
+    0.1896
+   ],
+   "max": [
+    3.5299,
+    -1.4351,
+    0.4094
+   ],
+   "triangles": 7000
+  },
+  {
+   "id": "hindpaw_r",
+   "file": "hindpaw_r.glb",
+   "group": "hindlimb",
+   "side": "right",
+   "name": {
+    "de": "Hinterpfote rechts",
+    "en": "Right Hindpaw"
+   },
+   "min": [
+    2.8146,
+    -1.6374,
+    -0.4094
+   ],
+   "max": [
+    3.5299,
+    -1.4351,
+    -0.1896
+   ],
+   "triangles": 7000
+  }
+ ]
+}
