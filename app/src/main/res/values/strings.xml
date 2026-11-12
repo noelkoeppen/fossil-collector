@@ -16,5 +16,6 @@
     <!-- Hinweise zum Spielstand -->
     <string name="message_loaded_from_backup">Der Spielstand war beschädigt. Geladen wurde stattdessen Sicherung %1$d.</string>
     <string name="message_save_unreadable">Der Spielstand konnte nicht gelesen werden. Es wurde ein neues Spiel gestartet.</string>
+    <string name="message_old_save_discarded">Der Spielstand stammte aus einer alten Version des Spiels und passt nicht mehr zum neuen Grabungsspiel. Es wurde ein neues Spiel gestartet, deine Spracheinstellung wurde übernommen.</string>
     <string name="message_save_failed">Speichern fehlgeschlagen. Es wird gleich erneut versucht.</string>
 </resources>

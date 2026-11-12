@@ -34,7 +34,7 @@ class TextProvider(
 
     fun speciesName(speciesId: String): String = text(LocaleKeys.speciesName(speciesId))
 
-    fun boneName(boneId: String): String = text(LocaleKeys.boneName(boneId))
+    fun boneName(speciesId: String, boneId: String): String = text(LocaleKeys.boneName(speciesId, boneId))
 
     fun qualityTierName(tierId: String): String = text(LocaleKeys.qualityTierName(tierId))
 

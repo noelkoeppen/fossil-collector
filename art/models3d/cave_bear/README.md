@@ -1,8 +1,9 @@
-# 3D-Modell Höhlenbär (Prototyp)
+# 3D-Modell Höhlenbär
 
-Experimentelle, realistisch wirkende 3D-Darstellung des Höhlenbären als Alternative zur
-flachen Vektorgrafik aus `docs/GAME_DESIGN.md` Kapitel 8.5. Noch nicht ins Spiel eingebunden
-und kein Arbeitspaket aus Kapitel 14.
+Realistisch wirkende 3D-Darstellung des Höhlenbären nach `docs/GAME_DESIGN.md` Kapitel 8
+(Darstellung: Skelett in 3D, eine `.glb` pro Knochen plus `bones.json`). Seit AP2-03 sind
+Knochenliste und Nachbarschaftsgraph der Art in den Spieldaten aus diesem Modell abgeleitet
+(Kapitel 4); die Einbindung der Meshes in die App folgt mit AP2-06 und AP2-10 (Kapitel 12).
 
 ## Dateien
 
@@ -28,6 +29,7 @@ Die kleinen Pfotenknochen sind je Pfote ein Teil.
 | `bones.json` | Liste aller Knochen: `id`, Datei, Gruppe, Seite, Name (de/en), Bounding-Box, Dreiecke |
 | `cave_bear_all.glb` | Alle Knochen in einer Datei, jeder als eigener Knoten mit seiner `id` |
 | `bones_viewer.html` | Betrachter für `cave_bear_all.glb` (über einen lokalen Webserver öffnen) |
+| `neighbors_overrides.json` | Anatomische Korrekturen am Nachbarschaftsgraph (siehe unten) |
 
 - Alle Meshes liegen im gemeinsamen Skelett-Koordinatensystem. Lädt man alle Dateien ohne
   Verschiebung, ergibt sich das stehende Skelett.
@@ -45,7 +47,7 @@ Die Skripte lesen die Formen aus `skeleton.html` und `skull.html`.
   beschrieben und wird pro Pixel per Raymarching berechnet. Die Meshes unter `bones/` werden daraus per
   Marching Cubes abgeleitet.
 - Jedes Teil hat eine Qualität 0..1 (Uniform `uQ`). Niedrige Qualität bricht Stücke aus der
-  Oberfläche. Die Qualitätsfarben entsprechen Kapitel 8.4.
+  Oberfläche. Die Qualitätsfarben entsprechen den Qualitätsstufen aus Kapitel 4.
 - "Auseinanderziehen" verschiebt die Teile über `uEx`, paarige Teile werden an der Mittelebene
   geteilt.
 - Koordinaten: x zeigt nach hinten (Nasenspitze bei -0.5, Hinterhaupt bei +0.5), y nach oben,
@@ -59,9 +61,16 @@ Ansicht, und ein Tipp auf ein Teil in der Liste holt es heran.
 Zum Testen gibt es feste Blickwinkel über den URL-Anker, z. B. `skeleton.html#side`,
 `#q3`, `#scap`, `#paw`, `#ex` oder `skull.html#front`, `#rear`, `#ex`.
 
+## Nachbarschaftsgraph
+
+`tools/models3d/neighbors.py` leitet aus den Meshes unter `bones/` ab, welche Knochen aneinander
+grenzen (kleinster Oberflächenabstand höchstens 0.03 Einheiten), wendet die Korrekturen aus
+`neighbors_overrides.json` an und schreibt Knochenliste, Graph und Knochennamen in
+`core/src/main/resources/data/` (Anleitung: `tools/models3d/README.md`). Nach jeder Änderung an
+`bones.json`, an den Meshes oder an den Korrekturen das Skript erneut ausführen.
+
 ## Offene Punkte
 
-- Abweichung vom Design: Der Schädel hat hier Einzelknochen mit je einer Qualität statt der
-  4 Zonen aus Kapitel 4.3. Für eine Übernahme ins Spiel müsste das Design angepasst werden.
-- Einbindung in Jetpack Compose ist ungeklärt (WebView, vorgerenderte Bilder oder echtes Mesh).
+- Einbindung in Jetpack Compose: Renderer-Wahl in AP2-10, vorgerenderte Knochenbilder für die
+  2D-Grabung in AP2-06 (Kapitel 12).
 - Proportionen sind nach Augenmaß gebaut, nicht gegen Messwerte geprüft.

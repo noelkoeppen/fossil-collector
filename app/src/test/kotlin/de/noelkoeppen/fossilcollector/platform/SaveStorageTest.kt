@@ -1,6 +1,8 @@
 package de.noelkoeppen.fossilcollector.platform
 
 import de.noelkoeppen.fossilcollector.core.model.GameState
+import de.noelkoeppen.fossilcollector.core.model.LanguageSetting
+import de.noelkoeppen.fossilcollector.core.model.Settings
 import de.noelkoeppen.fossilcollector.core.save.SaveCodec
 import de.noelkoeppen.fossilcollector.core.save.SaveException
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -88,7 +90,7 @@ class SaveStorageTest {
         val storage = storage()
         for (id in 1L..4L) storage.save(state(id))
         storage.mainFile.writeText("")
-        storage.backupFiles[0].writeText("""{"saveVersion": 1}""")
+        storage.backupFiles[0].writeText("""{"saveVersion": 3}""")
 
         val result = loaded(SaveStorage(dir).load())
         assertEquals(2L, result.state.lastSavedAt)
@@ -132,6 +134,43 @@ class SaveStorageTest {
         val result = assertInstanceOf(SaveLoadResult.Unreadable::class.java, storage.load())
         assertEquals(4, result.failures.size)
         assertEquals("main kaputt", storage.corruptFile.readText())
+    }
+
+    @Test
+    fun obsoleteSaveIsDiscardedWithLanguageAndNotPreservedAsCorrupt() {
+        val storage = storage()
+        storage.mainFile.writeText(LEGACY_EN)
+        storage.backupFiles[0].writeText("""{"saveVersion": 1, "lastSavedAt": 0, "settings": {"language": "de"}}""")
+
+        val result = assertInstanceOf(SaveLoadResult.Discarded::class.java, storage.load())
+        assertEquals(Settings(LanguageSetting.EN), result.legacySettings)
+        assertEquals(2, result.failures.size)
+        assertTrue(result.failures.all { it.error is SaveException.ObsoleteVersion })
+        assertFalse(storage.corruptFile.exists())
+
+        // Das neue Spiel ersetzt den alten Stand; dieser wird nicht als Backup uebernommen.
+        storage.save(state(10))
+        assertEquals(10L, idOf(storage.mainFile))
+        assertTrue(storage.backupFiles.none { it.isFile && it.readText() == LEGACY_EN })
+    }
+
+    @Test
+    fun obsoleteSaveWithUnreadableSettingsIsDiscardedWithoutSettings() {
+        val storage = storage()
+        storage.mainFile.writeText("""{"saveVersion": 2, "lastSavedAt": 0, "settings": {"language": "fr"}}""")
+        val result = assertInstanceOf(SaveLoadResult.Discarded::class.java, storage.load())
+        assertEquals(null, result.legacySettings)
+    }
+
+    @Test
+    fun newSaveInBackupWinsOverObsoleteMain() {
+        val storage = storage()
+        storage.save(state(1))
+        storage.save(state(2))
+        storage.mainFile.writeText(LEGACY_EN)
+        val result = loaded(storage.load())
+        assertEquals(1L, result.state.lastSavedAt)
+        assertTrue(result.fromBackup)
     }
 
     @Test
@@ -203,5 +242,10 @@ class SaveStorageTest {
     fun deleteAllOnEmptyDirectoryIsNoOp() {
         storage().deleteAll()
         assertEquals(SaveLoadResult.NoSave, storage().load())
+    }
+
+    private companion object {
+        /** Spielstand aus dem Incremental-Design (Version 1) mit englischer Spracheinstellung. */
+        const val LEGACY_EN = """{"saveVersion": 1, "lastSavedAt": 0, "meta": {}, "settings": {"language": "en", "numberFormat": "short"}}"""
     }
 }

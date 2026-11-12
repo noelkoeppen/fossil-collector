@@ -10,6 +10,7 @@ import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -41,16 +42,44 @@ class SaveMigratorTest {
     private fun obj(text: String): JsonObject = Json.parseToJsonElement(text).jsonObject
 
     @Test
-    fun currentVersionIsOneAndChainIsEmpty() {
-        assertEquals(1, GameState.CURRENT_SAVE_VERSION)
+    fun currentVersionIsThreeAndChainIsEmpty() {
+        assertEquals(3, GameState.CURRENT_SAVE_VERSION)
+        assertEquals(3, GameState.OLDEST_SUPPORTED_SAVE_VERSION)
         assertEquals(GameState.CURRENT_SAVE_VERSION, SaveMigrator.DEFAULT.currentVersion)
+        assertEquals(GameState.OLDEST_SUPPORTED_SAVE_VERSION, SaveMigrator.DEFAULT.oldestSupportedVersion)
         assertTrue(SaveMigrator.MIGRATIONS.isEmpty())
     }
 
     @Test
     fun currentVersionIsReturnedUnchanged() {
-        val save = obj("""{ "saveVersion": 1, "x": 5 }""")
+        val save = obj("""{ "saveVersion": 3, "x": 5 }""")
         assertSame(save, SaveMigrator.DEFAULT.migrate(save))
+    }
+
+    @Test
+    fun versionsBeforeOldestSupportedAreObsolete() {
+        for (version in listOf(1, 2)) {
+            val error = assertThrows<SaveException.ObsoleteVersion>("Version $version") {
+                SaveMigrator.DEFAULT.migrate(obj("""{ "saveVersion": $version }"""))
+            }
+            assertEquals(version, error.foundVersion)
+            assertEquals(3, error.oldestSupportedVersion)
+            assertNull(error.legacySettings)
+        }
+    }
+
+    @Test
+    fun chainStartsAtOldestSupportedVersion() {
+        val migrator = SaveMigrator(listOf(TraceStep(3), TraceStep(4)), currentVersion = 5, oldestSupportedVersion = 3)
+        val migrated = migrator.migrate(obj("""{ "saveVersion": 3 }"""))
+        assertEquals(JsonPrimitive(5), migrated.getValue("saveVersion"))
+        assertThrows<SaveException.ObsoleteVersion> { migrator.migrate(obj("""{ "saveVersion": 2 }""")) }
+        // Schritte vor der aeltesten unterstuetzten Version sind nicht erlaubt, fehlende auch nicht.
+        assertThrows<IllegalArgumentException> {
+            SaveMigrator(listOf(TraceStep(2), TraceStep(3), TraceStep(4)), currentVersion = 5, oldestSupportedVersion = 3)
+        }
+        assertThrows<IllegalArgumentException> { SaveMigrator(emptyList(), currentVersion = 2, oldestSupportedVersion = 3) }
+        assertThrows<IllegalArgumentException> { SaveMigrator(emptyList(), currentVersion = 1, oldestSupportedVersion = 0) }
     }
 
     @Test
@@ -76,10 +105,10 @@ class SaveMigratorTest {
     @Test
     fun tooNewVersionIsRejected() {
         val error = assertThrows<SaveException.UnsupportedVersion> {
-            SaveMigrator.DEFAULT.migrate(obj("""{ "saveVersion": 2 }"""))
+            SaveMigrator.DEFAULT.migrate(obj("""{ "saveVersion": 4 }"""))
         }
-        assertEquals(2, error.foundVersion)
-        assertEquals(1, error.supportedVersion)
+        assertEquals(4, error.foundVersion)
+        assertEquals(3, error.supportedVersion)
         assertTrue(error.isTooNew)
     }
 
@@ -122,8 +151,9 @@ class SaveMigratorTest {
 
     @Test
     fun codecWithoutMigrationRejectsOldStructure() {
+        val codec = SaveCodec(SaveMigrator(emptyList(), currentVersion = 1))
         assertThrows<SaveException.InvalidContent> {
-            SaveCodec.DEFAULT.decode(SaveFixtures.read("migration/renamed_field_v1.json"))
+            codec.decode(SaveFixtures.read("migration/renamed_field_v1.json"))
         }
     }
 }

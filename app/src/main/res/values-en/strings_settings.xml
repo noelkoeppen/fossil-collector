@@ -33,6 +33,8 @@
     <string name="settings_import_error_unsupported">This save game version is not supported.</string>
     <string name="settings_import_error_migration">The save game could not be converted to the current version.</string>
     <string name="settings_import_error_content">The save game is incomplete or damaged.</string>
+    <string name="settings_import_error_obsolete">This save comes from an old version of the game and can no longer be loaded.</string>
+    <string name="settings_import_error_references">The save contains species or bones that do not exist in this version.</string>
 
     <!-- Delete save game (double confirmation) -->
     <string name="settings_delete_text">Deletes all your progress and starts a new game. Your settings are kept.</string>

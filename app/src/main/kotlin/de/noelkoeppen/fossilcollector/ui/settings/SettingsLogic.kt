@@ -27,6 +27,8 @@ object SettingsLogic {
         ImportError.UNSUPPORTED_VERSION -> R.string.settings_import_error_unsupported
         ImportError.MIGRATION_FAILED -> R.string.settings_import_error_migration
         ImportError.INVALID_CONTENT -> R.string.settings_import_error_content
+        ImportError.OBSOLETE_VERSION -> R.string.settings_import_error_obsolete
+        ImportError.UNKNOWN_REFERENCES -> R.string.settings_import_error_references
     }
 }
 

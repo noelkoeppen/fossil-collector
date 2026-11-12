@@ -87,6 +87,7 @@ fun AppShell(viewModel: GameViewModel) {
 private fun messageText(message: GameMessage, context: android.content.Context): String = when (message) {
     is GameMessage.LoadedFromBackup -> context.getString(R.string.message_loaded_from_backup, message.backupIndex)
     GameMessage.SaveUnreadableNewGame -> context.getString(R.string.message_save_unreadable)
+    GameMessage.OldSaveDiscarded -> context.getString(R.string.message_old_save_discarded)
     GameMessage.SaveFailed -> context.getString(R.string.message_save_failed)
     GameMessage.ImportSucceeded -> context.getString(R.string.settings_import_success)
     is GameMessage.ImportFailed -> context.getString(SettingsLogic.importErrorText(message.error))

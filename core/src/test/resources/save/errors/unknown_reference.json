@@ -1,0 +1,9 @@
+{
+  "saveVersion": 3,
+  "lastSavedAt": 0,
+  "inventory": [
+    { "speciesId": "cave_bear", "boneId": "femur_l", "quality": 0.5 },
+    { "speciesId": "cave_bear", "boneId": "wing_l", "quality": 0.5 },
+    { "speciesId": "dodo", "boneId": "femur_l", "quality": 0.5 }
+  ]
+}

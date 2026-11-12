@@ -1,5 +1,7 @@
 package de.noelkoeppen.fossilcollector.core.save
 
+import de.noelkoeppen.fossilcollector.core.model.Settings
+
 /**
  * Fehler beim Lesen oder Schreiben eines Spielstands.
  *
@@ -19,13 +21,28 @@ sealed class SaveException(message: String, cause: Throwable? = null) : Exceptio
 
     /**
      * Die Version wird nicht unterstuetzt: neuer als [supportedVersion] (Spielstand aus einer
-     * neueren App-Version) oder kleiner als 1.
+     * neueren App-Version) oder kleiner als 1 (ungueltig).
      */
     class UnsupportedVersion(val foundVersion: Int, val supportedVersion: Int) :
         SaveException("Spielstand-Version $foundVersion wird nicht unterstuetzt (aktuell: $supportedVersion)") {
         /** `true`, wenn der Spielstand aus einer neueren App-Version stammt. */
         val isTooNew: Boolean get() = foundVersion > supportedVersion
     }
+
+    /**
+     * Spielstand aus einem alten Design (Version kleiner als [oldestSupportedVersion]). Er wird
+     * nicht migriert, sondern verworfen; die App startet ein neues Spiel und zeigt einen Hinweis.
+     *
+     * @property legacySettings Einstellungen aus dem alten Spielstand, soweit lesbar, sonst `null`.
+     *   Sie sind Bedienvorlieben, kein Spielfortschritt, und duerfen uebernommen werden.
+     */
+    class ObsoleteVersion(
+        val foundVersion: Int,
+        val oldestSupportedVersion: Int,
+        val legacySettings: Settings? = null,
+    ) : SaveException(
+        "Spielstand-Version $foundVersion ist veraltet und wird verworfen (aelteste unterstuetzte: $oldestSupportedVersion)",
+    )
 
     /** Ein Migrationsschritt ist fehlgeschlagen. */
     class MigrationFailed(val fromVersion: Int, cause: Throwable) :

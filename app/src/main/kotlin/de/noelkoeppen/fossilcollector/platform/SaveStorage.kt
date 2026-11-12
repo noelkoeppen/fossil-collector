@@ -1,6 +1,7 @@
 package de.noelkoeppen.fossilcollector.platform
 
 import de.noelkoeppen.fossilcollector.core.model.GameState
+import de.noelkoeppen.fossilcollector.core.model.Settings
 import de.noelkoeppen.fossilcollector.core.save.SaveCodec
 import de.noelkoeppen.fossilcollector.core.save.SaveException
 import java.io.File
@@ -33,6 +34,9 @@ import java.nio.file.StandardCopyOption
  *
  * Laden ([load]): `save.json`, dann `bak1`, `bak2`, `bak3`. Der erste lesbare Stand gewinnt.
  * `save.json.tmp` wird nie gelesen, weil es ein abgebrochener Schreibvorgang sein kann.
+ * Ist kein Stand lesbar und mindestens eine Datei ein veralteter Spielstand
+ * ([SaveException.ObsoleteVersion], AP2-03), ist das Ergebnis [SaveLoadResult.Discarded]: Der alte
+ * Stand wird verworfen, nicht als defekt behandelt (keine Kopie nach `save.corrupt.json`).
  *
  * Nicht thread-safe: Aufrufe muessen vom Aufrufer serialisiert werden (z. B. per Mutex).
  *
@@ -80,7 +84,8 @@ class SaveStorage(
      * Laedt den neuesten lesbaren Spielstand.
      *
      * @return [SaveLoadResult.NoSave], wenn keine Datei existiert; [SaveLoadResult.Loaded] mit
-     *   Quelle; [SaveLoadResult.Unreadable], wenn Dateien existieren, aber keine lesbar ist
+     *   Quelle; [SaveLoadResult.Discarded], wenn nur veraltete (und ggf. defekte) Spielstaende
+     *   existieren; [SaveLoadResult.Unreadable], wenn Dateien existieren, aber keine lesbar ist
      */
     fun load(): SaveLoadResult {
         val candidates = listOf(SaveSource.Main to mainFile) +
@@ -102,6 +107,11 @@ class SaveStorage(
         }
         mainUnreadable = mainExists
         if (failures.isEmpty()) return SaveLoadResult.NoSave
+        val obsolete = failures.map { it.error }.filterIsInstance<SaveException.ObsoleteVersion>()
+        if (obsolete.isNotEmpty()) {
+            // Die neueste veraltete Datei liefert die Einstellungen (Liste ist neueste zuerst).
+            return SaveLoadResult.Discarded(obsolete.firstNotNullOfOrNull { it.legacySettings }, failures.toList())
+        }
         if (mainExists) preserveCorruptMain()
         return SaveLoadResult.Unreadable(failures.toList())
     }
@@ -205,6 +215,18 @@ sealed interface SaveLoadResult {
         /** `true`, wenn ein Backup statt der Hauptdatei geladen wurde. */
         val fromBackup: Boolean get() = source != SaveSource.Main
     }
+
+    /**
+     * Es gibt nur veraltete Spielstaende (vor `GameState.OLDEST_SUPPORTED_SAVE_VERSION`, AP2-03).
+     * Sie werden verworfen; die App startet ein neues Spiel und zeigt einen Hinweis.
+     *
+     * @property legacySettings lesbare Einstellungen des neuesten alten Stands, sonst `null`
+     * @property failures alle gepruften Dateien mit ihrem Fehler
+     */
+    data class Discarded(
+        val legacySettings: Settings?,
+        val failures: List<SaveLoadFailure>,
+    ) : SaveLoadResult
 
     /** Es gibt Spielstand-Dateien, aber keine ist lesbar. */
     data class Unreadable(val failures: List<SaveLoadFailure>) : SaveLoadResult

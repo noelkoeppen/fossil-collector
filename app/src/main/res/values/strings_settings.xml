@@ -36,6 +36,8 @@
     <string name="settings_import_error_unsupported">Diese Spielstand-Version wird nicht unterstützt.</string>
     <string name="settings_import_error_migration">Der Spielstand konnte nicht auf die aktuelle Version umgestellt werden.</string>
     <string name="settings_import_error_content">Der Spielstand ist unvollständig oder beschädigt.</string>
+    <string name="settings_import_error_obsolete">Der Spielstand stammt aus einer alten Version des Spiels und kann nicht mehr geladen werden.</string>
+    <string name="settings_import_error_references">Der Spielstand enthält Arten oder Knochen, die es in dieser Version nicht gibt.</string>
 
     <!-- Spielstand loeschen (doppelte Bestaetigung) -->
     <string name="settings_delete_text">Löscht deinen gesamten Fortschritt und startet ein neues Spiel. Die Einstellungen bleiben erhalten.</string>

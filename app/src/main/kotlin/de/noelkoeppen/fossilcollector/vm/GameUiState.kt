@@ -42,6 +42,12 @@ sealed interface GameMessage {
     /** Kein Spielstand war lesbar; es wurde ein neues Spiel gestartet. */
     data object SaveUnreadableNewGame : GameMessage
 
+    /**
+     * Der Spielstand stammte aus einer alten Version des Spiels (vor dem Umbau zum Grabungsspiel)
+     * und wurde verworfen; es wurde ein neues Spiel gestartet, die Sprache wurde uebernommen.
+     */
+    data object OldSaveDiscarded : GameMessage
+
     /** Speichern ist fehlgeschlagen (wird beim naechsten Speichern erneut versucht). */
     data object SaveFailed : GameMessage
 

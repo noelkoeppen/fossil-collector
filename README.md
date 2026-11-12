@@ -5,12 +5,14 @@ zusammensetzen und im eigenen Museum ausstellen. Hobbyprojekt, umgesetzt mit Cla
 
 - Design und Aufgabenliste: [`docs/GAME_DESIGN.md`](docs/GAME_DESIGN.md) (Version 2.0)
 - Regeln für Agenten: [`CLAUDE.md`](CLAUDE.md)
-- 3D-Modelle: `art/models3d/<speciesId>/` (eine `.glb` pro Knochen plus `bones.json`)
+- 3D-Modelle: `art/models3d/<speciesId>/` (eine `.glb` pro Knochen plus `bones.json` und
+  `neighbors_overrides.json`)
 
 > **Umbau läuft.** Das Projekt war bis Version 1.1 ein Incremental-/Idle-Spiel. Dieser Stand liegt auf
 > dem Branch `archive/incremental-v1.1`. Der Code auf `main` wird schrittweise auf das neue Design
 > umgestellt (Arbeitspakete `AP2-XX`). Seit AP2-02 sind die Idle-Systeme entfernt; die App startet
-> bis zu einem leeren Hauptbildschirm mit Einstellungen.
+> bis zu einem leeren Hauptbildschirm mit Einstellungen. Seit AP2-03 gilt das neue Datenmodell
+> (Einzelknochen, Spielstand-Version 3); alte Spielstände werden mit einem Hinweis verworfen.
 
 ## Projektstruktur
 
@@ -18,7 +20,7 @@ zusammensetzen und im eigenen Museum ausstellen. Hobbyprojekt, umgesetzt mit Cla
 |---|---|
 | `core` | Reines Kotlin/JVM. Gesamte Spiellogik, Daten (`src/main/resources/data/`), JUnit-5-Tests. Keine Android-Abhängigkeiten. |
 | `app` | Android-App (Jetpack Compose, Material 3). UI, ViewModel, Plattformanbindung. |
-| `tools` | Hilfsskripte (`tools/models3d`: Aufbereitung der 3D-Modelle). |
+| `tools` | Hilfsskripte (`tools/models3d`: Aufbereitung der 3D-Modelle, Nachbarschaftsgraph der Knochen). |
 | `art/models3d` | 3D-Modelle der Skelette als Einzelknochen (glTF). |
 
 Abhängigkeiten und Versionen stehen im Version Catalog `gradle/libs.versions.toml`.
@@ -55,11 +57,24 @@ Unter Windows `gradlew.bat` statt `./gradlew` verwenden.
 ## Datenvalidierung
 
 Die Spieldaten in `core/src/main/resources/data/` werden beim App-Start und in den Tests von
-`DataValidator` geprüft (Referenzen, IDs, Farben, Qualitätsstufen, Texte in de/en). Lokal und in der
-CI läuft die Prüfung als Teil von `./gradlew :core:test` (`DataValidationTest`).
+`DataValidator` geprüft (Referenzen, IDs, Farben, Qualitätsstufen, zusammenhängender
+Nachbarschaftsgraph je Art, Texte in de/en). Lokal und in der CI läuft die Prüfung als Teil von
+`./gradlew :core:test` (`DataValidationTest`, dazu `SpeciesModelFilesTest`: jeder Knochen hat eine
+`.glb` in `art/models3d/<speciesId>/bones/`).
+
+Knochenliste, Nachbarschaftsgraph und Knochennamen einer Art erzeugt
+`tools/models3d/neighbors.py` aus dem 3D-Modell (Anleitung in [`tools/models3d/README.md`](tools/models3d/README.md)).
+Ob die Daten aktuell sind, prüft:
+
+```bash
+pip install numpy scipy
+python3 -m unittest discover -s tools/models3d -p 'test_*.py'
+python3 tools/models3d/neighbors.py --check
+```
 
 ## CI
 
 GitHub Actions (`.github/workflows/ci.yml`) führt bei jedem Push und Pull Request die `core`-Tests
-(einschließlich Datenvalidierung) und die App-Unit-Tests aus und baut die Debug-APK. Die APK liegt danach im Workflow-Lauf unter
+(einschließlich Datenvalidierung), die Python-Tests und die Aktualitätsprüfung von
+`tools/models3d/neighbors.py` sowie die App-Unit-Tests aus und baut die Debug-APK. Die APK liegt danach im Workflow-Lauf unter
 **Artifacts** (`fossil-collector-debug-apk`) zum Download bereit.

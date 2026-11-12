@@ -76,6 +76,14 @@ Ausgrabung wählen (Schicht / Fundort)
   3. Anzahl zusammenhängender Knochen: Erweiterung entlang anatomischer Nachbarn
      (Nachbarschaftsgraph pro Art in den Daten)
   4. Grundqualität des Fundes
+- **Nachbarschaftsgraph:** wird aus den Meshes des Modells abgeleitet (plus Korrekturdatei), nicht
+  von Hand gepflegt. `tools/models3d/neighbors.py` verbindet zwei Knochen, wenn ihre Oberflächen
+  höchstens einen Schwellwert auseinanderliegen (Skript-Parameter, Standard 0.03 Modelleinheiten),
+  und wendet dann `art/models3d/<speciesId>/neighbors_overrides.json` an (`add`/`remove` mit
+  Begründung, z. B. Brustbein an die sternalen Rippen, keine Kante zwischen linker und rechter
+  Rippe). Ergebnis sind `bones` und `neighbors` der Art in `species.json` sowie die Knochennamen
+  (`bone.<speciesId>.<boneId>.name`) in den Locale-Dateien. Der Graph jeder Art muss
+  zusammenhängend sein.
 - **Qualität zieht sich durch:** Alle Knochen eines Fundes teilen die Grundqualität, mit kleiner
   Abweichung pro Knochen. Schaden trifft jeden Knochen einzeln.
 - **Lage:** Zusammenhängende Knochen liegen in der Fläche beieinander.
@@ -137,8 +145,11 @@ Ausgrabung wählen (Schicht / Fundort)
 ## 9. Umfang
 
 - **Erster spielbarer Stand [MVP]:** eine Schicht (Quartär), eine Art (Höhlenbär). Ansehen wird schon
-  gezählt, schaltet aber noch nichts frei.
-- **Weitere Arten** kommen einzeln nach, sobald ihr 3D-Modell fertig ist (Regel 0.7).
+  gezählt, schaltet aber noch nichts frei. Seit AP2-03 enthalten die Spieldaten nur diese Schicht und
+  diese Art.
+- **Weitere Arten** kommen einzeln nach, sobald ihr 3D-Modell fertig ist (Regel 0.7). Die früheren
+  17 Arten sowie die Schichten Neogen und Kreide (mit Seltenheitsgewichten und Texten) liegen auf
+  `archive/incremental-v1.1` und werden von dort mit ihrem Modell zurückgeholt.
 - **[Später]:** weitere Schichten, Ereignisse an Funden, Sondieren, kostenpflichtige Flächen,
   Alter/Geschlecht, Ton.
 
@@ -158,6 +169,18 @@ Ausgrabung wählen (Schicht / Fundort)
   Ansehen kommen als `Long` in den Spielstand, sobald ein AP sie braucht. Das Modifier-System behält nur die
   Stats `damage_reduction`, `quality_base_min`, `sell_price` und die Kategorien `upgrade` und
   `event`; die endgültigen Stats legt AP2-14 fest.
+- **Stand nach AP2-03:** Übernommen aus dem alten Stand sind nur noch die Schicht Quartär und die Art
+  Höhlenbär (Kapitel 9); die generische `bones.json` (8 Knochengruppen) ist durch die Einzelknochen
+  der Art in `species.json` ersetzt. Ein `Piece` hat Art, Knochen, Qualität (0 bis 1) sowie `age` und
+  `sex` (beide `null` bis [Später]); ein `Find` ist eine nicht leere Menge von `Piece`s einer Art,
+  deren Knochen im Nachbarschaftsgraph zusammenhängen (geprüft gegen die Daten). Der Spielstand hat
+  `saveVersion` 3 und enthält `lastSavedAt`, die Einstellungen und das Inventar (`inventory`,
+  geborgene, noch nicht zugeordnete `Piece`s, gefüllt ab AP2-09). Funde kommen mit der
+  Grabungsfläche (AP2-05) in den Spielstand. Version 2 wurde nie verwendet. Spielstände mit Version 1
+  oder 2 werden nicht migriert, sondern verworfen: Die App startet ein neues Spiel und zeigt einen
+  Hinweis; übernommen wird nur die Spracheinstellung (Bedienvorliebe, kein Fortschritt; wie beim
+  „Spielstand löschen“). Beim Import werden alte Spielstände abgelehnt und importierte Spielstände
+  zusätzlich gegen die Spieldaten geprüft (unbekannte Arten oder Knochen werden abgelehnt).
 
 ## 11. Entscheidungen im Überblick
 
@@ -191,7 +214,8 @@ PR-Titel `AP2-XX: <Titel>` (Präfix `ap2`, damit es keine Verwechslung mit den a
   Speichern, Lokalisierung, Modifier-System, Datenvalidierung. Build und Tests grün, App startet bis zu
   einem leeren Hauptbildschirm.
 - **AP2-03 – Datenmodell 2.0** (AP2-02)
-  `species.json` mit Knochenliste und Nachbarschaftsgraph (abgeleitet aus `bones.json` des Modells),
+  `species.json` mit Knochenliste und Nachbarschaftsgraph (abgeleitet aus den Meshes des Modells plus
+  Korrekturdatei, siehe Kapitel 4),
   `Piece` (Art, Knochen, Qualität; `age`/`sex` nullable für später), `Find` (zusammenhängende Knochen),
   neuer Spielstand mit `saveVersion` 3 (alte Spielstände werden verworfen, mit Hinweis). Validierung:
   Graph ist zusammenhängend, jeder Knochen hat ein Modell, alle Texte in de/en. Round-Trip-Test.
@@ -261,3 +285,7 @@ AP2-06 und AP2-10 hängen nur an AP2-01 und können vorgezogen werden.
   Umfang des ersten Stands, Agenten-Regeln und Arbeitspakete AP2-01 bis AP2-15.
 - **AP2-02 (2026-11-12):** Kapitel 10 um den Stand nach dem Entfernen der Idle-Systeme ergänzt
   (mitentfernte Teile, minimaler Spielstand bis AP2-03, verbleibende Stats).
+- **AP2-03 (2026-11-12):** Nachbarschaftsgraph wird aus den Meshes des Modells plus Korrekturdatei
+  abgeleitet, nicht aus `bones.json` (Kapitel 4, 12). Spieldaten nur noch mit Quartär und Höhlenbär
+  (Kapitel 9). Kapitel 10 um den Stand nach AP2-03 ergänzt (Datenmodell, Spielstand Version 3,
+  Verwerfen alter Spielstände mit Übernahme der Sprache, Inventar, Import-Prüfung).

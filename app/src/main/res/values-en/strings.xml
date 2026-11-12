@@ -16,5 +16,6 @@
     <!-- Save game messages -->
     <string name="message_loaded_from_backup">Your save was damaged, so it was replaced by backup %1$d.</string>
     <string name="message_save_unreadable">Your save could not be read. A new game was started.</string>
+    <string name="message_old_save_discarded">Your save came from an old version of the game and no longer fits the new excavation game. A new game was started; your language setting was kept.</string>
     <string name="message_save_failed">Saving failed. It will be retried shortly.</string>
 </resources>

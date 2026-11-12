@@ -14,8 +14,9 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 
 /**
- * Datenvalidierung: Alle Dateien laden, Referenzen und Locale-Schluessel pruefen sowie den
- * vorhandenen Datenumfang (Schichten, Arten, Knochen, Qualitaetsstufen) sicherstellen.
+ * Datenvalidierung: Alle Dateien laden, Referenzen, Nachbarschaftsgraph und Locale-Schluessel pruefen
+ * sowie den vorhandenen Datenumfang (Schichten, Arten, Knochen, Qualitaetsstufen) sicherstellen.
+ * Die Pruefung gegen die 3D-Modelle steht in [SpeciesModelFilesTest].
  */
 class DataValidationTest {
 
@@ -42,10 +43,11 @@ class DataValidationTest {
     }
 
     @Test
-    fun everySpeciesReferencesExistingLayerAndBones() {
+    fun everySpeciesReferencesExistingLayerAndHasConnectedGraph() {
         data.species.forEach { species ->
             assertTrue(species.layer in data.layersById, "Schicht fehlt fuer ${species.id}")
-            species.bones.forEach { assertTrue(it in data.bonesById, "Knochen $it fehlt fuer ${species.id}") }
+            assertTrue(species.isConnected(species.bones), "Graph von ${species.id} nicht zusammenhaengend")
+            species.neighbors.flatten().forEach { assertTrue(it in species.bones, "Kante mit unbekanntem Knochen $it") }
         }
     }
 
@@ -61,26 +63,23 @@ class DataValidationTest {
     // --- MVP-Umfang ---
 
     @Test
-    fun mvpLayersInOrder() {
-        assertEquals(listOf("quaternary", "neogene", "cretaceous"), data.layers.map { it.id })
-        assertEquals(listOf(0, 1, 2), data.layers.map { it.order })
+    fun mvpHasOnlyQuaternary() {
+        assertEquals(listOf("quaternary"), data.layers.map { it.id })
+        assertEquals(listOf(0), data.layers.map { it.order })
     }
 
     @Test
-    fun eighteenSpeciesWithRarityWeightsPerLayer() {
-        assertEquals(18, data.species.size)
-        data.layers.forEach { layer ->
-            val weights = data.speciesByLayer.getValue(layer.id).map { it.rarityWeight }
-            assertEquals(listOf(40.0, 25.0, 15.0, 10.0, 5.0, 2.0), weights, "Gewichte in ${layer.id}")
-        }
+    fun mvpHasOnlyCaveBear() {
+        assertEquals(listOf("cave_bear"), data.species.map { it.id })
+        assertEquals(40.0, data.species("cave_bear").rarityWeight)
+        assertEquals("quaternary", data.species("cave_bear").layer)
     }
 
     @Test
-    fun eightBones() {
-        assertEquals(
-            listOf("skull", "jaw", "cervical", "dorsal", "ribs", "pelvis", "forelimb", "hindlimb"),
-            data.bones.map { it.id },
-        )
+    fun caveBearHasAllSingleBonesOfModel() {
+        val bones = data.species("cave_bear").bones
+        assertEquals(105, bones.size)
+        assertTrue(listOf("occipital", "mandible_l", "mandible_r", "sternum", "forepaw_l", "caudal_8").all { it in bones })
     }
 
     @Test
@@ -101,9 +100,42 @@ class DataValidationTest {
     }
 
     @Test
-    fun detectsUnknownBoneReference() {
-        val errors = errorsOf(DataRepository.SPECIES) { it.replaceFirst("\"skull\"", "\"tail\"") }
-        assertTrue(errors.any { "unbekannter Knochen 'tail'" in it }, errors.toString())
+    fun detectsEdgeWithUnknownBone() {
+        val errors = errorsOf(DataRepository.SPECIES) { it.replaceFirst("[\"occipital\", \"sphenoid\"]", "[\"occipital\", \"tail\"]") }
+        assertTrue(errors.any { "Kante [occipital, tail] mit unbekanntem Knochen 'tail'" in it }, errors.toString())
+    }
+
+    @Test
+    fun detectsDisconnectedGraph() {
+        // Brustbein nur ueber die Rippen 1 bis 9 angebunden: alle Kanten entfernen.
+        val errors = errorsOf(DataRepository.SPECIES) { text ->
+            text.replace(Regex(",?\\s*\\[\"sternum\", \"rib_\\d_[lr]\"\\]|\\[\"rib_\\d_[lr]\", \"sternum\"\\],?"), "")
+        }
+        assertEquals(listOf("species.json/cave_bear: Nachbarschaftsgraph ist nicht zusammenhaengend"), errors)
+    }
+
+    @Test
+    fun detectsInvalidEdges() {
+        val errors = errorsOf(DataRepository.SPECIES) {
+            it.replaceFirst("\"neighbors\": [", "\"neighbors\": [[\"sternum\"], [\"sternum\", \"sternum\"], [\"sphenoid\", \"occipital\"],")
+        }
+        assertTrue(errors.any { "Kante [sternum] hat nicht genau zwei Knochen" in it }, errors.toString())
+        assertTrue(errors.any { "Kante [sternum, sternum] verbindet einen Knochen mit sich selbst" in it }, errors.toString())
+        assertTrue(errors.any { "Kante [occipital, sphenoid] doppelt" in it }, errors.toString())
+    }
+
+    @Test
+    fun detectsDuplicateBone() {
+        val errors = errorsOf(DataRepository.SPECIES) { it.replaceFirst("\"sphenoid\",", "\"sphenoid\", \"sphenoid\",") }
+        assertTrue(errors.any { "Knochen 'sphenoid' doppelt" in it }, errors.toString())
+    }
+
+    @Test
+    fun detectsMissingBoneName() {
+        val errors = errorsOf(DataRepository.localeFile("de")) {
+            it.replace(Regex("\\s*\"bone\\.cave_bear\\.sternum\\.name\": \"[^\"]*\","), "")
+        }
+        assertTrue(errors.any { "de.json: Schluessel 'bone.cave_bear.sternum.name' fehlt" in it }, errors.toString())
     }
 
     @Test
@@ -123,9 +155,9 @@ class DataValidationTest {
 
     @Test
     fun rejectsUnknownField() {
-        val repo = patchedRepository(DataRepository.BONES) { it.replaceFirst("{\"id\": \"skull\"}", "{\"id\": \"skull\", \"size\": 1}") }
+        val repo = patchedRepository(DataRepository.SPECIES) { it.replaceFirst("\"rarityWeight\"", "\"size\": 1, \"rarityWeight\"") }
         val e = assertThrows<DataValidationException> { repo.load() }
-        assertTrue(e.errors.single().startsWith(DataRepository.BONES), e.errors.toString())
+        assertTrue(e.errors.single().startsWith(DataRepository.SPECIES), e.errors.toString())
     }
 
     @Test
@@ -144,9 +176,9 @@ class DataValidationTest {
 
     @Test
     fun rejectsMissingFile() {
-        val repo = DataRepository { name -> if (name == DataRepository.BONES) null else resource(DataRepository.RESOURCE_ROOT + name) }
+        val repo = DataRepository { name -> if (name == DataRepository.SPECIES) null else resource(DataRepository.RESOURCE_ROOT + name) }
         val e = assertThrows<DataValidationException> { repo.load() }
-        assertEquals(listOf("bones.json: Datei fehlt"), e.errors)
+        assertEquals(listOf("species.json: Datei fehlt"), e.errors)
     }
 
     // --- Serialisierung und Schemas ---
@@ -175,9 +207,8 @@ class DataValidationTest {
     // --- Schichttexturen (AP-26) ---
 
     @Test
-    fun mvpLayersHaveDistinctTextures() {
-        val textures = data.layers.map { it.texture }
-        assertEquals(listOf(LayerTexture.GRAVEL, LayerTexture.BANDED, LayerTexture.CHALK), textures)
+    fun mvpLayerHasGravelTexture() {
+        assertEquals(listOf(LayerTexture.GRAVEL), data.layers.map { it.texture })
     }
 
     @Test

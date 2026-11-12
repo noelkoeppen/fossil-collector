@@ -1,6 +1,7 @@
 package de.noelkoeppen.fossilcollector.core.save
 
 import de.noelkoeppen.fossilcollector.core.model.GameState
+import de.noelkoeppen.fossilcollector.core.model.Settings
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
@@ -15,7 +16,9 @@ import java.util.Base64
  * atomares Schreiben und Backups sind Aufgabe von `app/platform/SaveStorage` (AP-16).
  *
  * Laden: Text -> JSON-Objekt -> `saveVersion` pruefen -> [SaveMigrator] -> `GameState`.
- * Alle Fehler werden als [SaveException] gemeldet.
+ * Alle Fehler werden als [SaveException] gemeldet. Veraltete Spielstaende (vor
+ * `GameState.OLDEST_SUPPORTED_SAVE_VERSION`) ergeben [SaveException.ObsoleteVersion] mit den
+ * lesbaren alten Einstellungen.
  *
  * JSON-Konfiguration:
  * - `encodeDefaults = true`: Jeder Spielstand enthaelt alle Felder. Spaetere Aenderungen von
@@ -58,12 +61,30 @@ class SaveCodec(
         }
         val root = element as? JsonObject
             ?: throw SaveException.InvalidJson("Spielstand ist kein JSON-Objekt")
-        val migrated = migrator.migrate(root)
+        val migrated = try {
+            migrator.migrate(root)
+        } catch (e: SaveException.ObsoleteVersion) {
+            throw SaveException.ObsoleteVersion(e.foundVersion, e.oldestSupportedVersion, legacySettings(root))
+        }
         return try {
             JSON.decodeFromJsonElement(GameState.serializer(), migrated)
         } catch (e: IllegalArgumentException) {
             // Deckt SerializationException (Unterklasse) und require()-Fehler der Modellklassen ab.
             throw SaveException.InvalidContent("Spielstand hat eine ungueltige Struktur: ${e.message}", e)
+        }
+    }
+
+    /**
+     * Liest die Einstellungen eines veralteten Spielstands, ohne den Rest zu beachten.
+     * Unbekannte Felder (z. B. das fruehere Zahlenformat) werden ignoriert; ist das Objekt fehlerhaft
+     * oder fehlt es, ist das Ergebnis `null`.
+     */
+    private fun legacySettings(root: JsonObject): Settings? {
+        val settings = root[SETTINGS_FIELD] as? JsonObject ?: return null
+        return try {
+            JSON.decodeFromJsonElement(Settings.serializer(), settings)
+        } catch (_: IllegalArgumentException) {
+            null
         }
     }
 
@@ -105,6 +126,9 @@ class SaveCodec(
     companion object {
         /** Codec mit der echten Migrationskette. */
         val DEFAULT: SaveCodec = SaveCodec()
+
+        /** Name des Einstellungs-Objekts im Spielstand (auch in veralteten Versionen). */
+        private const val SETTINGS_FIELD: String = "settings"
 
         private val JSON: Json = Json {
             encodeDefaults = true

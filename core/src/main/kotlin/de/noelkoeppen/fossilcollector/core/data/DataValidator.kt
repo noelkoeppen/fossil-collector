@@ -13,7 +13,6 @@ object DataValidator {
     fun validate(data: GameData): List<String> {
         val errors = mutableListOf<String>()
         validateLayers(data, errors)
-        validateBones(data, errors)
         validateSpecies(data, errors)
         validateBalance(data.balance, errors)
         validateLocales(data, errors)
@@ -40,10 +39,6 @@ object DataValidator {
         }
     }
 
-    private fun validateBones(data: GameData, errors: MutableList<String>) {
-        validateIds(DataRepository.BONES, data.bones.map { it.id }, errors)
-    }
-
     private fun validateSpecies(data: GameData, errors: MutableList<String>) {
         val file = DataRepository.SPECIES
         validateIds(file, data.species.map { it.id }, errors)
@@ -52,12 +47,33 @@ object DataValidator {
             if (species.layer !in data.layersById) errors += "$ctx: unbekannte Schicht '${species.layer}'"
             if (species.rarityWeight <= 0) errors += "$ctx: rarityWeight muss > 0 sein"
             if (species.bones.isEmpty()) errors += "$ctx: keine Knochen"
-            species.bones.filterNot { it in data.bonesById }
-                .forEach { errors += "$ctx: unbekannter Knochen '$it'" }
-            if (species.bones.toSet().size != species.bones.size) errors += "$ctx: Knochen doppelt"
+            species.bones.filterNot { ID_PATTERN.matches(it) }
+                .forEach { errors += "$ctx: Knochen-ID '$it' ist nicht snake_case" }
+            species.bones.groupingBy { it }.eachCount().filterValues { it > 1 }.keys
+                .forEach { errors += "$ctx: Knochen '$it' doppelt" }
+            validateNeighbors(species, ctx, errors)
         }
         data.layers.filter { data.speciesByLayer[it.id].isNullOrEmpty() }
             .forEach { errors += "$file: Schicht '${it.id}' hat keine Arten" }
+    }
+
+    /** Nachbarschaftsgraph: gueltige Kanten, keine Duplikate, alle Knochen zusammenhaengend (Kapitel 4). */
+    private fun validateNeighbors(species: SpeciesDefinition, ctx: String, errors: MutableList<String>) {
+        val known = species.bones.toSet()
+        val seen = mutableSetOf<Set<String>>()
+        species.neighbors.forEach { edge ->
+            when {
+                edge.size != 2 -> errors += "$ctx: Kante $edge hat nicht genau zwei Knochen"
+                edge[0] == edge[1] -> errors += "$ctx: Kante $edge verbindet einen Knochen mit sich selbst"
+                else -> {
+                    edge.filterNot { it in known }.forEach { errors += "$ctx: Kante $edge mit unbekanntem Knochen '$it'" }
+                    if (!seen.add(edge.toSet())) errors += "$ctx: Kante $edge doppelt"
+                }
+            }
+        }
+        if (species.bones.isNotEmpty() && !species.isConnected(species.bones)) {
+            errors += "$ctx: Nachbarschaftsgraph ist nicht zusammenhaengend"
+        }
     }
 
     private fun validateBalance(balance: BalanceDefinition, errors: MutableList<String>) {
