@@ -10,15 +10,16 @@ import org.junit.jupiter.api.Test
 class TextProviderTest {
 
     private val locales = mapOf(
-        "de" to mapOf("species.cave_bear.name" to "Höhlenbär", "bone.skull.name" to "Schädel", "only.de" to "nur DE"),
-        "en" to mapOf("species.cave_bear.name" to "Cave bear", "bone.skull.name" to "Skull"),
+        "de" to mapOf("species.cave_bear.name" to "Höhlenbär", "bone.cave_bear.femur_l.name" to "Oberschenkel links", "only.de" to "nur DE"),
+        "en" to mapOf("species.cave_bear.name" to "Cave bear", "bone.cave_bear.femur_l.name" to "Left femur"),
     )
 
     @Test
     fun resolvesRequestedLanguage() {
         val en = TextProvider(locales, "en")
         assertEquals("Cave bear", en.speciesName("cave_bear"))
-        assertEquals("Skull", en.boneName("skull"))
+        assertEquals("Left femur", en.boneName("cave_bear", "femur_l"))
+        assertEquals("bone.giant_deer.femur_l.name", en.boneName("giant_deer", "femur_l"))
         assertEquals("Höhlenbär", TextProvider(locales, "de").speciesName("cave_bear"))
     }
 
@@ -39,7 +40,7 @@ class TextProviderTest {
         val de = TextProvider(locales)
         assertEquals("de", de.language)
         assertSame(de, de.withLanguage("de"))
-        assertEquals("Skull", de.withLanguage("en").boneName("skull"))
+        assertEquals("Left femur", de.withLanguage("en").boneName("cave_bear", "femur_l"))
     }
 
     @Test
@@ -54,13 +55,19 @@ class TextProviderTest {
             val texts = TextProvider.fromGameData(data, language)
             data.layers.forEach { assertEquals(data.locales.getValue(language)[LocaleKeys.layerName(it.id)], texts.layerName(it.id)) }
             data.species.forEach { assertEquals(data.locales.getValue(language)[LocaleKeys.speciesName(it.id)], texts.speciesName(it.id)) }
-            data.bones.forEach { assertEquals(data.locales.getValue(language)[LocaleKeys.boneName(it.id)], texts.boneName(it.id)) }
+            data.species.forEach { species ->
+                species.bones.forEach {
+                    val expected = data.locales.getValue(language)[LocaleKeys.boneName(species.id, it)]
+                    assertEquals(expected, texts.boneName(species.id, it))
+                }
+            }
             data.balance.qualityTiers.forEach {
                 assertEquals(data.locales.getValue(language)[LocaleKeys.qualityTierName(it.id)], texts.qualityTierName(it.id))
             }
         }
-        assertEquals("Neogen", TextProvider.fromGameData(data, "de").layerName("neogene"))
-        assertEquals("Neogene", TextProvider.fromGameData(data, "en").layerName("neogene"))
+        assertEquals("Quartär", TextProvider.fromGameData(data, "de").layerName("quaternary"))
+        assertEquals("Oberschenkelknochen links", TextProvider.fromGameData(data, "de").boneName("cave_bear", "femur_l"))
+        assertEquals("Left Femur", TextProvider.fromGameData(data, "en").boneName("cave_bear", "femur_l"))
     }
 
     @Test

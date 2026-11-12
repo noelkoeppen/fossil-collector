@@ -26,6 +26,17 @@ jobs:
       - name: Gradle einrichten
         uses: gradle/actions/setup-gradle@v5
 
+      - name: Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Nachbarschaftsgraph pruefen (tools/models3d/neighbors.py)
+        run: |
+          python -m pip install --quiet numpy scipy
+          python -m unittest discover -s tools/models3d -p 'test_*.py' -v
+          python tools/models3d/neighbors.py --check
+
       - name: Core-Tests
         run: ./gradlew :core:test --stacktrace
 

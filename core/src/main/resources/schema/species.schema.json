@@ -22,14 +22,28 @@
           "$ref": "common.schema.json#/$defs/id"
         },
         "minItems": 1,
-        "uniqueItems": true
+        "uniqueItems": true,
+        "description": "Einzelknochen aus art/models3d/<id>/bones.json (erzeugt von tools/models3d/neighbors.py)"
+      },
+      "neighbors": {
+        "type": "array",
+        "description": "Nachbarschaftsgraph: ungerichtete Kanten [a, b] (erzeugt von tools/models3d/neighbors.py)",
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "common.schema.json#/$defs/id"
+          },
+          "minItems": 2,
+          "maxItems": 2
+        }
       }
     },
     "required": [
       "id",
       "layer",
       "rarityWeight",
-      "bones"
+      "bones",
+      "neighbors"
     ],
     "additionalProperties": false
   },

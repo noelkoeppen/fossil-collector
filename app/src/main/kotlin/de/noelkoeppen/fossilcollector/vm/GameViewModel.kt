@@ -43,6 +43,8 @@ import java.io.IOException
  * - **Laden:** Spieldaten ueber [loadData] (Standard: [DataRepository] aus den Klassenpfad-Ressourcen
  *   von `core`, die im APK liegen; ungueltige Daten fuehren zu [GameUiState.DataError]), dann den
  *   Spielstand ueber [SaveStorage]. Ohne lesbaren Spielstand: neues Spiel ueber `GameState.newGame`.
+ *   Ein veralteter Spielstand (vor `saveVersion` 3) wird verworfen; das neue Spiel uebernimmt nur
+ *   seine Spracheinstellung, und [messages] liefert [GameMessage.OldSaveDiscarded].
  * - **Speichern:** direkt nach jeder Aenderung, nach dem Anlegen eines neuen Spiels und beim Wechsel
  *   in den Hintergrund ([onAppBackground]). `lastSavedAt` wird beim Speichern auf die aktuelle Zeit
  *   gesetzt.
@@ -209,6 +211,13 @@ class GameViewModel(
                 needsInitialSave = true
                 GameState.newGame(now = time.currentTimeMillis())
             }
+            is SaveLoadResult.Discarded -> {
+                // Alter Spielstand (Incremental-Design): verwerfen, Sprache uebernehmen (AP2-03).
+                Log.w(TAG, "Veralteter Spielstand verworfen, neues Spiel: ${result.failures}")
+                messageChannel.trySend(GameMessage.OldSaveDiscarded)
+                needsInitialSave = true
+                GameState.newGame(now = time.currentTimeMillis(), settings = result.legacySettings ?: Settings())
+            }
             is SaveLoadResult.Unreadable -> {
                 Log.e(TAG, "Kein Spielstand lesbar, neues Spiel: ${result.failures}")
                 messageChannel.trySend(GameMessage.SaveUnreadableNewGame)
@@ -219,7 +228,7 @@ class GameViewModel(
 
         data = loadedData
         texts = TextProvider.fromGameData(loadedData)
-        transfer = SaveTransfer()
+        transfer = SaveTransfer(data = loadedData)
         state = loadedState
         lastSavedState = if (needsInitialSave) null else loadedState
         publish()

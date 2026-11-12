@@ -4,17 +4,5 @@
     "order": 0,
     "color": "#B9A27A",
     "texture": "gravel"
-  },
-  {
-    "id": "neogene",
-    "order": 1,
-    "color": "#9C7A54",
-    "texture": "banded"
-  },
-  {
-    "id": "cretaceous",
-    "order": 2,
-    "color": "#6E5A4A",
-    "texture": "chalk"
   }
 ]

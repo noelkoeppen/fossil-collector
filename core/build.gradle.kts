@@ -28,6 +28,10 @@ dependencies {
 
 tasks.test {
     useJUnitPlatform()
+    // Datenvalidierung gegen die 3D-Modelle (SpeciesModelFilesTest): jeder Knochen braucht eine .glb.
+    val modelsDir = rootProject.file("art/models3d")
+    systemProperty("fossil.modelsDir", modelsDir.absolutePath)
+    inputs.dir(modelsDir).withPropertyName("models3d").withPathSensitivity(PathSensitivity.RELATIVE)
     testLogging {
         events("passed", "skipped", "failed")
     }

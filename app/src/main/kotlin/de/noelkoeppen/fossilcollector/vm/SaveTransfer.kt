@@ -1,6 +1,8 @@
 package de.noelkoeppen.fossilcollector.vm
 
+import de.noelkoeppen.fossilcollector.core.data.GameData
 import de.noelkoeppen.fossilcollector.core.model.GameState
+import de.noelkoeppen.fossilcollector.core.model.ReferenceValidator
 import de.noelkoeppen.fossilcollector.core.save.SaveCodec
 import de.noelkoeppen.fossilcollector.core.save.SaveException
 
@@ -9,13 +11,15 @@ import de.noelkoeppen.fossilcollector.core.save.SaveException
  * ohne Android und ohne Dateizugriff, damit der Ablauf als JVM-Test pruefbar ist; das
  * [GameViewModel] uebernimmt Threading und Speichern.
  *
- * Seit AP2-02 enthaelt der Spielstand keine Referenzen auf Spieldaten mehr; eine Pruefung der IDs
- * gegen die Daten entfaellt deshalb bis zum neuen Datenmodell (AP2-03).
+ * Ein importierter Spielstand wird ausser auf Struktur und Version auch auf seine Referenzen
+ * geprueft ([ReferenceValidator]): Arten und Knochen muessen in den Spieldaten existieren.
  *
  * @param codec Kodierung des Spielstands
+ * @param data Spieldaten fuer die Referenzpruefung; `null` = keine Referenzpruefung (nur Tests)
  */
 class SaveTransfer(
     private val codec: SaveCodec = SaveCodec.DEFAULT,
+    private val data: GameData? = null,
 ) {
     /** Spielstand als Base64-Text fuer die Zwischenablage ([SaveCodec.exportBase64]). */
     fun export(state: GameState): SaveExportResult =
@@ -26,7 +30,9 @@ class SaveTransfer(
         }
 
     /**
-     * Liest einen Import-Text: Base64 dekodieren, validieren und migrieren ([SaveCodec.importBase64]).
+     * Liest einen Import-Text: Base64 dekodieren, validieren und migrieren ([SaveCodec.importBase64]),
+     * dann die Referenzen gegen die Spieldaten pruefen. Veraltete Spielstaende werden abgelehnt
+     * ([ImportError.OBSOLETE_VERSION]), nicht wie beim Laden durch ein neues Spiel ersetzt.
      * `lastSavedAt` wird auf [now] gesetzt, weil der Stand gleich danach als aktueller Stand gilt.
      *
      * @param now aktuelle Zeit in Millisekunden, neues `lastSavedAt`
@@ -37,6 +43,10 @@ class SaveTransfer(
             codec.importBase64(text)
         } catch (e: SaveException) {
             return SaveImportResult.Failure(errorOf(e), e.message)
+        }
+        val referenceErrors = data?.let { ReferenceValidator.validate(state, it) }.orEmpty()
+        if (referenceErrors.isNotEmpty()) {
+            return SaveImportResult.Failure(ImportError.UNKNOWN_REFERENCES, referenceErrors.joinToString("; "))
         }
         return SaveImportResult.Success(state.copy(lastSavedAt = now))
     }
@@ -58,6 +68,7 @@ class SaveTransfer(
             is SaveException.MissingVersion -> ImportError.MISSING_VERSION
             is SaveException.UnsupportedVersion ->
                 if (error.isTooNew) ImportError.TOO_NEW else ImportError.UNSUPPORTED_VERSION
+            is SaveException.ObsoleteVersion -> ImportError.OBSOLETE_VERSION
             is SaveException.MigrationFailed -> ImportError.MIGRATION_FAILED
             is SaveException.InvalidContent -> ImportError.INVALID_CONTENT
             // Kommt beim Lesen nicht vor; der Vollstaendigkeit halber als ungueltiger Inhalt.
@@ -113,9 +124,15 @@ enum class ImportError {
     /** Version kleiner als 1. */
     UNSUPPORTED_VERSION,
 
+    /** Spielstand aus dem alten Incremental-Design (vor `saveVersion` 3, AP2-03). */
+    OBSOLETE_VERSION,
+
     /** Ein Migrationsschritt ist fehlgeschlagen. */
     MIGRATION_FAILED,
 
     /** Struktur passt nicht zu `GameState`. */
     INVALID_CONTENT,
+
+    /** Der Spielstand verweist auf Arten oder Knochen, die es in den Spieldaten nicht gibt. */
+    UNKNOWN_REFERENCES,
 }

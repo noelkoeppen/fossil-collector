@@ -22,20 +22,23 @@ interface SaveMigration {
 /**
  * Bringt einen Spielstand per Migrationskette auf [currentVersion].
  *
- * Die Kette muss lueckenlos sein: fuer jede Version von 1 bis `currentVersion - 1` genau ein
- * Schritt. Das wird beim Erzeugen geprueft. Im Spiel wird [DEFAULT] verwendet; eigene Instanzen
- * sind fuer Tests gedacht.
+ * Versionen ab 1, aber unter [oldestSupportedVersion] gelten als veraltet und werden nicht migriert
+ * ([SaveException.ObsoleteVersion]). Die Kette muss lueckenlos sein: fuer jede Version von
+ * [oldestSupportedVersion] bis `currentVersion - 1` genau ein Schritt. Das wird beim Erzeugen
+ * geprueft. Im Spiel wird [DEFAULT] verwendet; eigene Instanzen sind fuer Tests gedacht.
  */
 class SaveMigrator(
     migrations: List<SaveMigration>,
     val currentVersion: Int,
+    val oldestSupportedVersion: Int = FIRST_VERSION,
 ) {
     private val steps: Map<Int, SaveMigration> = migrations.associateBy { it.fromVersion }
 
     init {
-        require(currentVersion >= FIRST_VERSION) { "currentVersion muss mindestens $FIRST_VERSION sein" }
+        require(oldestSupportedVersion >= FIRST_VERSION) { "oldestSupportedVersion muss mindestens $FIRST_VERSION sein" }
+        require(currentVersion >= oldestSupportedVersion) { "currentVersion muss mindestens $oldestSupportedVersion sein" }
         require(steps.size == migrations.size) { "Doppelte Migrationsschritte: ${migrations.map { it.fromVersion }}" }
-        val expected = (FIRST_VERSION until currentVersion).toSet()
+        val expected = (oldestSupportedVersion until currentVersion).toSet()
         require(steps.keys == expected) {
             "Migrationskette unvollstaendig: erwartet Schritte ab $expected, vorhanden ${steps.keys.sorted()}"
         }
@@ -57,12 +60,17 @@ class SaveMigrator(
      *
      * @throws SaveException.MissingVersion wenn `saveVersion` fehlt
      * @throws SaveException.UnsupportedVersion wenn die Version kleiner 1 oder neuer als [currentVersion] ist
+     * @throws SaveException.ObsoleteVersion wenn die Version kleiner als [oldestSupportedVersion] ist
+     *   (ohne `legacySettings`; die ergaenzt `SaveCodec`)
      * @throws SaveException.MigrationFailed wenn ein Schritt eine Exception wirft
      */
     fun migrate(save: JsonObject): JsonObject {
         var version = versionOf(save)
         if (version < FIRST_VERSION || version > currentVersion) {
             throw SaveException.UnsupportedVersion(version, currentVersion)
+        }
+        if (version < oldestSupportedVersion) {
+            throw SaveException.ObsoleteVersion(version, oldestSupportedVersion)
         }
         var current = save
         while (version < currentVersion) {
@@ -85,10 +93,14 @@ class SaveMigrator(
         /** Erste Version des Speicherformats. */
         const val FIRST_VERSION: Int = 1
 
-        /** Alle Migrationsschritte des Spiels, aufsteigend. Bei Version 1 noch leer. */
+        /**
+         * Alle Migrationsschritte des Spiels ab [GameState.OLDEST_SUPPORTED_SAVE_VERSION], aufsteigend.
+         * Bei Version 3 noch leer.
+         */
         val MIGRATIONS: List<SaveMigration> = emptyList()
 
-        /** Migrator mit der echten Kette bis [GameState.CURRENT_SAVE_VERSION]. */
-        val DEFAULT: SaveMigrator = SaveMigrator(MIGRATIONS, GameState.CURRENT_SAVE_VERSION)
+        /** Migrator mit der echten Kette von [GameState.OLDEST_SUPPORTED_SAVE_VERSION] bis [GameState.CURRENT_SAVE_VERSION]. */
+        val DEFAULT: SaveMigrator =
+            SaveMigrator(MIGRATIONS, GameState.CURRENT_SAVE_VERSION, GameState.OLDEST_SUPPORTED_SAVE_VERSION)
     }
 }

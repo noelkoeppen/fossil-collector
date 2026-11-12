@@ -1,6 +1,8 @@
 package de.noelkoeppen.fossilcollector.vm
 
+import de.noelkoeppen.fossilcollector.core.data.DataRepository
 import de.noelkoeppen.fossilcollector.core.model.GameState
+import de.noelkoeppen.fossilcollector.core.model.Piece
 import de.noelkoeppen.fossilcollector.core.model.LanguageSetting
 import de.noelkoeppen.fossilcollector.core.model.Settings
 import de.noelkoeppen.fossilcollector.core.save.SaveException
@@ -85,13 +87,36 @@ class SaveTransferTest {
 
     @Test
     fun `falsche Struktur`() {
-        assertEquals(ImportError.INVALID_CONTENT, importError(base64("""{"saveVersion": 1}""")))
-        assertEquals(ImportError.INVALID_CONTENT, importError(base64("""{"saveVersion": 1, "lastSavedAt": "gestern"}""")))
+        assertEquals(ImportError.INVALID_CONTENT, importError(base64("""{"saveVersion": 3}""")))
+        assertEquals(ImportError.INVALID_CONTENT, importError(base64("""{"saveVersion": 3, "lastSavedAt": "gestern"}""")))
+        val badQuality = """{"saveVersion": 3, "lastSavedAt": 1, "inventory": [{"speciesId": "cave_bear", "boneId": "femur_l", "quality": 2}]}"""
+        assertEquals(ImportError.INVALID_CONTENT, importError(base64(badQuality)))
+    }
+
+    @Test
+    fun `alter Spielstand wird beim Import abgelehnt`() {
+        assertEquals(ImportError.OBSOLETE_VERSION, importError(base64("""{"saveVersion": 1, "lastSavedAt": 1, "settings": {"language": "en"}}""")))
+        assertEquals(ImportError.OBSOLETE_VERSION, importError(base64("""{"saveVersion": 2}""")))
+    }
+
+    @Test
+    fun `Spielstand mit unbekannten Arten oder Knochen wird abgelehnt`() {
+        val checked = SaveTransfer(data = DataRepository().load())
+        val valid = played.copy(inventory = listOf(Piece("cave_bear", "femur_l", 0.5)))
+        val validText = assertInstanceOf(SaveExportResult.Success::class.java, checked.export(valid)).text
+        assertEquals(valid.copy(lastSavedAt = NOW), assertInstanceOf(SaveImportResult.Success::class.java, checked.import(validText, NOW)).state)
+
+        for (piece in listOf(Piece("cave_bear", "wing_l", 0.5), Piece("dodo", "femur_l", 0.5))) {
+            val text = exported(played.copy(inventory = listOf(piece)))
+            val failure = assertInstanceOf(SaveImportResult.Failure::class.java, checked.import(text, NOW))
+            assertEquals(ImportError.UNKNOWN_REFERENCES, failure.error)
+        }
     }
 
     @Test
     fun `jeder Ladefehler hat eine Zuordnung`() {
         assertEquals(ImportError.MIGRATION_FAILED, SaveTransfer.errorOf(SaveException.MigrationFailed(1, IllegalStateException("x"))))
+        assertEquals(ImportError.OBSOLETE_VERSION, SaveTransfer.errorOf(SaveException.ObsoleteVersion(1, 3)))
         assertEquals(ImportError.TOO_NEW, SaveTransfer.errorOf(SaveException.UnsupportedVersion(3, 1)))
         assertEquals(ImportError.UNSUPPORTED_VERSION, SaveTransfer.errorOf(SaveException.UnsupportedVersion(0, 1)))
         assertEquals(ImportError.INVALID_CONTENT, SaveTransfer.errorOf(SaveException.NotEncodable("x")))

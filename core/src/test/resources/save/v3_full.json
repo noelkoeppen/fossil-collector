@@ -1,0 +1,10 @@
+{
+  "saveVersion": 3,
+  "lastSavedAt": 1762351200000,
+  "settings": { "language": "en" },
+  "inventory": [
+    { "speciesId": "cave_bear", "boneId": "femur_l", "quality": 0.83, "age": null, "sex": null },
+    { "speciesId": "cave_bear", "boneId": "patella_l", "quality": 0.0 },
+    { "speciesId": "cave_bear", "boneId": "occipital", "quality": 1.0 }
+  ]
+}

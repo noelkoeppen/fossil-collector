@@ -49,14 +49,28 @@ class SaveCodecErrorTest {
 
     @Test
     fun unknownSettingValueIsInvalidContent() {
-        val text = SaveFixtures.read("v1_full.json").replace("\"language\": \"en\"", "\"language\": \"fr\"")
+        val text = SaveFixtures.read("v3_full.json").replace("\"language\": \"en\"", "\"language\": \"fr\"")
         assertThrows<SaveException.InvalidContent> { codec.decode(text) }
     }
 
     @Test
     fun nonFiniteNumbersAreRejectedWhenLoading() {
-        val text = SaveFixtures.read("v1_minimal.json").replace("\"lastSavedAt\": 0", "\"lastSavedAt\": NaN")
+        val text = SaveFixtures.read("v3_minimal.json").replace("\"lastSavedAt\": 0", "\"lastSavedAt\": NaN")
         assertThrows<SaveException> { codec.decode(text) }
+    }
+
+    @Test
+    fun qualityOutsideScaleIsInvalidContent() {
+        for (quality in listOf("-0.01", "1.01", "1e9")) {
+            val text = SaveFixtures.read("v3_full.json").replace("\"quality\": 0.83", "\"quality\": $quality")
+            assertThrows<SaveException.InvalidContent>("Qualitaet $quality") { codec.decode(text) }
+        }
+    }
+
+    @Test
+    fun pieceWithoutBoneIsInvalidContent() {
+        val text = SaveFixtures.read("v3_full.json").replace("\"boneId\": \"femur_l\", ", "")
+        assertThrows<SaveException.InvalidContent> { codec.decode(text) }
     }
 
     @Test
