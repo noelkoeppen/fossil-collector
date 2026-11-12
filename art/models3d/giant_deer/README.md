@@ -16,7 +16,7 @@ eingebunden und kein Arbeitspaket aus `docs/GAME_DESIGN.md`.
 | `bones_viewer.html` | Betrachter für `giant_deer_all.glb` (über einen lokalen Webserver öffnen) |
 | `preview/` | Ansichten ohne Perspektive: Seite, vorn, oben, schräg, Schädel |
 
-113 Knochen, 148 476 Dreiecke, `giant_deer_all.glb` 2,6 MB:
+113 Knochen, 149 476 Dreiecke, `giant_deer_all.glb` 2,6 MB:
 
 - Schädel 20: Hinterhaupt, Keilbein, je Seite Zwischenkiefer, Nasenbein, Oberkiefer, Jochbein,
   Schläfenbein, Stirnbein, Scheitelbein, Unterkieferhälfte und Geweihstange
@@ -42,9 +42,9 @@ Mesh nachgemessen:
 | Oberschenkel | 480 mm | 479 mm |
 | Schienbein | 470 mm | 461 mm |
 | Hinteres Kanonenbein | 360 mm | 359 mm |
-| Schulterblatt | 430 mm | 435 mm |
-| Geweihstange | 1350 mm | 1302 mm |
-| Geweihspanne | 2700 mm | 2580 mm |
+| Schulterblatt | 430 mm | 427 mm |
+| Geweihstange | 1350 mm | 1297 mm |
+| Geweihspanne | 2700 mm | 2560 mm |
 | Widerristhöhe (Skelett) | 1900 mm | 1833 mm |
 
 Quellen: Lister & Stuart 2019 (Quaternary International), Shpansky 2014 (Paleontological Journal),

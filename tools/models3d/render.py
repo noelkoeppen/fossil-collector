@@ -21,16 +21,16 @@ BONE = (0.85, 0.79, 0.64)
 BG = (0.07, 0.06, 0.05)
 
 
-def load(species, tint, group=None):
+def load(species, tint, group=None, only=None, dens=1.0):
     art = os.path.normpath(os.path.join(HERE, '..', '..', 'art', 'models3d', species))
     man = json.load(open(os.path.join(art, 'bones.json')))
     P, N, C = [], [], []
     rng = np.random.default_rng(1)
     for k, e in enumerate(man['bones']):
-        if group and e['group'] != group:
+        if (group and e["group"] != group) or (only and not e["id"].startswith(only)):
             continue
         m = trimesh.load(os.path.join(art, 'bones', e['file']), force='mesh')
-        n = int(max(2000, m.area * (2600000 if group else 260000)))
+        n = int(max(2000, m.area * (2600000 if group else 260000) * dens))
         tri = m.triangles
         w = m.area_faces / m.area_faces.sum()
         idx = rng.choice(len(tri), n, p=w)

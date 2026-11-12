@@ -96,6 +96,23 @@ def ell(P, c, r, R=None):
     return np.where(k1 < 1e-6, -float(r.min()), d).astype(F)
 
 
+def flat_cone(P, a, b, r1, r2, s1, s2, axis=2):
+    """Cone from a to b that is flattened along one local axis (bound).
+
+    The cross-section is an ellipse: radius r in the plane, r / s along the axis.
+    s runs from s1 at a to s2 at b, so a tine can leave a plate flat and end round.
+    """
+    a = np.asarray(a, dtype=F)
+    ba = np.asarray(b, dtype=F) - a
+    pa = P - a
+    h = np.clip((pa @ ba) / float(ba @ ba), 0.0, 1.0)
+    perp = pa - h[:, None] * ba
+    s = s1 + (s2 - s1) * h
+    n = perp[:, axis] * s
+    inpl = np.delete(perp, axis, axis=1)
+    return (np.sqrt((inpl * inpl).sum(-1) + n * n) - (r1 + (r2 - r1) * h)) / max(s1, s2, 1.0)
+
+
 # ---------- operators ----------
 def smin(a, b, k):
     h = np.clip(0.5 + 0.5 * (b - a) / k, 0.0, 1.0)

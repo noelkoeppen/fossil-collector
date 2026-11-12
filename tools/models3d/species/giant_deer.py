@@ -5,7 +5,7 @@ and the pose angles below; joint positions are computed, not placed by hand.
 """
 import math
 import numpy as np
-from sdf import (F, V, unit, frame, to_local, sphere, cone, capsule, box, ell, tri_plate, smin, smax, tube,
+from sdf import (F, V, unit, frame, to_local, sphere, cone, flat_cone, capsule, box, ell, tri_plate, smin, smax, tube,
                  fold_z, scaled_y)
 from parts import vertebra, long_bone, rib_path, rib, cloven_foot
 
@@ -254,11 +254,26 @@ ANT_B1 = ANT_BASE + 0.75 * ANT_BEAM_DIR
 ANT_PALM_HALF = 0.74
 ANT_PALM_C = ANT_B1 + (ANT_PALM_HALF - 0.08) * ANT_PALM_DIR
 ANT_R = frame(ANT_PALM_DIR, hint=(1.0, 0.65, -0.2))  # rows: along the palm, across (rear edge raised), normal
-# tines: (position along the palm, position across, length, direction as along/across/normal)
-ANT_TINES = [(-0.40, 0.24, 0.40, (0.20, 1.0, 0.12)), (-0.05, 0.29, 0.50, (0.45, 1.0, 0.12)),
-             (0.30, 0.27, 0.52, (0.75, 0.9, 0.12)), (0.58, 0.17, 0.50, (1.0, 0.5, 0.10)),
-             (0.70, -0.02, 0.44, (1.0, 0.0, 0.10)), (0.52, -0.22, 0.30, (0.8, -0.6, 0.08)),
-             (-0.48, -0.12, 0.30, (-0.1, -1.0, 0.05))]
+# tines: (root along the palm, root across, length, direction as along/across/normal).
+# Roots sit inside the palm, so every tine grows out of the plate instead of sitting on its rim.
+ANT_TINES = [(-0.38, 0.10, 0.56, (0.20, 1.0, 0.10)), (-0.05, 0.14, 0.66, (0.45, 1.0, 0.12)),
+             (0.27, 0.13, 0.68, (0.75, 0.9, 0.12)), (0.48, 0.08, 0.62, (1.0, 0.5, 0.10)),
+             (0.56, -0.02, 0.58, (1.0, 0.0, 0.10)), (0.42, -0.12, 0.42, (0.8, -0.6, 0.08)),
+             (-0.44, -0.04, 0.38, (-0.1, -1.0, 0.05))]
+ANT_TINE_ROOT, ANT_TINE_TIP, ANT_TINE_FLAT = 0.085, 0.016, 2.6
+
+
+def antler_tine(q, u, w, L, dr):
+    """One tine in palm coordinates: wide and as flat as the palm at the root, round at the
+    tip, bending up out of the palm plane over its outer half."""
+    a = V(u, w, 0.0)
+    d = unit(dr)
+    m = a + 0.55 * L * d
+    b = m + 0.45 * L * unit(d + V(0.0, 0.0, 0.22))
+    rm = ANT_TINE_ROOT + (ANT_TINE_TIP - ANT_TINE_ROOT) * 0.62
+    sm = ANT_TINE_FLAT + (1.0 - ANT_TINE_FLAT) * 0.7
+    t = flat_cone(q, a, m, ANT_TINE_ROOT, rm, ANT_TINE_FLAT, sm)
+    return smin(t, flat_cone(q, m, b, rm, ANT_TINE_TIP, sm, 1.0), 0.02)
 
 
 def antler(P):
@@ -267,16 +282,19 @@ def antler(P):
     d = ell(P, burr + 0.03 * ax, (0.032, 0.082, 0.082), frame(ax, hint=(1.0, 0.0, 0.0)))
     d = smin(d, cone(P, burr, ANT_B1, 0.062, 0.068), 0.03)
     q = to_local(P, ANT_PALM_C, ANT_R)
-    palm = ell(q, (0, 0, 0), (ANT_PALM_HALF, 0.30, 0.03))
+    palm = ell(q, (0, 0, 0), (ANT_PALM_HALF, 0.30, 0.032))
     palm = smin(palm, ell(q, (-0.35, 0.0, 0.0), (0.42, 0.17, 0.045)), 0.05)
-    d = smin(d, palm, 0.08)
+    # tines first blend with each other into webbed bays, then melt into the palm
+    tines = None
     for u, w, L, dr in ANT_TINES:
-        a = V(u, w, 0.0)
-        d = smin(d, cone(q, a, a + L * unit(dr), 0.05, 0.014), 0.05)
+        t = antler_tine(q, u, w, L, dr)
+        tines = t if tines is None else smin(tines, t, 0.05)
+    palm = smin(palm, tines, 0.07)
+    d = smin(d, palm, 0.08)
     # brow tine near the burr, pointing forward and forked
     b0 = burr + 0.10 * ANT_BEAM_DIR
-    d = smin(d, tube(P, [b0, b0 + V(-0.22, 0.08, 0.06), b0 + V(-0.40, 0.20, 0.10)], [0.045, 0.034, 0.014]), 0.03)
-    d = smin(d, cone(P, b0 + V(-0.22, 0.08, 0.06), b0 + V(-0.34, 0.06, 0.20), 0.03, 0.013), 0.02)
+    d = smin(d, tube(P, [b0, b0 + V(-0.22, 0.08, 0.06), b0 + V(-0.40, 0.20, 0.10)], [0.05, 0.034, 0.014]), 0.05)
+    d = smin(d, cone(P, b0 + V(-0.20, 0.075, 0.055), b0 + V(-0.34, 0.06, 0.20), 0.032, 0.013), 0.035)
     # flat cut where the antler sat on the pedicle
     return np.maximum(d, -((P - burr) @ ax))
 
@@ -394,19 +412,28 @@ HUM_HEAD = S3 - 0.085 * SCAP_AX + V(0.02, 0.0, 0.0)
 
 
 def scapula(P):
+    """Shoulder blade: a fan with rounded corners, an arched upper border, a hollow front
+    edge and a bulging rear edge. The blade is slightly cupped, thin in the middle and
+    thicker along its rim."""
     q = to_local(P, S3, SCAP_R)
     a, b, c = q[:, 0], q[:, 1], q[:, 2]
-    L = SCAP_LEN
-    kf, kr = (0.17 - 0.05) / (L - 0.06), (0.25 - 0.05) / (L - 0.06)
-    poly = np.maximum(np.maximum(a - L, 0.06 - a),
-                      np.maximum((-b - 0.05 - kf * (a - 0.06)) / math.hypot(1, kf),
-                                 (b - 0.05 - kr * (a - 0.06)) / math.hypot(1, kr)))
-    d = np.maximum(poly, np.abs(c) - 0.008) - 0.007
-    rh = 0.075 - 0.063 * np.clip((a - 0.15) / (L - 0.20), 0.0, 1.0)
-    ridge = np.maximum(np.maximum(np.abs(b) - 0.004, np.maximum(c, -c - rh)), np.maximum(0.14 - a, a - L + 0.05)) - 0.006
-    d = smin(d, ridge, 0.015)
-    d = smin(d, capsule(q, (L, -0.17, 0.0), (L, 0.25, 0.0), 0.013), 0.015)
-    d = smin(d, cone(q, (0.04, 0.0, 0.0), (0.24, 0.0, 0.0), 0.05, 0.03), 0.04)
+    L = SCAP_LEN + 0.055  # the arched border and rounded corners eat into the length
+    t = np.clip((a - 0.06) / (L - 0.06), 0.0, 1.0)
+    bow = t * (1.0 - t)
+    front = 0.05 + (0.20 - 0.05) * t - 0.10 * bow     # hollow towards the neck
+    rear = 0.05 + (0.24 - 0.05) * t + 0.12 * bow      # bulging towards the back
+    arch = 0.30                                       # how far the upper border dips at the corners
+    top = a - L + arch * ((b - 0.02) / 0.26) ** 2 * 0.22
+    outline = smax(smax(top, 0.06 - a, 0.05), smax(-b - front, b - rear, 0.05), 0.09)
+    cc = c + 0.30 * b * b
+    rim = np.clip(1.0 + outline / 0.13, 0.0, 1.0)
+    th = 0.0065 + 0.006 * rim * rim * (3.0 - 2.0 * rim)
+    d = smax(outline, np.abs(cc) - th, 0.012) - 0.004
+    # ridge down the outer face, tallest near the joint, fading out before the upper border
+    rh = (0.075 - 0.060 * np.clip((a - 0.15) / (L - 0.25), 0.0, 1.0)) * np.clip((L - 0.05 - a) / 0.10, 0.0, 1.0)
+    ridge = np.maximum(np.maximum(np.abs(b) - 0.004, np.maximum(cc, -cc - rh)), np.maximum(0.14 - a, a - L + 0.05)) - 0.006
+    d = smin(d, ridge, 0.025)
+    d = smin(d, cone(q, (0.04, 0.0, 0.0), (0.26, 0.0, 0.0), 0.05, 0.028), 0.05)
     d = smin(d, ell(q, (0.055, 0.0, 0.0), (0.05, 0.06, 0.045)), 0.03)
     return smin(d, cone(q, (0.05, -0.05, 0.0), (0.0, -0.085, 0.015), 0.022, 0.014), 0.015)
 
@@ -578,7 +605,7 @@ def bones():
     add('sternum', 'Brustbein', 'Sternum', 'sternum', sternum, _bb([STERN_A, STERN_B, STERN_A + V(0, 0, 0.1), STERN_B - V(0, 0, 0.1)], 0.1),
         tris=1500)
     for i, de, en, fn, bx, h, n, ms in [
-        ('scapula', 'Schulterblatt', 'Scapula', scapula, _bb([S3, ST3, ST3 + V(0.3, 0, 0), ST3 - V(0.25, 0, 0)], 0.12), 0.0035, 2500, 'scapula'),
+        ('scapula', 'Schulterblatt', 'Scapula', scapula, _bb([S3, ST3, ST3 + V(0.3, 0, 0), ST3 - V(0.25, 0, 0)], 0.12), 0.0035, 3000, 'scapula'),
         ('humerus', 'Oberarmknochen', 'Humerus', humerus, _bb([HUM_HEAD, E3], 0.16), 0.005, 2000, 'humerus'),
         ('radius', 'Speiche', 'Radius', radius, _bb([RAD_TOP, RAD_END], 0.11), 0.0045, 1500, 'radius'),
         ('ulna', 'Elle', 'Ulna', ulna, _bb([E3 + V(0.118, 0.15, 0), RAD_END], 0.12), 0.004, 1200, None),
