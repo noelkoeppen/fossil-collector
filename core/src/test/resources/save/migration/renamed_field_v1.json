@@ -1,10 +1,5 @@
 {
   "saveVersion": 1,
-  "lastSavedAt": 1762351200000,
-  "meta": { "fame": 3 },
-  "run": {
-    "money": 50, "researchPoints": 0, "unlockedLayers": 1,
-    "teams": { "quaternary": 2 }, "preparators": 1, "museumHalls": 3, "labSlots": 1,
-    "toolLevel": 0, "blocks": { "quaternary": 0.5 }
-  }
+  "savedAt": 1762351200000,
+  "settings": { "language": "de" }
 }

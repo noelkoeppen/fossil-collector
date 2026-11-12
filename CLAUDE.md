@@ -30,7 +30,3 @@ Der frühere Incremental-Stand liegt auf dem Branch `archive/incremental-v1.1`. 
 - Keine Strings im Code: UI-Texte in `strings.xml` (de + en), Inhaltstexte in `data/locale/*.json`.
 - Neue Logik in `core` braucht Unit-Tests.
 - Keine Emojis im Code.
-
-## Hinweis zum Übergang
-Bis AP2-02 erledigt ist, enthält der Code noch die Idle-Systeme des alten Designs (Teams, Präparatoren,
-Offline, Prestige, Skilltree, Labor). Nicht darauf aufbauen.

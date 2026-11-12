@@ -1,10 +1,1 @@
-{
-  "saveVersion": 1,
-  "lastSavedAt": 0,
-  "meta": {},
-  "run": {
-    "money": "viel", "researchPoints": 0, "unlockedLayers": 1,
-    "teams": {}, "preparators": 0, "halls": 1, "labSlots": 1,
-    "toolLevel": 0, "blocks": {}
-  }
-}
+{ "saveVersion": 1, "lastSavedAt": "gestern" }

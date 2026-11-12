@@ -13,40 +13,11 @@
         "type": "integer",
         "minimum": 0
       },
-      "unlockCost": {
-        "type": "number",
-        "minimum": 0
-      },
-      "teamBaseCost": {
-        "type": "number",
-        "exclusiveMinimum": 0
-      },
-      "teamGrowth": {
-        "type": "number",
-        "exclusiveMinimum": 1
-      },
-      "teamRate": {
-        "type": "number",
-        "exclusiveMinimum": 0
-      },
-      "value": {
-        "type": "number",
-        "exclusiveMinimum": 0
-      },
-      "fragility": {
-        "type": "number",
-        "minimum": 0,
-        "maximum": 1
-      },
-      "fameWeight": {
-        "type": "number",
-        "exclusiveMinimum": 0
-      },
       "color": {
         "$ref": "common.schema.json#/$defs/color"
       },
       "texture": {
-        "description": "Gesteinstextur des Schichtbands (Kapitel 8.5, AP-26); Standard plain",
+        "description": "Gesteinstextur der Schicht (AP-26); Standard plain",
         "enum": [
           "plain",
           "gravel",
@@ -58,13 +29,6 @@
     "required": [
       "id",
       "order",
-      "unlockCost",
-      "teamBaseCost",
-      "teamGrowth",
-      "teamRate",
-      "value",
-      "fragility",
-      "fameWeight",
       "color"
     ],
     "additionalProperties": false

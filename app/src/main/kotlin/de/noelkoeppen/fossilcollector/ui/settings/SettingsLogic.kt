@@ -2,16 +2,12 @@ package de.noelkoeppen.fossilcollector.ui.settings
 
 import androidx.annotation.StringRes
 import de.noelkoeppen.fossilcollector.R
-import de.noelkoeppen.fossilcollector.core.number.GameNumber
 import de.noelkoeppen.fossilcollector.vm.ImportError
 
 /**
  * Logik des Einstellungs-Screens ausserhalb der Composables (AP-24), als JVM-Test pruefbar.
  */
 object SettingsLogic {
-
-    /** Beispielzahl fuer die Zahlenformat-Auswahl (reine Anzeige, kein Spielwert). */
-    val EXAMPLE_NUMBER: GameNumber = GameNumber(1_500_000.0)
 
     /**
      * Zweite Bestaetigung beim Loeschen: Die Eingabe muss dem Bestaetigungswort entsprechen
@@ -31,7 +27,6 @@ object SettingsLogic {
         ImportError.UNSUPPORTED_VERSION -> R.string.settings_import_error_unsupported
         ImportError.MIGRATION_FAILED -> R.string.settings_import_error_migration
         ImportError.INVALID_CONTENT -> R.string.settings_import_error_content
-        ImportError.UNKNOWN_CONTENT -> R.string.settings_import_error_unknown_content
     }
 }
 

@@ -9,7 +9,8 @@ zusammensetzen und im eigenen Museum ausstellen. Hobbyprojekt, umgesetzt mit Cla
 
 > **Umbau läuft.** Das Projekt war bis Version 1.1 ein Incremental-/Idle-Spiel. Dieser Stand liegt auf
 > dem Branch `archive/incremental-v1.1`. Der Code auf `main` wird schrittweise auf das neue Design
-> umgestellt (Arbeitspakete `AP2-XX`); bis AP2-02 beschreiben die Abschnitte unten noch den alten Stand.
+> umgestellt (Arbeitspakete `AP2-XX`). Seit AP2-02 sind die Idle-Systeme entfernt; die App startet
+> bis zu einem leeren Hauptbildschirm mit Einstellungen.
 
 ## Projektstruktur
 
@@ -17,8 +18,7 @@ zusammensetzen und im eigenen Museum ausstellen. Hobbyprojekt, umgesetzt mit Cla
 |---|---|
 | `core` | Reines Kotlin/JVM. Gesamte Spiellogik, Daten (`src/main/resources/data/`), JUnit-5-Tests. Keine Android-Abhängigkeiten. |
 | `app` | Android-App (Jetpack Compose, Material 3). UI, ViewModel, Plattformanbindung. |
-| `tools` | Hilfsskripte (Balancing-Simulation, SVG-Konvertierung der Skelette, später Datenvalidierung). |
-| `art/skeletons` | Quell-SVGs der alten 2D-Skelett-Grafiken (entfallen mit dem Umbau). |
+| `tools` | Hilfsskripte (`tools/models3d`: Aufbereitung der 3D-Modelle). |
 | `art/models3d` | 3D-Modelle der Skelette als Einzelknochen (glTF). |
 
 Abhängigkeiten und Versionen stehen im Version Catalog `gradle/libs.versions.toml`.
@@ -39,7 +39,7 @@ Gradle selbst muss nicht installiert sein, der Wrapper (`gradlew`) lädt die pas
 # Tests des Spiellogik-Moduls (laufen ohne Android SDK)
 ./gradlew :core:test
 
-# JVM-Unit-Tests der App (SaveStorage, Tab-Regeln u. a., brauchen das Android SDK)
+# JVM-Unit-Tests der App (SaveStorage, Export/Import u. a., brauchen das Android SDK)
 ./gradlew :app:testDebugUnitTest
 
 # Debug-APK bauen
@@ -52,35 +52,14 @@ Gradle selbst muss nicht installiert sein, der Wrapper (`gradlew`) lädt die pas
 
 Unter Windows `gradlew.bat` statt `./gradlew` verwenden.
 
-## Tools
+## Datenvalidierung
 
-### Skelett-Grafiken (`tools/svg2json.py`)
-
-Die App zeichnet Skelette aus JSON-Dateien in `core/src/main/resources/data/skeletons/`
-(`skeleton_<name>.json`). Sie werden aus den SVGs in `art/skeletons/<name>.svg` erzeugt und
-**mit eingecheckt**, damit der Gradle-Build kein Python braucht. Nach jeder Änderung an einem SVG:
-
-```bash
-python3 tools/svg2json.py            # alle SVGs nach JSON umwandeln
-python3 tools/svg2json.py --check    # nur prüfen, ob die JSONs aktuell sind (läuft in der CI)
-python3 tools/test_svg2json.py       # Tests des Skripts
-./gradlew :core:test                 # DataValidationTest prüft Knochen/Zonen gegen bones.json
-```
-
-Nur Python 3 mit Standardbibliothek. Konvention für die SVGs (Kapitel 8.5):
-
-- `viewBox` am `<svg>`-Element; jeder Knochen eine Gruppe `<g id="<boneId>">`, jede Zone darin
-  ein Pfad `<path id="<boneId>__<zoneId>" d="...">`. Zonen in der Reihenfolge aus `bones.json`.
-- In Knochengruppen nur Zonen-Pfade (Formen vorher in Pfade umwandeln), keine verschachtelten
-  Knochengruppen. **`transform`-Attribute sind verboten** (vor dem Export anwenden).
-- Alles außerhalb von Knochengruppen (z. B. Hintergrund) wird ignoriert.
-- Die Gruppenreihenfolge ist die Zeichenreihenfolge in der App.
-
-Dateinamen: `<speciesId>.svg` für die Grafik einer Art (AP-27), `quadruped.svg` und `biped.svg`
-für die Platzhalter. Arten ohne eigene Datei nutzen den Platzhalter ihres `bodyPlan`.
+Die Spieldaten in `core/src/main/resources/data/` werden beim App-Start und in den Tests von
+`DataValidator` geprüft (Referenzen, IDs, Farben, Qualitätsstufen, Texte in de/en). Lokal und in der
+CI läuft die Prüfung als Teil von `./gradlew :core:test` (`DataValidationTest`).
 
 ## CI
 
-GitHub Actions (`.github/workflows/ci.yml`) führt bei jedem Push und Pull Request die Tests von
-`tools/svg2json.py` samt Aktualitätsprüfung der Skelett-JSONs, die `core`-Tests und die App-Unit-Tests aus und baut die Debug-APK. Die APK liegt danach im Workflow-Lauf unter
+GitHub Actions (`.github/workflows/ci.yml`) führt bei jedem Push und Pull Request die `core`-Tests
+(einschließlich Datenvalidierung) und die App-Unit-Tests aus und baut die Debug-APK. Die APK liegt danach im Workflow-Lauf unter
 **Artifacts** (`fossil-collector-debug-apk`) zum Download bereit.

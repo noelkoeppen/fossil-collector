@@ -8,19 +8,7 @@
     <string name="data_error_text">Die Spieldaten konnten nicht geladen werden. Bitte installiere die App neu oder melde den Fehler.</string>
 
     <!-- Obere Leiste -->
-    <string name="top_bar_money_label">Geld</string>
-    <string name="top_bar_research_label">FP</string>
-    <string name="top_bar_fame_label">Ruhm</string>
-    <string name="top_bar_money_value">%1$s $</string>
-    <string name="top_bar_money_rate">%1$s $/s</string>
     <string name="top_bar_settings">Einstellungen</string>
-
-    <!-- Tabs -->
-    <string name="tab_dig">Grabung</string>
-    <string name="tab_lab">Labor</string>
-    <string name="tab_museum">Museum</string>
-    <string name="tab_book">Sammelbuch</string>
-    <string name="tab_fame">Ruhm</string>
 
     <!-- Navigation -->
     <string name="back">Zurück</string>

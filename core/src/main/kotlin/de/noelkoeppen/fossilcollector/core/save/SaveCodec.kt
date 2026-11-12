@@ -11,7 +11,7 @@ import java.nio.charset.CodingErrorAction
 import java.util.Base64
 
 /**
- * Wandelt [GameState] in JSON und zurueck (Kapitel 7.2). Reines Kotlin/JVM ohne Dateizugriff:
+ * Wandelt [GameState] in JSON und zurueck. Reines Kotlin/JVM ohne Dateizugriff:
  * atomares Schreiben und Backups sind Aufgabe von `app/platform/SaveStorage` (AP-16).
  *
  * Laden: Text -> JSON-Objekt -> `saveVersion` pruefen -> [SaveMigrator] -> `GameState`.
@@ -68,7 +68,7 @@ class SaveCodec(
     }
 
     /**
-     * Export fuer die Zwischenablage (Kapitel 7.2): JSON als UTF-8, Base64-kodiert (ohne Zeilenumbrueche).
+     * Export fuer die Zwischenablage: JSON als UTF-8, Base64-kodiert (ohne Zeilenumbrueche).
      *
      * @throws SaveException.NotEncodable wie [encode]
      */

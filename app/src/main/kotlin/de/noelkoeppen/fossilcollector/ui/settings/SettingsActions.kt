@@ -2,7 +2,6 @@ package de.noelkoeppen.fossilcollector.ui.settings
 
 import androidx.compose.runtime.Immutable
 import de.noelkoeppen.fossilcollector.core.model.LanguageSetting
-import de.noelkoeppen.fossilcollector.core.number.NumberNotation
 import de.noelkoeppen.fossilcollector.vm.GameViewModel
 import de.noelkoeppen.fossilcollector.vm.ImportError
 import de.noelkoeppen.fossilcollector.vm.SaveExportResult
@@ -20,7 +19,6 @@ import de.noelkoeppen.fossilcollector.vm.SaveImportResult
 @Immutable
 data class SettingsActions(
     val onSetLanguage: (LanguageSetting) -> Unit,
-    val onSetNumberFormat: (NumberNotation) -> Unit,
     val exportSave: suspend () -> SaveExportResult,
     val checkImport: suspend (text: String) -> SaveImportResult,
     val onImport: (text: String) -> Unit,
@@ -30,7 +28,6 @@ data class SettingsActions(
         /** Ohne Wirkung (Vorschauen). */
         val NONE = SettingsActions(
             onSetLanguage = {},
-            onSetNumberFormat = {},
             exportSave = { SaveExportResult.Failure() },
             checkImport = { SaveImportResult.Failure(ImportError.EMPTY) },
             onImport = {},
@@ -42,7 +39,6 @@ data class SettingsActions(
 /** Aktionen ueber das [GameViewModel] (Spiel-Thread, Speichern und Hinweise dort). */
 fun settingsActions(viewModel: GameViewModel): SettingsActions = SettingsActions(
     onSetLanguage = viewModel::setLanguage,
-    onSetNumberFormat = viewModel::setNumberFormat,
     exportSave = viewModel::exportSave,
     checkImport = viewModel::checkImport,
     onImport = viewModel::importSave,

@@ -4,8 +4,8 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 /**
- * Datengetriebener Bonus in Definitionsform (GAME_DESIGN.md, Kapitel 6.2), z. B.
- * `{ "stat": "museum_income", "op": "mult", "value": 0.10, "category": "skill" }`.
+ * Datengetriebener Bonus in Definitionsform, z. B.
+ * `{ "stat": "sell_price", "op": "mult", "value": 0.10, "category": "upgrade" }`.
  *
  * Die Verrechnung uebernimmt [ModifierEngine].
  */
@@ -26,13 +26,10 @@ enum class ModifierOp {
 
 /**
  * Kategorie eines Modifiers. Innerhalb einer Kategorie wird addiert, zwischen den Kategorien
- * multipliziert (Kapitel 6.1). `EVENT` ist [Später] und hat im MVP keine Quellen.
+ * multipliziert. `EVENT` ist [Später] (Ereignisse an Funden) und hat im MVP keine Quellen.
  */
 @Serializable
 enum class ModifierCategory {
     @SerialName("upgrade") UPGRADE,
-    @SerialName("skill") SKILL,
-    @SerialName("book") BOOK,
-    @SerialName("milestone") MILESTONE,
     @SerialName("event") EVENT,
 }

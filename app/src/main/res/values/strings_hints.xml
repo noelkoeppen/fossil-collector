@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!-- Hinweistexte beim ersten Erscheinen eines Tabs, je ein Satz (AP-25, Kapitel 8.2) -->
-<resources>
-    <string name="hint_tab_dig">Tippe auf eine Schicht, um Blöcke zu graben, und lege sie frei, um Fossilien zu finden.</string>
-    <string name="hint_tab_museum">Neu: Im Museum werden deine besten Funde ausgestellt und bringen Geld pro Sekunde.</string>
-    <string name="hint_tab_book">Neu: Das Sammelbuch zeigt alle Arten, und vollständige Skelette darin geben dauerhafte Boni.</string>
-    <string name="hint_tab_lab">Neu: Im Labor werden doppelte Funde erforscht und bringen Forschungspunkte und Ersatzteile.</string>
-    <string name="hint_tab_fame">Neu: Beim Neustart bringen vollständige Skelette Ruhm, mit dem du dauerhafte Skills kaufst.</string>
-</resources>

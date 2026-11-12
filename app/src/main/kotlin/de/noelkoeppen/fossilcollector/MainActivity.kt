@@ -22,12 +22,9 @@ class MainActivity : ComponentActivity() {
 
     private val gameViewModel: GameViewModel by viewModels { GameViewModel.Factory }
 
-    /** Prozess-Lifecycle: Speichern und Anhalten, wenn die App in den Hintergrund geht (Kapitel 7.2). */
+    /** Prozess-Lifecycle: Speichern, wenn die App in den Hintergrund geht. */
     private val processObserver by lazy {
-        AppLifecycleObserver(
-            onForeground = gameViewModel::onAppForeground,
-            onBackground = gameViewModel::onAppBackground,
-        )
+        AppLifecycleObserver(onBackground = gameViewModel::onAppBackground)
     }
 
     /** Spracheinstellung, mit der diese Activity erstellt wurde (siehe [AppLocale]). */
@@ -37,7 +34,7 @@ class MainActivity : ComponentActivity() {
     private var systemLanguage: String = ""
 
     /**
-     * UI-Sprache (AP-24, Kapitel 12): Locale der Ressourcen gemaess gespiegelter Einstellung
+     * UI-Sprache (AP-24): Locale der Ressourcen gemaess gespiegelter Einstellung
      * ueberschreiben, bevor irgendetwas Ressourcen liest.
      */
     override fun attachBaseContext(newBase: Context) {
@@ -74,13 +71,8 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    override fun onStart() {
-        super.onStart()
-        gameViewModel.onAppForeground()
-    }
-
     /**
-     * Speichern in `onStop` (Kapitel 7.2), zusaetzlich zum Prozess-Lifecycle, der den Hintergrund
+     * Speichern in `onStop`, zusaetzlich zum Prozess-Lifecycle, der den Hintergrund
      * erst verzoegert meldet. Bei Konfigurationswechseln (Drehen, Sprachwechsel per `recreate`)
      * wird nicht gespeichert.
      */

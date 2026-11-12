@@ -1,28 +1,17 @@
 package de.noelkoeppen.fossilcollector.core.save
 
-import de.noelkoeppen.fossilcollector.core.model.BookEntry
 import de.noelkoeppen.fossilcollector.core.model.GameState
-import de.noelkoeppen.fossilcollector.core.model.LabJob
 import de.noelkoeppen.fossilcollector.core.model.LanguageSetting
-import de.noelkoeppen.fossilcollector.core.model.MetaState
-import de.noelkoeppen.fossilcollector.core.model.PieceKey
-import de.noelkoeppen.fossilcollector.core.model.RunStartValues
 import de.noelkoeppen.fossilcollector.core.model.Settings
-import de.noelkoeppen.fossilcollector.core.model.Stats
-import de.noelkoeppen.fossilcollector.core.number.GameNumber
-import de.noelkoeppen.fossilcollector.core.number.NumberNotation
-import de.noelkoeppen.fossilcollector.core.save.SaveFixtures.n
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.jsonObject
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
-import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
-/** Kapitel 10.4: speichern -> laden -> identisch. */
+/** Speichern -> laden -> identisch. */
 class SaveRoundTripTest {
 
     private val codec = SaveCodec.DEFAULT
@@ -39,153 +28,55 @@ class SaveRoundTripTest {
 
     @Test
     fun newGameRoundTrip() {
-        val start = RunStartValues(
-            money = GameNumber.ZERO,
-            researchPoints = GameNumber.ZERO,
-            teamsInFirstLayer = GameNumber.ZERO,
-            preparators = GameNumber.ZERO,
-            halls = GameNumber.ONE,
-            labSlots = GameNumber.ONE,
-            toolLevel = GameNumber.ZERO,
-        )
-        val state = GameState.newGame("quaternary", start, now = 42L)
+        val state = GameState.newGame(now = 42L)
         assertEquals(state, codec.decode(codec.encode(state)))
     }
 
     @Test
-    fun bookEntryZonesRoundTripAndDefaultToEmpty() {
-        val key = PieceKey("cave_bear", "skull")
-        val entry = BookEntry(0.5, reconstructed = false, zones = listOf(0.4, 0.6, 0.5, 0.5))
-        val state = SaveFixtures.rich.let { it.copy(meta = it.meta.copy(book = mapOf(key to entry))) }
-        assertEquals(entry, codec.decode(codec.encode(state)).meta.book[key])
-        // Aeltere Spielstaende ohne "zones" laden ohne Migration mit leerer Liste (AP-09).
-        val legacy = codec.decode(SaveFixtures.read("v1_full.json"))
-        assertTrue(legacy.meta.book.values.all { it.zones.isEmpty() })
-    }
-
-    @Test
-    fun revealedTabsRoundTripAndDefaultToEmpty() {
-        // AP-25: gezeigte Tabs im Metazustand; aeltere Spielstaende laden ohne Migration mit leerer Menge.
-        val state = SaveFixtures.rich.let { it.copy(meta = it.meta.copy(revealedTabs = setOf("dig", "museum"))) }
-        assertEquals(setOf("dig", "museum"), codec.decode(codec.encode(state)).meta.revealedTabs)
-        assertTrue(codec.decode(SaveFixtures.read("v1_full.json")).meta.revealedTabs.isEmpty())
-    }
-
-    @Test
-    fun labJobDurationRoundTripAndDefaultToNull() {
-        // AP-25: Gesamtdauer im Laborjob; aeltere Spielstaende laden ohne Migration mit null.
-        val job = LabJob(PieceKey("cave_bear", "skull"), listOf(0.5, 0.5, 0.5, 0.5), remaining = 12.0, duration = 19.5)
-        val state = SaveFixtures.rich.let { it.copy(run = it.run.copy(labJobs = listOf(job))) }
-        assertEquals(listOf(job), codec.decode(codec.encode(state)).run.labJobs)
-        val legacy = codec.decode(SaveFixtures.read("v1_full.json"))
-        assertTrue(legacy.run.labJobs.isNotEmpty())
-        assertTrue(legacy.run.labJobs.all { it.duration == null })
-    }
-
-    @Test
-    fun pieceKeysWithAndWithoutAgeAndSexSurvive() {
-        val loaded = codec.decode(codec.encode(SaveFixtures.rich))
-        val bookKeys = loaded.meta.book.keys
-        assertTrue(PieceKey("parasaurolophus", "dorsal", null, null) in bookKeys)
-        assertTrue(PieceKey("cave_bear", "skull", "adult", "female") in bookKeys)
-        assertTrue(PieceKey("t_rex", "skull", null, "male") in bookKeys)
-        assertTrue(PieceKey("t_rex", "jaw", "subadult", null) in bookKeys)
-
-        val jaw = loaded.run.pieces.keys.single { it.boneId == "jaw" }
-        assertEquals("juvenile", jaw.age)
-        assertNull(jaw.sex)
-
-        val spareKeys = loaded.run.spareZones.keys.map { it.toString() }.toSet()
-        assertEquals(
-            setOf("cave_bear:skull:_:_:snout", "cave_bear:skull:adult:male:occiput", "t_rex:skull:_:female:snout"),
-            spareKeys,
-        )
-    }
-
-    @Test
-    fun mapsWithPieceKeysAreStoredWithStringKeys() {
+    fun encodedStateContainsAllFields() {
         val tree = Json.parseToJsonElement(codec.encode(SaveFixtures.fullV1)).jsonObject
-        val meta = tree.getValue("meta").jsonObject
-        val run = tree.getValue("run").jsonObject
-        assertEquals(
-            setOf("parasaurolophus:dorsal:_:_", "cave_bear:skull:adult:female"),
-            meta.getValue("book").jsonObject.keys,
-        )
-        assertEquals(setOf("cave_bear:skull:_:_", "cave_bear:jaw:juvenile:_"), run.getValue("pieces").jsonObject.keys)
-        assertEquals(
-            setOf("cave_bear:skull:_:_:snout", "cave_bear:skull:adult:male:occiput"),
-            run.getValue("spareZones").jsonObject.keys,
-        )
+        assertEquals(setOf("saveVersion", "lastSavedAt", "settings"), tree.keys)
         assertEquals(JsonPrimitive(1), tree.getValue("saveVersion"))
-        // encodeDefaults: auch null-Felder und Standardwerte werden geschrieben.
-        assertEquals(JsonNull, run.getValue("specialExhibit"))
-        assertEquals(JsonPrimitive("short"), tree.getValue("settings").jsonObject.getValue("numberFormat"))
+        // encodeDefaults: auch Standardwerte werden geschrieben.
+        val defaults = Json.parseToJsonElement(codec.encode(GameState.newGame(now = 0L))).jsonObject
+        assertEquals(JsonPrimitive("system"), defaults.getValue("settings").jsonObject.getValue("language"))
     }
 
     @Test
     fun fullV1FixtureLoadsAsExpected() {
         val loaded = codec.decode(SaveFixtures.read("v1_full.json"))
         assertEquals(SaveFixtures.fullV1, loaded)
-        assertEquals(GameNumber.ZERO, loaded.run.prepProgress)
         assertEquals(loaded, codec.decode(codec.encode(loaded)))
     }
 
     @Test
     fun minimalV1FixtureUsesDefaults() {
         val loaded = codec.decode(SaveFixtures.read("v1_minimal.json"))
-        assertEquals(MetaState(), loaded.meta)
         assertEquals(Settings(), loaded.settings)
-        assertTrue(loaded.run.pieces.isEmpty())
-        assertTrue(loaded.run.labJobs.isEmpty())
-        assertNull(loaded.run.specialExhibit)
-        assertEquals(n(1.0), loaded.run.halls)
-        // AP-08: Feld ohne Eintrag im alten Spielstand -> Standardwert, keine Migration noetig.
-        assertEquals(GameNumber.ZERO, loaded.run.prepProgress)
+        assertEquals(0L, loaded.lastSavedAt)
     }
 
     @Test
-    fun prepProgressRoundTrip() {
-        val state = SaveFixtures.fullV1.copy(run = SaveFixtures.fullV1.run.copy(prepProgress = n(0.375)))
-        val text = codec.encode(state)
-        assertEquals(JsonPrimitive(0.375), Json.parseToJsonElement(text).jsonObject.getValue("run").jsonObject.getValue("prepProgress"))
-        assertEquals(state, codec.decode(text))
-    }
-
-    @Test
-    fun statsAndMilestonesRoundTrip() {
-        // AP-11: neue Zaehler in meta.stats und erreichte Meilensteine.
-        val state = SaveFixtures.fullV1.let {
-            it.copy(
-                meta = it.meta.copy(
-                    milestonesDone = setOf("first_find", "teams_10", "first_reconstruction"),
-                    stats = Stats(
-                        piecesFound = n(1520.0),
-                        pristineFound = n(3.0),
-                        researchCompleted = n(42.0),
-                        reconstructions = n(7.0),
-                    ),
-                ),
-            )
-        }
-        val text = codec.encode(state)
-        val stats = Json.parseToJsonElement(text).jsonObject.getValue("meta").jsonObject.getValue("stats").jsonObject
-        assertEquals(setOf("piecesFound", "pristineFound", "researchCompleted", "reconstructions"), stats.keys)
-        assertEquals(state, codec.decode(text))
-        // Aeltere Spielstaende ohne die neuen Zaehler laden ohne Migration mit 0.
-        val legacy = codec.decode(SaveFixtures.read("v1_full.json")).meta
-        assertEquals(Stats(piecesFound = n(1520.0)), legacy.stats)
-        assertEquals(GameNumber.ZERO, legacy.stats.pristineFound)
-        assertEquals(setOf("first_find"), legacy.milestonesDone)
+    fun legacyIdleSaveKeepsSettingsAndDropsRemovedSystems() {
+        // Spielstaende vor AP2-02 enthalten noch `meta` und `run` der entfernten Systeme. Sie laden
+        // weiter (gleiche saveVersion); uebernommen werden nur Zeitstempel und Einstellungen.
+        val text = SaveFixtures.read("legacy/v1_idle.json")
+        val loaded = codec.decode(text)
+        assertEquals(1762351200000L, loaded.lastSavedAt)
+        assertEquals(Settings(LanguageSetting.SYSTEM), loaded.settings)
+        val saved = Json.parseToJsonElement(codec.encode(loaded)).jsonObject
+        assertEquals(setOf("saveVersion", "lastSavedAt", "settings"), saved.keys)
+        assertEquals(setOf("language"), saved.getValue("settings").jsonObject.keys)
     }
 
     @Test
     fun unknownKeysAreIgnored() {
         val loaded = codec.decode(SaveFixtures.read("v1_unknown_keys.json"))
-        assertEquals(n(1.0), loaded.meta.fame)
-        assertEquals(n(10.0), loaded.run.money)
+        assertEquals(5L, loaded.lastSavedAt)
         assertEquals(LanguageSetting.EN, loaded.settings.language)
-        assertEquals(NumberNotation.SCIENTIFIC, loaded.settings.numberFormat)
-        assertFalse(codec.encode(loaded).contains("futureTopLevel"))
+        val saved = codec.encode(loaded)
+        assertFalse(saved.contains("futureTopLevel"))
+        assertFalse(saved.contains("futureSetting"))
     }
 
     @Test
@@ -199,7 +90,7 @@ class SaveRoundTripTest {
     @Test
     fun base64ImportToleratesWhitespace() {
         val exported = codec.exportBase64(SaveFixtures.fullV1)
-        val wrapped = "  " + exported.chunked(60).joinToString("\r\n") + "\n\t"
+        val wrapped = "  " + exported.chunked(20).joinToString("\r\n") + "\n\t"
         assertEquals(SaveFixtures.fullV1, codec.importBase64(wrapped))
     }
 }

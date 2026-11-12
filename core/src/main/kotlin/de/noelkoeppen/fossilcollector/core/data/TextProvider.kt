@@ -3,8 +3,8 @@ package de.noelkoeppen.fossilcollector.core.data
 import de.noelkoeppen.fossilcollector.core.modifier.StatId
 
 /**
- * Loest Inhaltstexte (Arten, Knochen, Zonen, Schichten, Qualitaetsstufen ...) aus den
- * Locale-Tabellen `data/locale/<sprache>.json` auf (Kapitel 12). Die Schluessel bildet
+ * Loest Inhaltstexte (Arten, Knochen, Schichten, Qualitaetsstufen ...) aus den
+ * Locale-Tabellen `data/locale/<sprache>.json` auf. Die Schluessel bildet
  * ausschliesslich [LocaleKeys].
  *
  * Suchreihenfolge fuer einen Schluessel: [language] -> [fallbackLanguage] -> der Schluessel selbst.
@@ -36,20 +36,12 @@ class TextProvider(
 
     fun boneName(boneId: String): String = text(LocaleKeys.boneName(boneId))
 
-    fun zoneName(boneId: String, zoneId: String): String = text(LocaleKeys.zoneName(boneId, zoneId))
-
-    fun generatorName(generatorId: String): String = text(LocaleKeys.generatorName(generatorId))
-
-    fun upgradeName(upgradeId: String): String = text(LocaleKeys.upgradeName(upgradeId))
-
     fun qualityTierName(tierId: String): String = text(LocaleKeys.qualityTierName(tierId))
 
     fun statName(stat: StatId): String = text(LocaleKeys.statName(stat))
 
-    fun milestoneName(milestoneId: String): String = text(LocaleKeys.milestoneName(milestoneId))
-
     companion object {
-        /** Standardsprache der Inhaltstexte (Deutsch, Kapitel 12). */
+        /** Standardsprache der Inhaltstexte (Deutsch). */
         val DEFAULT_LANGUAGE: String = DataRepository.LANGUAGES.first()
 
         /** Ohne Tabellen: jeder Text ist sein Schluessel (Vorschauen, Ladezustand). */

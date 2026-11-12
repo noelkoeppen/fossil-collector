@@ -1,17 +1,8 @@
 package de.noelkoeppen.fossilcollector.vm
 
-import de.noelkoeppen.fossilcollector.core.data.DataRepository
-import de.noelkoeppen.fossilcollector.core.data.GameData
-import de.noelkoeppen.fossilcollector.core.engine.RunStart
-import de.noelkoeppen.fossilcollector.core.model.BookEntry
 import de.noelkoeppen.fossilcollector.core.model.GameState
 import de.noelkoeppen.fossilcollector.core.model.LanguageSetting
-import de.noelkoeppen.fossilcollector.core.model.PieceKey
 import de.noelkoeppen.fossilcollector.core.model.Settings
-import de.noelkoeppen.fossilcollector.core.modifier.ModifierEngine
-import de.noelkoeppen.fossilcollector.core.number.GameNumber
-import de.noelkoeppen.fossilcollector.core.number.NumberNotation
-import de.noelkoeppen.fossilcollector.core.save.SaveCodec
 import de.noelkoeppen.fossilcollector.core.save.SaveException
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertInstanceOf
@@ -22,27 +13,12 @@ import java.util.Base64
 /** Tests fuer den Export-/Import-Ablauf und den Neustart des Einstellungs-Screens (AP-24). */
 class SaveTransferTest {
 
-    private val data: GameData = DataRepository().load()
-    private val transfer = SaveTransfer(data)
-    private val skull = PieceKey("cave_bear", "skull")
+    private val transfer = SaveTransfer()
 
-    private fun newGame(now: Long = 1_000L): GameState =
-        GameState.newGame(data.layers.first().id, RunStart.values(data, ModifierEngine.fromGameData(data)), now)
+    private fun newGame(now: Long = 1_000L): GameState = GameState.newGame(now)
 
-    /** Ein Stand mit Fortschritt (Ruhm, Skill, Buch, Geld) und eigenen Einstellungen. */
-    private val played: GameState = newGame().let {
-        it.copy(
-            meta = it.meta.copy(
-                fame = GameNumber(3.0),
-                fameTotal = GameNumber(12.0),
-                prestigeCount = GameNumber.ONE,
-                skills = setOf(data.skills.first().id),
-                book = mapOf(skull to BookEntry(0.7)),
-            ),
-            run = it.run.copy(money = GameNumber(4_321.0)),
-            settings = Settings(LanguageSetting.EN, NumberNotation.SCIENTIFIC),
-        )
-    }
+    /** Ein gespeicherter Stand mit eigenen Einstellungen. */
+    private val played: GameState = newGame().copy(settings = Settings(LanguageSetting.EN))
 
     private fun base64(text: String): String = Base64.getEncoder().encodeToString(text.toByteArray(Charsets.UTF_8))
 
@@ -61,7 +37,7 @@ class SaveTransferTest {
     }
 
     @Test
-    fun `Import setzt lastSavedAt auf jetzt, damit kein Offline-Fortschritt entsteht`() {
+    fun `Import setzt lastSavedAt auf jetzt`() {
         val old = played.copy(lastSavedAt = 5L)
         val result = assertInstanceOf(SaveImportResult.Success::class.java, transfer.import(exported(old), NOW))
 
@@ -109,23 +85,8 @@ class SaveTransferTest {
 
     @Test
     fun `falsche Struktur`() {
-        assertEquals(ImportError.INVALID_CONTENT, importError(base64("""{"saveVersion": 1, "lastSavedAt": 1}""")))
-    }
-
-    @Test
-    fun `unbekannte IDs werden abgelehnt`() {
-        val bad = played.copy(meta = played.meta.copy(skills = setOf("does_not_exist")))
-        val text = Base64.getEncoder().encodeToString(SaveCodec.DEFAULT.encode(bad).toByteArray(Charsets.UTF_8))
-
-        val failure = assertInstanceOf(SaveImportResult.Failure::class.java, transfer.import(text, NOW))
-        assertEquals(ImportError.UNKNOWN_CONTENT, failure.error)
-        assertEquals("meta.skills: does_not_exist", failure.detail)
-    }
-
-    @Test
-    fun `nicht kodierbarer Stand liefert Export-Fehler`() {
-        val broken = played.copy(run = played.run.copy(money = GameNumber(Double.NaN)))
-        assertInstanceOf(SaveExportResult.Failure::class.java, transfer.export(broken))
+        assertEquals(ImportError.INVALID_CONTENT, importError(base64("""{"saveVersion": 1}""")))
+        assertEquals(ImportError.INVALID_CONTENT, importError(base64("""{"saveVersion": 1, "lastSavedAt": "gestern"}""")))
     }
 
     @Test
@@ -141,14 +102,10 @@ class SaveTransferTest {
         val fresh = transfer.newGame(played, NOW)
 
         assertEquals(newGame(NOW).copy(settings = played.settings), fresh)
-        assertEquals(GameNumber.ZERO, fresh.meta.fame)
-        assertTrue(fresh.meta.skills.isEmpty())
-        assertTrue(fresh.meta.book.isEmpty())
     }
 
     @Test
-    fun `Startwerte des neuen Spiels haengen nicht von alten Skills ab`() {
-        // Auch wenn die Modifier-Engine des laufenden Spiels noch Skills kennt: neue Engine ohne Quellen.
+    fun `neues Spiel ohne vorherigen Stand hat Standard-Einstellungen`() {
         val fresh = transfer.newGame(null, NOW)
         assertEquals(newGame(NOW), fresh)
         assertEquals(Settings(), fresh.settings)

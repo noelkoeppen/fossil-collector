@@ -3,7 +3,7 @@ package de.noelkoeppen.fossilcollector.core.data
 import kotlinx.serialization.json.Json
 
 /**
- * Laedt alle Spieldefinitionen aus `core/src/main/resources/data/` (Kapitel 11) und validiert sie
+ * Laedt alle Spieldefinitionen aus `core/src/main/resources/data/` und validiert sie
  * mit [DataValidator]. Bei Fehlern wird eine [DataValidationException] mit allen Meldungen geworfen.
  *
  * @param readResource liefert den Inhalt einer Datei relativ zu `data/` oder `null`, wenn sie fehlt.
@@ -28,10 +28,6 @@ class DataRepository(
             layers = layers.sortedBy { it.order },
             species = decode(SPECIES),
             bones = decode(BONES),
-            generators = decode(GENERATORS),
-            upgrades = decode(UPGRADES),
-            skills = decode(SKILLTREE),
-            milestones = decode(MILESTONES),
             balance = decode(BALANCE),
             locales = LANGUAGES.associateWith { decode<Map<String, String>>(localeFile(it)) },
         )
@@ -51,10 +47,6 @@ class DataRepository(
         const val LAYERS = "layers.json"
         const val SPECIES = "species.json"
         const val BONES = "bones.json"
-        const val GENERATORS = "generators.json"
-        const val UPGRADES = "upgrades.json"
-        const val SKILLTREE = "skilltree.json"
-        const val MILESTONES = "milestones.json"
         const val BALANCE = "balance.json"
 
         /** Unterstuetzte Sprachen der Inhaltstexte; die erste ist der Standard. */
@@ -62,7 +54,7 @@ class DataRepository(
 
         /** Alle Datendateien relativ zu `data/`. */
         val ALL_FILES: List<String> =
-            listOf(LAYERS, SPECIES, BONES, GENERATORS, UPGRADES, SKILLTREE, MILESTONES, BALANCE) +
+            listOf(LAYERS, SPECIES, BONES, BALANCE) +
                 LANGUAGES.map { localeFile(it) }
 
         fun localeFile(language: String) = "locale/$language.json"

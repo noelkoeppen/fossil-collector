@@ -1,13 +1,12 @@
 package de.noelkoeppen.fossilcollector.core.save
 
-import de.noelkoeppen.fossilcollector.core.number.GameNumber
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.util.Base64
 
-/** Fehlerfaelle beim Laden, Speichern und Import (Kapitel 7.2). */
+/** Fehlerfaelle beim Laden, Speichern und Import. */
 class SaveCodecErrorTest {
 
     private val codec = SaveCodec.DEFAULT
@@ -40,12 +39,7 @@ class SaveCodecErrorTest {
 
     @Test
     fun missingRequiredFieldIsInvalidContent() {
-        assertThrows<SaveException.InvalidContent> { codec.decode(fixture("missing_run.json")) }
-    }
-
-    @Test
-    fun invalidPieceKeyIsInvalidContent() {
-        assertThrows<SaveException.InvalidContent> { codec.decode(fixture("invalid_piece_key.json")) }
+        assertThrows<SaveException.InvalidContent> { codec.decode(fixture("missing_last_saved_at.json")) }
     }
 
     @Test
@@ -55,25 +49,14 @@ class SaveCodecErrorTest {
 
     @Test
     fun unknownSettingValueIsInvalidContent() {
-        val text = SaveFixtures.read("v1_minimal.json")
-            .replace("\"run\"", "\"settings\": { \"language\": \"fr\" }, \"run\"")
+        val text = SaveFixtures.read("v1_full.json").replace("\"language\": \"en\"", "\"language\": \"fr\"")
         assertThrows<SaveException.InvalidContent> { codec.decode(text) }
     }
 
     @Test
     fun nonFiniteNumbersAreRejectedWhenLoading() {
-        val text = SaveFixtures.read("v1_minimal.json").replace("\"money\": 0", "\"money\": NaN")
+        val text = SaveFixtures.read("v1_minimal.json").replace("\"lastSavedAt\": 0", "\"lastSavedAt\": NaN")
         assertThrows<SaveException> { codec.decode(text) }
-    }
-
-    @Test
-    fun nonFiniteValuesCannotBeSaved() {
-        val nan = SaveFixtures.fullV1.copy(run = SaveFixtures.fullV1.run.copy(money = GameNumber(Double.NaN)))
-        assertThrows<SaveException.NotEncodable> { codec.encode(nan) }
-        val inf = SaveFixtures.fullV1.copy(
-            meta = SaveFixtures.fullV1.meta.copy(fame = GameNumber(Double.POSITIVE_INFINITY)),
-        )
-        assertThrows<SaveException.NotEncodable> { codec.exportBase64(inf) }
     }
 
     @Test
