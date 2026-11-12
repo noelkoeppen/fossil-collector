@@ -16,7 +16,7 @@ eingebunden und kein Arbeitspaket aus `docs/GAME_DESIGN.md`.
 | `bones_viewer.html` | Betrachter für `giant_deer_all.glb` (über einen lokalen Webserver öffnen) |
 | `preview/` | Ansichten ohne Perspektive: Seite, vorn, oben, schräg, Schädel |
 
-113 Knochen, 149 476 Dreiecke, `giant_deer_all.glb` 2,6 MB:
+113 Knochen, 148 108 Dreiecke, `giant_deer_all.glb` 2,6 MB:
 
 - Schädel 20: Hinterhaupt, Keilbein, je Seite Zwischenkiefer, Nasenbein, Oberkiefer, Jochbein,
   Schläfenbein, Stirnbein, Scheitelbein, Unterkieferhälfte und Geweihstange
@@ -35,17 +35,17 @@ Mesh nachgemessen:
 
 | Maß | Ziel | Modell |
 |---|---|---|
-| Schädel | 500 mm | 509 mm |
-| Oberarm | 380 mm | 382 mm |
-| Speiche | 410 mm | 409 mm |
+| Schädel | 500 mm | 508 mm |
+| Oberarm | 380 mm | 380 mm |
+| Speiche | 410 mm | 408 mm |
 | Vorderes Kanonenbein | 330 mm | 330 mm |
-| Oberschenkel | 480 mm | 479 mm |
-| Schienbein | 470 mm | 461 mm |
-| Hinteres Kanonenbein | 360 mm | 359 mm |
+| Oberschenkel | 480 mm | 478 mm |
+| Schienbein | 470 mm | 462 mm |
+| Hinteres Kanonenbein | 360 mm | 358 mm |
 | Schulterblatt | 430 mm | 427 mm |
 | Geweihstange | 1350 mm | 1297 mm |
-| Geweihspanne | 2700 mm | 2560 mm |
-| Widerristhöhe (Skelett) | 1900 mm | 1833 mm |
+| Geweihspanne | 2700 mm | 2559 mm |
+| Widerristhöhe (Skelett) | 1900 mm | 1832 mm |
 
 Quellen: Lister & Stuart 2019 (Quaternary International), Shpansky 2014 (Paleontological Journal),
 Aaris-Sørensen & Liljegren 2004 (Boreas), Croitor 2021 (Quaternary).
@@ -88,8 +88,8 @@ Einzelne Knochen neu bauen: `build.py giant_deer femur tibia` (Anfang der `id`).
 
 - Die Meshes sind schlichter als die Shader-Ansicht des Höhlenbären: glatte Flächen, wenig
   Relief an Gelenkenden, Rippen mit rundem Querschnitt.
-- Größte verbleibende Durchdringungen: 1. und 2. Brustwirbel sowie Hüftbein und Oberschenkelkopf,
-  je 1,8 % des kleineren Knochens (erlaubt sind 2 %).
+- Größte verbleibende Durchdringung: 1. und 2. Brustwirbel mit 1,8 % des kleineren Knochens
+  (erlaubt sind 2 %).
 - Keine Qualitätsschäden in der Geometrie. Ob Schaden per Material oder per Mesh gezeigt wird,
   ist mit der Wahl des 3D-Renderers offen (Design Kapitel 8).
 - Der Höhlenbär erfüllt die neuen Regeln noch nicht, siehe Regeln Kapitel 9.

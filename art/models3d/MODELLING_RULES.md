@@ -78,7 +78,9 @@ tastet sie auf einem Raster ab und vernetzt die Nullfläche.
 1. **Jeder Knochen ist ein geschlossener Körper** in genau einem Stück (`watertight`,
    `single_body`).
 2. **Schädel:** eine gemeinsame Form, die über Regionen in Einzelknochen geteilt wird. Die
-   Regionen decken die ganze Form ab, es bleibt nichts übrig und nichts doppelt.
+   Regionen decken die ganze Form ab, es bleibt nichts übrig und nichts doppelt. Grenzen
+   schneiden die Oberfläche steil, nicht streifend, sonst enden Knochen in messerdünnen Kanten.
+   Lose Krümel unter 1 % des Knochenvolumens verwirft der Build.
 3. **Paarige Knochen, die sich in der Mitte treffen,** werden an z = 0 geschnitten.
 4. **Nachbarn durchdringen sich nicht.** Zwischen Wirbeln und in Gelenken bleibt ein kleiner
    Spalt. Erlaubt ist eine Überlappung der Hüllquader, aber kein Volumen in beiden Knochen
@@ -91,14 +93,19 @@ tastet sie auf einem Raster ab und vernetzt die Nullfläche.
 1. **Format:** eine `.glb` pro Knochen unter `bones/`, dazu `bones.json` und `<speciesId>_all.glb`
    mit einem Knoten pro Knochen, benannt nach der `id` (`files`).
 2. **Geometrie:** nur Dreiecke, geschlossen, Normalen nach außen, keine entarteten Dreiecke,
-   keine losen Splitter (`watertight`, `winding`, `degenerate`).
-3. **Dreiecksbudget:** höchstens 6000 Dreiecke pro Knochen, höchstens 150 000 für die ganze Art.
+   keine losen Splitter, keine umgeklappten Dreiecke (`watertight`, `winding`, `degenerate`,
+   `folds`).
+3. **Schonend vereinfachen.** Die Dreieckszahl wird mit der sanftesten Einstellung gesenkt, die
+   das Ziel erreicht. Eine aggressive Einstellung hinterlässt bei gleicher Dreieckszahl Facetten
+   und Knicke, besonders auf dünnen Platten. Wirkt ein Knochen eckig, zuerst das rohe Mesh
+   ansehen: Ist es glatt, liegt es an der Vereinfachung und nicht an der Form oder am Budget.
+4. **Dreiecksbudget:** höchstens 6000 Dreiecke pro Knochen, höchstens 150 000 für die ganze Art.
    Richtwert der Khronos-Leitlinie für Mobilgeräte sind 100 000 pro gleichzeitig gezeigtem
    Modell (`budget`). Kleine Knochen bekommen weniger, nicht jeder das Maximum.
-4. **Ein Material:** `bone`, einheitliche Knochenfarbe, kein Metall, keine Texturen. Die
+5. **Ein Material:** `bone`, einheitliche Knochenfarbe, kein Metall, keine Texturen. Die
    Qualitätsfarben setzt das Spiel.
-5. **Dateigröße:** `<speciesId>_all.glb` bleibt unter 5 MB (`size`).
-6. **`bones.json`** enthält je Knochen `id`, `file`, `group`, `side`, `name` (de und en), `min`,
+6. **Dateigröße:** `<speciesId>_all.glb` bleibt unter 5 MB (`size`).
+7. **`bones.json`** enthält je Knochen `id`, `file`, `group`, `side`, `name` (de und en), `min`,
    `max` und `triangles` und stimmt mit den Dateien überein (`manifest`).
 
 ## 7. Prüfen
@@ -139,7 +146,7 @@ Der Höhlenbär ist vor diesen Regeln entstanden und bleibt vorerst, wie er ist:
 
 - Proportionen nach Augenmaß statt aus Messwerten (Regel 1.1, 1.2).
 - Formen stehen im Fragment-Shader von `skeleton.html` und `skull.html`, nicht in einer Artdatei.
-- 274 650 Dreiecke und damit über dem Budget aus Regel 6.3.
+- 274 650 Dreiecke und damit über dem Budget aus Regel 6.4.
 - `bones.json` ohne `unitMeters`.
 
 ## Quellen

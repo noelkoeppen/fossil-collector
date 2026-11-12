@@ -193,12 +193,14 @@ def skull_region(P, k):
     5 sphenoid, 6 temporal, 7 frontal, 8 parietal. Earlier regions win."""
     q = fold_z(P)
     x, y, z = q[:, 0], q[:, 1], q[:, 2]
+    # the whole bony ring of the eye socket stays with frontal and jugal, so no bone ends in a thin sliver
+    ro = np.sqrt((x - 0.035) ** 2 + (y - 0.03) ** 2 + (z - 0.165) ** 2)
     R = [
         0.405 - x,
         np.maximum(x + 0.375 + 0.2 * z, y - 0.005),
         np.maximum(np.maximum(x + 0.03, 0.095 + 0.17 * (x + 0.03) - y), z - 0.045),
-        np.minimum(x + 0.03, np.maximum(np.maximum(x - 0.07, y + 0.05), 0.055 - z)),
-        np.maximum(np.maximum(x - 0.20, 0.165 - z), y),
+        np.maximum(np.minimum(x + 0.03, np.maximum(np.maximum(x - 0.07, y + 0.05), 0.055 - z)), 0.108 - ro),
+        np.maximum(np.maximum(x - 0.20, np.minimum(0.165 - z, np.maximum(ro - 0.108, 0.10 - z))), y),
         np.maximum(y + 0.06, z - 0.07),
         np.maximum(0.20 - x, y - 0.03),
         x - 0.275 - 0.5 * np.maximum(y - 0.10, 0.0),
@@ -334,7 +336,7 @@ def sacrum(P):
     up = V(-ax[1], ax[0], 0.0)
     R = np.stack([ax, up, V(0, 0, 1)])
     d = smin(d, ell(q, s + 0.10 * ax + 0.01 * up, (0.085, 0.04, 0.105), R), 0.03)
-    d = smin(d, box(q, s + 0.20 * ax + 0.115 * up, (0.15, 0.05, 0.005), 0.008, R), 0.02)
+    d = smin(d, ell(q, s + 0.19 * ax + 0.095 * up, (0.17, 0.07, 0.014), R), 0.03)
     for j in range(4):
         d = smin(d, sphere(q, s + (0.07 + 0.10 * j) * ax + 0.03 * up + V(0, 0, 0.055 - 0.008 * j), 0.022), 0.015)
     return d
@@ -376,25 +378,53 @@ HIP_TUBER_COXAE = V(HIP[0] - 0.52, HIP[1] + 0.36, 0.50)
 HIP_TUBER_ISCHII = V(HIP[0] + 0.44, HIP[1] + 0.10, 0.31)
 
 
+HIP_NECK = V(HIP[0] - 0.07, HIP[1] + 0.07, Z_HIP)
+_hip_mid = (HIP_TUBER_SACRALE + HIP_TUBER_COXAE) * 0.5
+HIP_R = frame(_hip_mid - HIP_NECK, hint=HIP_TUBER_COXAE - HIP_TUBER_SACRALE)  # rows: up the blade, along the crest, normal
+HIP_TS2 = (HIP_TUBER_SACRALE - HIP_NECK) @ HIP_R.T
+HIP_TC2 = (HIP_TUBER_COXAE - HIP_NECK) @ HIP_R.T
+
+
+def ilium_blade(q):
+    """Wing of the ilium: a fan from the neck above the socket to an arched crest, with
+    hollow front and rear edges, slightly cupped and thicker along the rim."""
+    l = to_local(q, HIP_NECK, HIP_R)
+    a, b, c = l[:, 0], l[:, 1], l[:, 2]
+    (a1, b1), (a2, b2) = HIP_TS2[:2], HIP_TC2[:2]
+    u = np.clip((b - b1) / (b2 - b1), 0.0, 1.0)
+    crest = a1 + (a2 - a1) * u + 0.07 * 4.0 * u * (1.0 - u)
+    t = np.clip(a / (0.5 * (a1 + a2)), 0.0, 1.2)
+    side1 = b1 * t ** 1.7 - 0.045
+    side2 = b2 * t ** 1.7 + 0.045
+    outline = smax(smax(a - crest, -a - 0.02, 0.06), smax(side1 - b, b - side2, 0.06), 0.09)
+    bm = 0.5 * (b1 + b2) * t
+    cc = c - 0.18 * (b - bm) ** 2 * t
+    rim = np.clip(1.0 + outline / 0.10, 0.0, 1.0)
+    th = 0.010 + 0.010 * rim * rim * (3.0 - 2.0 * rim)
+    return smax(outline, np.abs(cc) - th, 0.015) - 0.005
+
+
 def hip(P):
     """Hip bone: ilium blade fanning out to the crest, socket, ischium and pubis around the hip hole."""
     q = fold_z(P)
     H = V(HIP[0], HIP[1], Z_HIP)
-    neck = H + V(-0.07, 0.07, 0.0)
     ts, tc, ti = HIP_TUBER_SACRALE, HIP_TUBER_COXAE, HIP_TUBER_ISCHII
-    d = tri_plate(q, neck, ts, tc, 0.015)
-    d = smin(d, capsule(q, ts, tc, 0.024), 0.02)
-    d = smin(d, sphere(q, tc, 0.042), 0.02)
-    d = smin(d, sphere(q, ts, 0.034), 0.02)
-    d = smin(d, cone(q, neck + V(-0.10, 0.10, 0.03), H, 0.045, 0.06), 0.04)
-    d = smin(d, sphere(q, H, 0.098), 0.03)
-    d = smax(d, -sphere(q, H + V(0, 0, 0.05), 0.084), 0.01)
-    d = smin(d, cone(q, H + V(0.05, 0.0, 0.0), ti, 0.05, 0.04), 0.03)
-    d = smin(d, ell(q, ti, (0.07, 0.055, 0.045)), 0.03)
-    sf, sr = V(HIP[0] + 0.05, HIP[1] - 0.17, 0.0), V(HIP[0] + 0.33, HIP[1] - 0.13, 0.0)
-    d = smin(d, cone(q, H + V(-0.02, -0.07, -0.03), sf, 0.036, 0.03), 0.03)
-    d = smin(d, cone(q, ti + V(-0.03, -0.03, 0), sr, 0.034, 0.03), 0.03)
-    return smin(d, capsule(q, sf, sr, 0.03), 0.02)
+    d = ilium_blade(q)
+    d = smin(d, ell(q, tc, (0.05, 0.04, 0.045)), 0.05)
+    d = smin(d, ell(q, ts, (0.045, 0.035, 0.03)), 0.04)
+    d = smin(d, cone(q, HIP_NECK + V(-0.03, 0.03, 0.0), H, 0.045, 0.062), 0.08)
+    d = smin(d, sphere(q, H, 0.104), 0.04)
+    # ischium: a bowed bar to the seat bone, flaring into it
+    d = smin(d, tube(q, [H + V(0.05, 0.0, 0.0), (H + ti) * 0.5 + V(0.0, 0.035, 0.012), ti], [0.052, 0.04, 0.042], 0.04), 0.04)
+    d = smin(d, ell(q, ti + V(0.01, 0.0, 0.0), (0.075, 0.058, 0.05)), 0.05)
+    # floor of the pelvis: pubis and ischial branch curve down to the midline and meet there
+    sf, sr = V(HIP[0] + 0.06, HIP[1] - 0.165, 0.0), V(HIP[0] + 0.32, HIP[1] - 0.135, 0.0)
+    pub = tube(q, [H + V(-0.02, -0.07, -0.03), H + V(0.0, -0.15, -0.14), sf], [0.038, 0.03, 0.03], 0.04)
+    isc = tube(q, [ti + V(-0.03, -0.03, 0.0), ti + V(-0.08, -0.17, -0.14), sr], [0.036, 0.03, 0.03], 0.04)
+    floor = smin(smin(pub, isc, 0.03), ell(q, (sf + sr) * 0.5, (0.17, 0.028, 0.035), frame(sr - sf)), 0.05)
+    d = smin(d, floor, 0.045)
+    # the socket is cut last so nothing grows into it
+    return smax(d, -sphere(q, H + V(0, 0, 0.05), 0.084), 0.012)
 
 
 # ---------------------------------------------------------------------------
@@ -573,7 +603,7 @@ def bones():
     add('sphenoid', 'Keilbein', 'Sphenoid bone', 'skull', skull_bone(5), SK, 0.004, tris=1200)
     for k, i, de, en, n in [(1, 'premaxilla', 'Zwischenkieferbein', 'Premaxilla', 700), (2, 'nasal', 'Nasenbein', 'Nasal bone', 700),
                             (3, 'maxilla', 'Oberkieferbein', 'Maxilla', 3000), (4, 'jugal', 'Jochbein', 'Zygomatic bone', 900),
-                            (6, 'temporal', 'Schläfenbein', 'Temporal bone', 1500), (7, 'frontal', 'Stirnbein', 'Frontal bone', 2200),
+                            (6, 'temporal', 'Schläfenbein', 'Temporal bone', 1500), (7, 'frontal', 'Stirnbein', 'Frontal bone', 2800),
                             (8, 'parietal', 'Scheitelbein', 'Parietal bone', 1200)]:
         add(i, de, en, 'skull', skull_bone(k), SK, 0.004, pair=True, cut=True, tris=n)
     add('mandible', 'Unterkieferhälfte', 'Mandible half', 'skull', mandible, ((-0.54, -0.33, 0), (0.42, 0.08, 0.24)),
@@ -587,7 +617,7 @@ def bones():
             cervical(i), _vbb(C_V[i], 0.42, 0.20, 0.28), tris=1350)
     for i in range(N_THORACIC):
         add('thoracic_%d' % (i + 1), '%d. Brustwirbel' % (i + 1), 'Thoracic vertebra %d' % (i + 1), 'thoracic',
-            thoracic(i), _vbb(T_V[i], 0.95, 0.14, 0.16), tris=1350)
+            thoracic(i), _vbb(T_V[i], 0.95, 0.14, 0.16), tris=1300)
     for i in range(N_LUMBAR):
         add('lumbar_%d' % (i + 1), '%d. Lendenwirbel' % (i + 1), 'Lumbar vertebra %d' % (i + 1), 'lumbar',
             lumbar(i), _vbb(L_V[i], 0.40, 0.16, 0.36), tris=1350)

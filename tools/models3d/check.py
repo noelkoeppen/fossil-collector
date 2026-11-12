@@ -20,6 +20,7 @@ GROUPS = {'skull', 'cervical', 'thoracic', 'lumbar', 'pelvis', 'tail', 'ribs', '
 MAX_TRIS_BONE, MAX_TRIS_TOTAL, MAX_BYTES = 6000, 150000, 5 * 1024 * 1024
 MEASURE_TOL, OVERLAP_TOL, FLOOR_TOL = 0.08, 0.02, 0.01
 OVERLAP_H = 0.008
+FOLD_ANGLE = 2.8  # radians between neighbouring face normals, about 160 degrees
 
 errors, notes = [], []
 
@@ -105,6 +106,8 @@ def main():
             fail('single_body', e['id'])
         if (m.area_faces < 1e-12).any():
             fail('degenerate', e['id'])
+        if (m.face_adjacency_angles > FOLD_ANGLE).any():
+            fail('folds', '%s has %d folded edges' % (e['id'], int((m.face_adjacency_angles > FOLD_ANGLE).sum())))
         if len(m.faces) != e['triangles'] or not np.allclose(m.bounds, [e['min'], e['max']], atol=2e-4):
             fail('manifest', '%s: triangles or bounds differ from the mesh' % e['id'])
         if len(m.faces) > MAX_TRIS_BONE:

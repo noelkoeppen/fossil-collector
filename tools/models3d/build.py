@@ -18,6 +18,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 CHUNK = 1_500_000
 BONE_COLOR = [0.82, 0.76, 0.62, 1.0]
+CRUMB_SHARE = 0.01  # loose pieces below this share of the bone's volume are dropped
 
 
 def art_dir(species):
@@ -48,7 +49,8 @@ def sample(fn, lo, hi, h, cut):
         vol[i0:i0 + per] = d.reshape(len(xs), n[1], n[2])
     # keep the surface off the grid nodes, otherwise marching cubes emits zero-area slivers
     eps = 2e-3 * h
-    vol[np.abs(vol) < eps] = eps
+    near = np.abs(vol) < eps
+    vol[near] = np.where(vol[near] < 0, -eps, eps)
     return vol, lo
 
 
@@ -61,6 +63,9 @@ def mesh_bone(b):
     m = trimesh.Trimesh(v + lo, f, process=True)
     parts = sorted(m.split(only_watertight=False), key=lambda c: -len(c.faces))
     keep = [c for c in parts if len(c.faces) > 60 and c.volume > 0]
+    # crumbs left over where a region boundary grazes the surface are not bones
+    biggest = max((c.volume for c in keep), default=0.0)
+    keep = [c for c in keep if c.volume >= CRUMB_SHARE * biggest]
     if not keep:
         raise SystemExit('%s: empty' % b['id'])
     raw_parts = len(keep)
@@ -80,14 +85,31 @@ def good(s):
     return s.is_watertight and (s.area_faces > 1e-12).all() and len(s.split(only_watertight=False)) == 1
 
 
+FOLD_ANGLE = 2.8  # radians between neighbouring face normals, about 160 degrees
+
+
+def folds(s):
+    """Number of edges where the surface folds back on itself."""
+    return int((s.face_adjacency_angles > FOLD_ANGLE).sum())
+
+
 def decimate(m, target, name):
-    """Quadric decimation that only accepts closed, manifold results within the budget."""
-    for agg in (7, 5, 3, 2):
+    """Quadric decimation that only accepts closed, manifold results within the budget.
+
+    Gentle settings come first: a high aggressiveness reaches the target just as well but
+    leaves facets and folded triangles on thin plates. Results without folds are preferred.
+    """
+    fallback = None
+    for agg in (3, 4, 5, 7):
         for mult in (1.0, 0.94, 0.88, 0.8):
             v, f = fast_simplification.simplify(m.vertices, m.faces, target_count=int(target * mult), agg=agg)
             s = trimesh.Trimesh(v, f, process=True)
             if good(s) and len(s.faces) <= target:
-                return s
+                if folds(s) == 0:
+                    return s
+                fallback = fallback or s
+    if fallback is not None:
+        return fallback
     # last resort: halve step by step, which avoids most collapses that pinch thin parts
     for agg in (5, 3, 2):
         s, ok = m, True
