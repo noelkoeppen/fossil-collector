@@ -6,8 +6,8 @@ import kotlinx.serialization.Serializable
 /**
  * Globale Balancing-Konstanten aus `balance.json`.
  *
- * Nach AP2-02 nur noch die Qualitaetsstufen und die Grenzen des Modifier-Systems; die Werte der
- * neuen Systeme (Fundsystem, Grabung, Schaden) kommen mit den jeweiligen Arbeitspaketen dazu.
+ * Qualitaetsstufen, Grenzen des Modifier-Systems und das Fundsystem (AP2-04); die Werte der
+ * weiteren Systeme (Grabung, Schaden) kommen mit den jeweiligen Arbeitspaketen dazu.
  */
 @Serializable
 data class BalanceDefinition(
@@ -15,6 +15,8 @@ data class BalanceDefinition(
     val qualityTiers: List<QualityTierDefinition>,
     /** Clamps pro Stat, angewendet auf den Endwert des Stats. */
     val statLimits: Map<StatId, StatLimit> = emptyMap(),
+    /** Parameter fuer das Wuerfeln eines Fundes (Kapitel 4). */
+    val finds: FindBalance,
 )
 
 /** Eine Qualitaetsstufe: gilt ab [minQuality] (inklusive) bis zur naechsten Stufe. */
@@ -31,4 +33,30 @@ data class QualityTierDefinition(
 data class StatLimit(
     val min: Double? = null,
     val max: Double? = null,
+)
+
+/**
+ * Parameter des Fundsystems (Kapitel 4), verwendet von `FindRoller`.
+ *
+ * Die Grundqualitaet eines Fundes ist gleichverteilt in `[baseQualityMin, baseQualityMax)`; die
+ * Untergrenze laeuft dabei ueber den Stat `quality_base_min`. Jeder Knochen weicht gleichverteilt um
+ * hoechstens [boneQualityDeviation] davon ab und wird danach auf die Qualitaetsskala 0..1 begrenzt.
+ */
+@Serializable
+data class FindBalance(
+    /** Gewichtete Tabelle der Fundgroessen (Anzahl zusammenhaengender Knochen). */
+    val sizeWeights: List<FindSizeWeight>,
+    /** Basiswert der Untergrenze der Grundqualitaet (Basis des Stats `quality_base_min`). */
+    val baseQualityMin: Double,
+    /** Obergrenze der Grundqualitaet. */
+    val baseQualityMax: Double,
+    /** Maximale Abweichung der Qualitaet eines Knochens von der Grundqualitaet (nach oben und unten). */
+    val boneQualityDeviation: Double,
+)
+
+/** Ein Eintrag der Fundgroessen-Tabelle: [size] Knochen mit relativem Gewicht [weight]. */
+@Serializable
+data class FindSizeWeight(
+    val size: Int,
+    val weight: Double,
 )

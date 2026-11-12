@@ -48,11 +48,62 @@
         "required": [],
         "additionalProperties": false
       }
+    },
+    "finds": {
+      "type": "object",
+      "description": "Fundsystem (Kapitel 4): Verteilung der Fundgroesse, Grundqualitaet, Abweichung pro Knochen",
+      "properties": {
+        "sizeWeights": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "properties": {
+              "size": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "weight": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              }
+            },
+            "required": [
+              "size",
+              "weight"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "baseQualityMin": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "baseQualityMax": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "boneQualityDeviation": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "required": [
+        "sizeWeights",
+        "baseQualityMin",
+        "baseQualityMax",
+        "boneQualityDeviation"
+      ],
+      "additionalProperties": false
     }
   },
   "required": [
     "qualityTiers",
-    "statLimits"
+    "statLimits",
+    "finds"
   ],
   "additionalProperties": false
 }
