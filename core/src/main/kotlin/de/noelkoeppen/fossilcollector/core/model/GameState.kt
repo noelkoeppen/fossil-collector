@@ -3,12 +3,12 @@ package de.noelkoeppen.fossilcollector.core.model
 import kotlinx.serialization.Serializable
 
 /**
- * Spielstand (Datenmodell 2.0, AP2-03).
+ * Spielstand (Datenmodell 2.0, AP2-03; laufende Ausgrabung seit AP2-05, Version 4).
  *
  * Spielstaende vor Version [OLDEST_SUPPORTED_SAVE_VERSION] (Incremental-Stand und Uebergangsstand
  * nach AP2-02) werden nicht migriert, sondern verworfen; uebernommen wird nur die Spracheinstellung
  * (siehe `SaveCodec` und `SaveException.ObsoleteVersion`). Weitere Felder (Sammelbuch, Geld,
- * Ansehen, Grabungsflaeche ...) kommen mit den jeweiligen Arbeitspaketen dazu.
+ * Ansehen ...) kommen mit den jeweiligen Arbeitspaketen dazu.
  *
  * Unveraenderlich: Aenderungen erzeugen einen neuen Zustand.
  *
@@ -17,6 +17,7 @@ import kotlinx.serialization.Serializable
  *   Zeitstempel, kein Spielwert
  * @property settings Einstellungen
  * @property inventory geborgene Knochen, die noch nicht am Skelett zugeordnet sind (gefuellt ab AP2-09)
+ * @property excavation laufende Ausgrabung oder `null`, wenn gerade nicht gegraben wird (AP2-05)
  */
 @Serializable
 data class GameState(
@@ -24,10 +25,11 @@ data class GameState(
     val lastSavedAt: Long,
     val settings: Settings = Settings(),
     val inventory: List<Piece> = emptyList(),
+    val excavation: ExcavationSite? = null,
 ) {
     companion object {
         /** Aktuelle Version des Speicherformats. Bei jeder Formataenderung erhoehen und Migration ergaenzen. */
-        const val CURRENT_SAVE_VERSION: Int = 3
+        const val CURRENT_SAVE_VERSION: Int = 4
 
         /**
          * Aelteste Version, die noch geladen (und bei Bedarf migriert) wird. Aeltere Spielstaende
@@ -47,6 +49,7 @@ data class GameState(
                 lastSavedAt = now,
                 settings = settings,
                 inventory = emptyList(),
+                excavation = null,
             )
     }
 }

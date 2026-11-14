@@ -98,7 +98,88 @@ class DataValidationTest {
         assertTrue(finds.boneQualityDeviation > 0.0)
     }
 
+    @Test
+    fun balanceContainsExcavationParameters() {
+        val ex = data.balance.excavation
+        assertTrue(ex.width >= 1 && ex.height >= 1)
+        assertTrue(ex.depthMin in 1..ex.depthMax)
+        assertTrue(ex.hintDepth in 1 until ex.depthMin)
+        assertTrue(ex.findCountWeights.isNotEmpty())
+        assertTrue(ex.placementAttempts >= 1)
+    }
+
+    @Test
+    fun toolsContainShovelAndTrowel() {
+        assertEquals(listOf("shovel", "trowel"), data.tools.map { it.id })
+        assertTrue(data.tool("shovel").rough)
+        assertTrue(data.tool("shovel").boneDamage > 0.0)
+        assertEquals(false, data.tool("trowel").rough)
+        assertEquals(0.0, data.tool("trowel").boneDamage)
+        data.tools.forEach { assertTrue(it.removal <= data.balance.excavation.hintDepth, it.id) }
+        assertEquals("Schaufel", TextProvider.fromGameData(data, "de").toolName("shovel"))
+        assertEquals("Trowel", TextProvider.fromGameData(data, "en").toolName("trowel"))
+    }
+
     // --- Der Validator erkennt kaputte Daten ---
+
+    @Test
+    fun detectsInvalidExcavation() {
+        val errors = errorsOf(DataRepository.BALANCE) {
+            it.replace("\"depthMin\": 60", "\"depthMin\": 120")
+                .replace("\"placementAttempts\": 20", "\"placementAttempts\": 0")
+                .replace("\"findSpacing\": 2", "\"findSpacing\": -1")
+                .replace("{\"count\": 3, \"weight\": 40}", "{\"count\": 2, \"weight\": 0}")
+                .replace("\"placeholderFootprint\": {\"width\": 4", "\"placeholderFootprint\": {\"width\": 40")
+        }
+        listOf(
+            "excavation: depthMin > depthMax",
+            "excavation: placementAttempts muss >= 1 sein",
+            "excavation: findSpacing muss >= 0 sein",
+            "excavation: findCountWeights.weight fuer Anzahl 2 muss > 0 sein",
+            "excavation: findCountWeights.count 2 doppelt",
+            "excavation: placeholderFootprint ist groesser als die Flaeche",
+        ).forEach { expected -> assertTrue(errors.any { expected in it }, "$expected fehlt in $errors") }
+    }
+
+    @Test
+    fun detectsDepthAboveStorageLimit() {
+        val errors = errorsOf(DataRepository.BALANCE) { it.replace("\"depthMax\": 100", "\"depthMax\": 70000") }
+        assertEquals(listOf("balance.json/excavation: depthMax muss <= 65535 sein"), errors)
+    }
+
+    @Test
+    fun detectsHintDepthNotBelowMinimumDepth() {
+        val errors = errorsOf(DataRepository.BALANCE) { it.replace("\"hintDepth\": 20", "\"hintDepth\": 60") }
+        assertTrue(errors.any { "excavation: hintDepth muss kleiner als depthMin sein" in it }, errors.toString())
+    }
+
+    @Test
+    fun detectsInvalidTools() {
+        val errors = errorsOf(DataRepository.TOOLS) {
+            it.replace("\"removal\": 20", "\"removal\": 25")
+                .replace("\"boneDamage\": 0.08", "\"boneDamage\": 0.0")
+                .replace("\"radius\": 1.5, \"rough\": false, \"boneDamage\": 0.0", "\"radius\": 0, \"rough\": false, \"boneDamage\": 0.1")
+        }
+        listOf(
+            "tools.json/shovel: removal 25 ist groesser als hintDepth 20",
+            "tools.json/shovel: grobes Werkzeug braucht boneDamage > 0",
+            "tools.json/trowel: radius muss > 0 sein",
+            "tools.json/trowel: nicht grobes Werkzeug muss boneDamage 0 haben",
+        ).forEach { expected -> assertTrue(errors.any { expected in it }, "$expected fehlt in $errors") }
+    }
+
+    @Test
+    fun detectsMissingToolName() {
+        val errors = errorsOf(DataRepository.localeFile("en")) { it.replace(Regex("\\s*\"tool\\.trowel\\.name\": \"[^\"]*\","), "") }
+        assertTrue(errors.any { "en.json: Schluessel 'tool.trowel.name' fehlt" in it }, errors.toString())
+    }
+
+    @Test
+    fun rejectsMissingExcavationParameters() {
+        val repo = patchedRepository(DataRepository.BALANCE) { it.replace(Regex(",\\s*\"placementAttempts\": [0-9]+"), "") }
+        val e = assertThrows<DataValidationException> { repo.load() }
+        assertTrue(e.errors.single().startsWith(DataRepository.BALANCE), e.errors.toString())
+    }
 
     @Test
     fun detectsInvalidFindSizeWeights() {

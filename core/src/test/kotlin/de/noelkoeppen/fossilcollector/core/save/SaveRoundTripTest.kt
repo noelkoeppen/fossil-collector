@@ -8,6 +8,7 @@ import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
@@ -39,8 +40,9 @@ class SaveRoundTripTest {
     @Test
     fun encodedStateContainsAllFields() {
         val tree = Json.parseToJsonElement(codec.encode(SaveFixtures.fullV3)).jsonObject
-        assertEquals(setOf("saveVersion", "lastSavedAt", "settings", "inventory"), tree.keys)
-        assertEquals(JsonPrimitive(3), tree.getValue("saveVersion"))
+        assertEquals(setOf("saveVersion", "lastSavedAt", "settings", "inventory", "excavation"), tree.keys)
+        assertEquals(JsonPrimitive(GameState.CURRENT_SAVE_VERSION), tree.getValue("saveVersion"))
+        assertEquals(JsonNull, tree.getValue("excavation"))
         // encodeDefaults: auch Standardwerte werden geschrieben, age/sex als null.
         val piece = tree.getValue("inventory").jsonArray.first().jsonObject
         assertEquals(setOf("speciesId", "boneId", "quality", "age", "sex"), piece.keys)
@@ -105,6 +107,44 @@ class SaveRoundTripTest {
         val saved = codec.encode(loaded)
         assertFalse(saved.contains("futureTopLevel"))
         assertFalse(saved.contains("futureSetting"))
+    }
+
+    // --- Laufende Ausgrabung (AP2-05) ---
+
+    @Test
+    fun runningExcavationRoundTrip() {
+        val state = SaveFixtures.withExcavation()
+        val site = checkNotNull(state.excavation)
+        assertTrue(site.finds.isNotEmpty())
+        val text = codec.encode(state)
+        val loaded = codec.decode(text)
+        assertEquals(state, loaded)
+        assertEquals(text, codec.encode(loaded))
+        assertEquals(state, codec.importBase64(codec.exportBase64(state)))
+        // Gegrabene Tiefen und Schaden bleiben erhalten.
+        val loadedSite = checkNotNull(loaded.excavation)
+        assertTrue(site.depthsCopy().contentEquals(loadedSite.depthsCopy()))
+        assertEquals(site.finds.map { it.find }, loadedSite.finds.map { it.find })
+    }
+
+    @Test
+    fun runningExcavationIsStoredCompactly() {
+        val text = codec.encode(SaveFixtures.withExcavation())
+        val site = Json.parseToJsonElement(text).jsonObject.getValue("excavation").jsonObject
+        assertEquals(setOf("layerId", "width", "height", "depths", "finds"), site.keys)
+        assertTrue(site.getValue("depths") is JsonPrimitive, "Tiefen als kompakter Text")
+        // 32x48 Zellen: 4 KB Base64 fuer die Tiefen plus Funde; deutlich unter einer JSON-Zahlenliste.
+        assertTrue(text.length < 8_000, "Spielstand mit Ausgrabung ist ${text.length} Zeichen lang")
+    }
+
+    @Test
+    fun invalidExcavationIsRejected() {
+        val base = codec.encode(SaveFixtures.withExcavation())
+        val site = checkNotNull(SaveFixtures.withExcavation().excavation)
+        val depths = Json.parseToJsonElement(base).jsonObject.getValue("excavation").jsonObject.getValue("depths").jsonPrimitive.content
+        assertThrows<SaveException.InvalidContent> { codec.decode(base.replace(depths, "###")) }
+        assertThrows<SaveException.InvalidContent> { codec.decode(base.replace(depths, depths.drop(4))) }
+        assertThrows<SaveException.InvalidContent> { codec.decode(base.replace("\"width\":${site.width}", "\"width\":${site.width + 1}")) }
     }
 
     @Test

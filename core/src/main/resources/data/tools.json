@@ -1,0 +1,4 @@
+[
+  {"id": "shovel", "removal": 20, "radius": 2.5, "rough": true, "boneDamage": 0.08},
+  {"id": "trowel", "removal": 6, "radius": 1.5, "rough": false, "boneDamage": 0.0}
+]

@@ -28,6 +28,7 @@ class DataRepository(
             layers = layers.sortedBy { it.order },
             species = decode(SPECIES),
             balance = decode(BALANCE),
+            tools = decode(TOOLS),
             locales = LANGUAGES.associateWith { decode<Map<String, String>>(localeFile(it)) },
         )
     }
@@ -46,13 +47,14 @@ class DataRepository(
         const val LAYERS = "layers.json"
         const val SPECIES = "species.json"
         const val BALANCE = "balance.json"
+        const val TOOLS = "tools.json"
 
         /** Unterstuetzte Sprachen der Inhaltstexte; die erste ist der Standard. */
         val LANGUAGES: List<String> = listOf("de", "en")
 
         /** Alle Datendateien relativ zu `data/`. */
         val ALL_FILES: List<String> =
-            listOf(LAYERS, SPECIES, BALANCE) +
+            listOf(LAYERS, SPECIES, BALANCE, TOOLS) +
                 LANGUAGES.map { localeFile(it) }
 
         fun localeFile(language: String) = "locale/$language.json"

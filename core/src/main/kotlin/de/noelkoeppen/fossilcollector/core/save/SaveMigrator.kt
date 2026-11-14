@@ -1,6 +1,7 @@
 package de.noelkoeppen.fossilcollector.core.save
 
 import de.noelkoeppen.fossilcollector.core.model.GameState
+import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.intOrNull
@@ -95,12 +96,25 @@ class SaveMigrator(
 
         /**
          * Alle Migrationsschritte des Spiels ab [GameState.OLDEST_SUPPORTED_SAVE_VERSION], aufsteigend.
-         * Bei Version 3 noch leer.
          */
-        val MIGRATIONS: List<SaveMigration> = emptyList()
+        val MIGRATIONS: List<SaveMigration> = listOf(AddExcavationV3)
 
         /** Migrator mit der echten Kette von [GameState.OLDEST_SUPPORTED_SAVE_VERSION] bis [GameState.CURRENT_SAVE_VERSION]. */
         val DEFAULT: SaveMigrator =
             SaveMigrator(MIGRATIONS, GameState.CURRENT_SAVE_VERSION, GameState.OLDEST_SUPPORTED_SAVE_VERSION)
     }
+}
+
+/**
+ * Version 3 -> 4 (AP2-05): neues Feld `excavation` (laufende Ausgrabung). Spielstaende der Version 3
+ * haben keine laufende Ausgrabung; ein schon vorhandenes Feld wird beibehalten.
+ */
+internal object AddExcavationV3 : SaveMigration {
+    override val fromVersion: Int = 3
+
+    /** Name des Feldes der laufenden Ausgrabung. */
+    const val FIELD: String = "excavation"
+
+    override fun migrate(save: JsonObject): JsonObject =
+        if (FIELD in save) save else JsonObject(save + (FIELD to JsonNull))
 }

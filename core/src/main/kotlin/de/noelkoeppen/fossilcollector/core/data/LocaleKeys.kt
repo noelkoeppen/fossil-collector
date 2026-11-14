@@ -12,6 +12,7 @@ object LocaleKeys {
     /** Knochennamen sind pro Art, weil jede Art ihre eigene Knochenliste aus dem Modell hat. */
     fun boneName(speciesId: String, boneId: String) = "bone.$speciesId.$boneId.name"
     fun qualityTierName(tierId: String) = "quality.$tierId.name"
+    fun toolName(toolId: String) = "tool.$toolId.name"
 
     /** Anzeigename eines Stats. */
     fun statName(stat: StatId) = "stat.${stat.serialName}.name"
@@ -24,6 +25,7 @@ object LocaleKeys {
             species.bones.forEach { add(boneName(species.id, it)) }
         }
         data.balance.qualityTiers.forEach { add(qualityTierName(it.id)) }
+        data.tools.forEach { add(toolName(it.id)) }
         StatId.entries.forEach { add(statName(it)) }
     }
 }

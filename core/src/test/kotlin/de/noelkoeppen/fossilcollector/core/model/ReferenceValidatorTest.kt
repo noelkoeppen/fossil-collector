@@ -54,4 +54,40 @@ class ReferenceValidatorTest {
         val other = Find("dodo", listOf(piece("femur_l", species = "dodo")))
         assertEquals(listOf("unbekannte Art 'dodo'"), ReferenceValidator.validateFind(other, data))
     }
+
+    // --- Laufende Ausgrabung (AP2-05) ---
+
+    private fun siteWith(vararg finds: Find, layerId: String = "quaternary"): ExcavationSite {
+        var next = 0
+        val placed = finds.map { find -> PlacedFind(find, find.boneIds.associateWith { listOf(next++) }) }
+        return ExcavationSite(layerId, 10, 10, IntArray(100) { 5 }, placed)
+    }
+
+    @Test
+    fun validExcavationHasNoErrors() {
+        val site = siteWith(Find("cave_bear", listOf(piece("femur_l"), piece("tibia_l"))), Find("cave_bear", listOf(piece("sternum"))))
+        assertEquals(emptyList<String>(), ReferenceValidator.validateExcavation(site, data))
+        assertEquals(emptyList<String>(), ReferenceValidator.validate(GameState.newGame(0L).copy(excavation = site), data))
+    }
+
+    @Test
+    fun excavationFindsAreChecked() {
+        val site = siteWith(
+            Find("cave_bear", listOf(piece("femur_l"))),
+            Find("cave_bear", listOf(piece("femur_r"), piece("hindpaw_r"))),
+            Find("cave_bear", listOf(piece("wing_l"))),
+        )
+        val errors = ReferenceValidator.validate(GameState.newGame(0L).copy(excavation = site), data)
+        assertEquals(2, errors.size, errors.toString())
+        assertTrue(errors[0].startsWith("excavation: finds[1]") && "nicht zusammen" in errors[0], errors.toString())
+        assertTrue(errors[1].startsWith("excavation: finds[2]") && "wing_l" in errors[1], errors.toString())
+    }
+
+    @Test
+    fun excavationWithUnknownLayerIsReported() {
+        val site = siteWith(Find("cave_bear", listOf(piece("femur_l"))), layerId = "jurassic")
+        val errors = ReferenceValidator.validateExcavation(site, data)
+        assertTrue(errors.any { "unbekannte Schicht 'jurassic'" in it }, errors.toString())
+        assertTrue(errors.any { "gehoert nicht zur Schicht" in it }, errors.toString())
+    }
 }
