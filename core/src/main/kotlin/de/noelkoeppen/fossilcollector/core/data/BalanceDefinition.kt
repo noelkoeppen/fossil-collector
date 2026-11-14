@@ -85,7 +85,7 @@ data class ExcavationBalance(
     val findSpacing: Int,
     /** Versuche, einen Fund zu platzieren; passt er danach nicht, wird er weggelassen. */
     val placementAttempts: Int,
-    /** Platzhalter-Umriss jedes Knochens bis zu den Masken aus AP2-06. */
+    /** Platzhalter-Umriss jedes Knochens, bis Umrisse aus den Masken (AP2-06) genutzt werden. */
     val placeholderFootprint: FootprintSize,
 )
 

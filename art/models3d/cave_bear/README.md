@@ -3,7 +3,9 @@
 Realistisch wirkende 3D-Darstellung des Höhlenbären nach `docs/GAME_DESIGN.md` Kapitel 8
 (Darstellung: Skelett in 3D, eine `.glb` pro Knochen plus `bones.json`). Seit AP2-03 sind
 Knochenliste und Nachbarschaftsgraph der Art in den Spieldaten aus diesem Modell abgeleitet
-(Kapitel 4); die Einbindung der Meshes in die App folgt mit AP2-06 und AP2-10 (Kapitel 12).
+(Kapitel 4). Seit AP2-06 liegen daraus gerenderte Knochenbilder und Umrissmasken für die 2D-Grabung
+unter `app/src/main/assets/bones/cave_bear/` (`tools/models3d/bone_images.py`); die Meshes selbst
+kommen mit AP2-10 in die App (Kapitel 12).
 
 ## Dateien
 
@@ -67,10 +69,10 @@ Zum Testen gibt es feste Blickwinkel über den URL-Anker, z. B. `skeleton.html#s
 grenzen (kleinster Oberflächenabstand höchstens 0.03 Einheiten), wendet die Korrekturen aus
 `neighbors_overrides.json` an und schreibt Knochenliste, Graph und Knochennamen in
 `core/src/main/resources/data/` (Anleitung: `tools/models3d/README.md`). Nach jeder Änderung an
-`bones.json`, an den Meshes oder an den Korrekturen das Skript erneut ausführen.
+`bones.json`, an den Meshes oder an den Korrekturen das Skript erneut ausführen. Nach Änderungen an
+den Meshes zusätzlich `python3 tools/models3d/bone_images.py cave_bear` (Knochenbilder).
 
 ## Offene Punkte
 
-- Einbindung in Jetpack Compose: Renderer-Wahl in AP2-10, vorgerenderte Knochenbilder für die
-  2D-Grabung in AP2-06 (Kapitel 12).
+- Einbindung in Jetpack Compose: Renderer-Wahl in AP2-10 (Kapitel 12).
 - Proportionen sind nach Augenmaß gebaut, nicht gegen Messwerte geprüft.

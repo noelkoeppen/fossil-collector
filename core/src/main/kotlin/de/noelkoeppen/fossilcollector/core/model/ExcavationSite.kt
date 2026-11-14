@@ -21,7 +21,7 @@ data class BoneRef(
  * Flaeche belegt (Zellindex `y * width + x`).
  *
  * Die Zellen werden gespeichert und nicht aus den Umrissen neu berechnet. So bleibt eine laufende
- * Ausgrabung gueltig, wenn sich die Umrisse aendern (Platzhalter bis AP2-06, danach Masken).
+ * Ausgrabung gueltig, wenn sich die Umrisse aendern (Platzhalter, spaeter Umrisse aus den Masken von AP2-06).
  *
  * @property find der Fund mit den aktuellen Qualitaeten seiner Knochen
  * @property cells Knochen-ID -> belegte Zellen; Schluessel sind genau die Knochen des Fundes
