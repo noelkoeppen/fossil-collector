@@ -163,7 +163,7 @@
         },
         "placeholderFootprint": {
           "type": "object",
-          "description": "Uebergang bis AP2-06: Rechteck pro Knochen in Zellen",
+          "description": "Uebergang bis zu Umrissen aus den Knochenmasken (AP2-06): Rechteck pro Knochen in Zellen",
           "properties": {
             "width": {
               "type": "integer",

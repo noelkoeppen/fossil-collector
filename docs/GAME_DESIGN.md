@@ -182,6 +182,16 @@ Umsetzung (AP2-05, `ExcavationGenerator` und `Excavator` in `core`, Parameter in
   - Grabungsfläche, feines Freilegen und Bergen sind eine 2D-Draufsicht. Erde ist eine Maske, die mit dem
     Finger abgetragen wird. Die Knochen darin sind Bilder, die vorab automatisch aus den 3D-Modellen
     gerendert werden (Build-Skript), damit sie zum Modell passen.
+  - Umsetzung (AP2-06): `tools/models3d/bone_images.py` rendert pro Knochen ein Bild (PNG mit
+    Transparenz) und eine Umrissmaske (1-Bit-PNG) nach `app/src/main/assets/bones/<speciesId>/`, dazu
+    ein `manifest.json` mit den Parametern und pro Knochen Größe und Lage im gemeinsamen Pixelraster
+    der Art. Alle Knochen einer Art haben dieselbe Blickrichtung und denselben Maßstab (Parameter
+    `pxPerUnit`, Pixel pro Modelleinheit, Start 384), die Größenverhältnisse stimmen also.
+    Blickrichtung ist die Seitenansicht von links (Parameter `view`): Das Tier liegt auf der rechten
+    Seite in der Grabung, paarige Knochen haben denselben Umriss. Schattierung: Licht von oben,
+    Knochenfarbe aus dem Material der `.glb`. Renderer ist ein Software-Rasterizer mit numpy (läuft
+    ohne GPU, auch in der CI, deterministisch; die CI prüft mit `--check`, ob die Bilder aktuell sind).
+    Eine neue Art braucht nur einen erneuten Aufruf.
   - Echtes 3D zum Drehen gibt es beim Zuordnen, im Museum und im Sammelbuch.
 - 3D-Meshes: eine `.glb`-Datei pro Knochen plus `bones.json` pro Art
   (`art/models3d/<speciesId>/`). Realistisch wirkender Look, nicht zwingend anatomisch exakt.
@@ -242,6 +252,11 @@ Umsetzung (AP2-05, `ExcavationGenerator` und `Excavator` in `core`, Parameter in
   setzt `null`. Die Tiefen werden kompakt als Base64 von 16-Bit-Werten gespeichert (daher
   `depthMax` höchstens 65535). Beim Import werden auch die Funde der Ausgrabung gegen die Spieldaten
   geprüft (Arten, Knochen, Zusammenhang, Schicht).
+- **Stand nach AP2-06:** Knochenbilder und Umrissmasken aller Knochen des Höhlenbären liegen in den
+  App-Assets (Kapitel 8), Pfade über `BoneImageAssets` in `app`, ein App-Test prüft, dass jeder
+  Knochen jeder Art Bild und Maske hat. Die Grabungsfläche nutzt weiter den Platzhalter-Umriss: Die
+  Umstellung von `BoneFootprints` auf Umrisse aus den Masken braucht die offene Entscheidung zur
+  Knochengröße in Zellen (Kapitel 13) und folgt mit AP2-07 oder einem eigenen AP.
 
 ## 11. Entscheidungen im Überblick
 
@@ -339,7 +354,13 @@ AP2-06 und AP2-10 hängen nur an AP2-01 und können vorgezogen werden.
 - Konkrete Balancing-Werte (Fundgrößen, Schaden, Preise, Ansehen) nach dem ersten Playtest.
 - Größe der Grabungsfläche und Anzahl Funde pro Ausgrabung (Startwerte seit AP2-05 in
   `balance.json: excavation`, endgültig nach dem Playtest).
-- Knochengröße in Zellen, sobald die Umrisse aus AP2-06 kommen (Zellen pro Modelleinheit).
+- Knochengröße in Zellen, sobald die Umrisse aus AP2-06 kommen (Zellen pro Modelleinheit), und ob
+  Knochen beim Platzieren gedreht werden dürfen. Die Masken liegen seit AP2-06 vor; bei 32 x 48 Zellen
+  passen die größten Knochen (Oberschenkel, Brustbein, Becken: knapp 1 Modelleinheit) erst ab etwa
+  8 Zellen pro Einheit gut in die Fläche.
+- Blickrichtung der Knochenbilder: Seitenansicht für alle Knochen (AP2-06). Rippen und Pfoten wirken
+  von der Seite schmal; Alternative wäre eine Liegelage pro Knochen (größte Ansichtsfläche) bei
+  gleichem Maßstab.
 - Ob ein kurzes Tutorial nötig ist.
 
 ## 14. Änderungsprotokoll
@@ -361,3 +382,7 @@ AP2-06 und AP2-10 hängen nur an AP2-01 und können vorgezogen werden.
   Anwendung, „entdeckt“ ab einer freiliegenden Zelle, „nichts mehr zu finden“). Kapitel 4 „Lage“ um die
   Platzierung ergänzt. Kapitel 10 um den Stand nach AP2-05 (Platzhalter-Umriss bis AP2-06, Spielstand
   Version 4). Kapitel 13 präzisiert.
+- **AP2-06 (2026-11-14):** Kapitel 8 um die Umsetzung der Knochenbilder ergänzt (Skript, Ausgabeort,
+  einheitliche Seitenansicht und einheitlicher Maßstab pro Art, Renderer). Kapitel 10 um den Stand nach
+  AP2-06 (Platzhalter-Umriss bleibt bis zur Entscheidung über die Knochengröße in Zellen). Kapitel 13
+  um Drehung und Blickrichtung ergänzt.
