@@ -4,14 +4,35 @@ import de.noelkoeppen.fossilcollector.core.data.GameData
 
 /**
  * Prueft Spielstand-Inhalte gegen die Spieldaten: Alle IDs muessen existieren, Funde muessen im
- * Nachbarschaftsgraph der Art zusammenhaengen. Wird beim Import eines Spielstands verwendet.
+ * Nachbarschaftsgraph der Art zusammenhaengen. Wird beim Import eines Spielstands verwendet
+ * (Inventar und Funde der laufenden Ausgrabung).
  * Eine leere Liste bedeutet: alles gueltig.
  */
 object ReferenceValidator {
 
-    /** Alle Referenzfehler eines Spielstands. */
+    /** Alle Referenzfehler eines Spielstands (Inventar und laufende Ausgrabung). */
     fun validate(state: GameState, data: GameData): List<String> =
-        state.inventory.flatMapIndexed { i, piece -> validatePiece(piece, data).map { "inventory[$i]: $it" } }
+        state.inventory.flatMapIndexed { i, piece -> validatePiece(piece, data).map { "inventory[$i]: $it" } } +
+            state.excavation?.let { site -> validateExcavation(site, data).map { "excavation: $it" } }.orEmpty()
+
+    /**
+     * Laufende Ausgrabung: Schicht existiert, jeder Fund ist gueltig ([validateFind]) und seine Art
+     * gehoert zur Schicht der Flaeche. Die Struktur (Raster, Zellen, Ueberlappung) prueft schon
+     * [ExcavationSite] beim Laden.
+     */
+    fun validateExcavation(site: ExcavationSite, data: GameData): List<String> {
+        val errors = mutableListOf<String>()
+        if (site.layerId !in data.layersById) errors += "unbekannte Schicht '${site.layerId}'"
+        site.finds.forEachIndexed { i, placed ->
+            val findErrors = validateFind(placed.find, data)
+            errors += findErrors.map { "finds[$i]: $it" }
+            val species = data.speciesById[placed.find.speciesId]
+            if (findErrors.isEmpty() && species != null && species.layer != site.layerId) {
+                errors += "finds[$i]: Art '${species.id}' gehoert nicht zur Schicht '${site.layerId}'"
+            }
+        }
+        return errors
+    }
 
     /** Art und Knochen eines [Piece] muessen in den Daten existieren. */
     fun validatePiece(piece: Piece, data: GameData): List<String> {

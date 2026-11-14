@@ -40,6 +40,8 @@ class TextProvider(
 
     fun statName(stat: StatId): String = text(LocaleKeys.statName(stat))
 
+    fun toolName(toolId: String): String = text(LocaleKeys.toolName(toolId))
+
     companion object {
         /** Standardsprache der Inhaltstexte (Deutsch). */
         val DEFAULT_LANGUAGE: String = DataRepository.LANGUAGES.first()

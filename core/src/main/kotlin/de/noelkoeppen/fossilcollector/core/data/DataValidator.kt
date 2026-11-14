@@ -1,5 +1,7 @@
 package de.noelkoeppen.fossilcollector.core.data
 
+import de.noelkoeppen.fossilcollector.core.model.ExcavationSite
+
 /**
  * Referenz- und Plausibilitaetspruefungen fuer [GameData].
  * Unbekannte Stat-IDs, Enums und Felder scheitern bereits beim Parsen in [DataRepository].
@@ -15,6 +17,7 @@ object DataValidator {
         validateLayers(data, errors)
         validateSpecies(data, errors)
         validateBalance(data.balance, errors)
+        validateTools(data, errors)
         validateLocales(data, errors)
         return errors
     }
@@ -97,6 +100,55 @@ object DataValidator {
             }
         }
         validateFinds(balance.finds, "$ctx/finds", errors)
+        validateExcavation(balance.excavation, "$ctx/excavation", errors)
+    }
+
+    /**
+     * Grabungsflaeche (Kapitel 3): positive Groessen, Tiefenbereich im Speicherformat, Hinweis-Schwelle
+     * unter der kleinsten Tiefe (sonst waeren Knochen von Anfang an angedeutet), gueltige
+     * Fundanzahl-Tabelle, Platzhalter-Umriss passt in die Flaeche.
+     */
+    private fun validateExcavation(ex: ExcavationBalance, ctx: String, errors: MutableList<String>) {
+        if (ex.width < 1 || ex.height < 1) errors += "$ctx: width und height muessen >= 1 sein"
+        if (ex.depthMin < 1) errors += "$ctx: depthMin muss >= 1 sein"
+        if (ex.depthMin > ex.depthMax) errors += "$ctx: depthMin > depthMax"
+        if (ex.depthMax > ExcavationSite.MAX_DEPTH) errors += "$ctx: depthMax muss <= ${ExcavationSite.MAX_DEPTH} sein"
+        if (ex.hintDepth < 1) errors += "$ctx: hintDepth muss >= 1 sein"
+        if (ex.hintDepth >= ex.depthMin) errors += "$ctx: hintDepth muss kleiner als depthMin sein"
+        if (ex.findCountWeights.isEmpty()) errors += "$ctx: findCountWeights leer"
+        ex.findCountWeights.forEach { entry ->
+            if (entry.count < 1) errors += "$ctx: findCountWeights.count ${entry.count} muss >= 1 sein"
+            if (!(entry.weight > 0.0 && entry.weight.isFinite())) {
+                errors += "$ctx: findCountWeights.weight fuer Anzahl ${entry.count} muss > 0 sein"
+            }
+        }
+        ex.findCountWeights.groupingBy { it.count }.eachCount().filterValues { it > 1 }.keys
+            .forEach { errors += "$ctx: findCountWeights.count $it doppelt" }
+        if (ex.findSpacing < 0) errors += "$ctx: findSpacing muss >= 0 sein"
+        if (ex.placementAttempts < 1) errors += "$ctx: placementAttempts muss >= 1 sein"
+        val fp = ex.placeholderFootprint
+        if (fp.width < 1 || fp.height < 1) errors += "$ctx: placeholderFootprint muss mindestens 1x1 sein"
+        if (fp.width > ex.width || fp.height > ex.height) errors += "$ctx: placeholderFootprint ist groesser als die Flaeche"
+    }
+
+    /**
+     * Werkzeuge (Kapitel 3): gueltige IDs, Abtrag >= 1 und hoechstens `hintDepth` (damit vor jeder
+     * Beruehrung eines Knochens ein Hinweis erscheint), Radius > 0, Schaden in 0..1, Schaden > 0 genau
+     * bei groben Werkzeugen.
+     */
+    private fun validateTools(data: GameData, errors: MutableList<String>) {
+        val file = DataRepository.TOOLS
+        validateIds(file, data.tools.map { it.id }, errors)
+        val hintDepth = data.balance.excavation.hintDepth
+        data.tools.forEach { tool ->
+            val ctx = "$file/${tool.id}"
+            if (tool.removal < 1) errors += "$ctx: removal muss >= 1 sein"
+            if (tool.removal > hintDepth) errors += "$ctx: removal ${tool.removal} ist groesser als hintDepth $hintDepth"
+            if (!(tool.radius > 0.0 && tool.radius.isFinite())) errors += "$ctx: radius muss > 0 sein"
+            if (tool.boneDamage !in 0.0..1.0) errors += "$ctx: boneDamage ${tool.boneDamage} liegt nicht in 0..1"
+            if (tool.rough && tool.boneDamage <= 0.0) errors += "$ctx: grobes Werkzeug braucht boneDamage > 0"
+            if (!tool.rough && tool.boneDamage != 0.0) errors += "$ctx: nicht grobes Werkzeug muss boneDamage 0 haben"
+        }
     }
 
     /** Fundsystem (Kapitel 4): Groessen >= 1 ohne Duplikate, Gewichte > 0, Qualitaeten in 0..1. */

@@ -22,5 +22,20 @@
     "baseQualityMin": 0.4,
     "baseQualityMax": 0.95,
     "boneQualityDeviation": 0.05
+  },
+  "excavation": {
+    "width": 32,
+    "height": 48,
+    "depthMin": 60,
+    "depthMax": 100,
+    "hintDepth": 20,
+    "findCountWeights": [
+      {"count": 2, "weight": 30},
+      {"count": 3, "weight": 40},
+      {"count": 4, "weight": 30}
+    ],
+    "findSpacing": 2,
+    "placementAttempts": 20,
+    "placeholderFootprint": {"width": 4, "height": 3}
   }
 }

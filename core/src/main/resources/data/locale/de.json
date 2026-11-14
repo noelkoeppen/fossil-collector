@@ -9,6 +9,8 @@
   "stat.damage_reduction.name": "Schadensminderung",
   "stat.quality_base_min.name": "Mindest-Grundqualität",
   "stat.sell_price.name": "Verkaufspreis",
+  "tool.shovel.name": "Schaufel",
+  "tool.trowel.name": "Kelle",
   "bone.cave_bear.occipital.name": "Hinterhauptbein",
   "bone.cave_bear.sphenoid.name": "Keilbein",
   "bone.cave_bear.premaxilla_l.name": "Zwischenkieferbein links",

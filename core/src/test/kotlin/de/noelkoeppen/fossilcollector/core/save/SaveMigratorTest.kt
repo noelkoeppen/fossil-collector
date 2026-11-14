@@ -4,6 +4,7 @@ import de.noelkoeppen.fossilcollector.core.model.GameState
 import de.noelkoeppen.fossilcollector.core.model.LanguageSetting
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.jsonArray
@@ -42,17 +43,29 @@ class SaveMigratorTest {
     private fun obj(text: String): JsonObject = Json.parseToJsonElement(text).jsonObject
 
     @Test
-    fun currentVersionIsThreeAndChainIsEmpty() {
-        assertEquals(3, GameState.CURRENT_SAVE_VERSION)
+    fun currentVersionIsFourWithOneStep() {
+        assertEquals(4, GameState.CURRENT_SAVE_VERSION)
         assertEquals(3, GameState.OLDEST_SUPPORTED_SAVE_VERSION)
         assertEquals(GameState.CURRENT_SAVE_VERSION, SaveMigrator.DEFAULT.currentVersion)
         assertEquals(GameState.OLDEST_SUPPORTED_SAVE_VERSION, SaveMigrator.DEFAULT.oldestSupportedVersion)
-        assertTrue(SaveMigrator.MIGRATIONS.isEmpty())
+        assertEquals(listOf(3), SaveMigrator.MIGRATIONS.map { it.fromVersion })
+    }
+
+    @Test
+    fun migrationThreeToFourAddsNoExcavation() {
+        val migrated = SaveMigrator.DEFAULT.migrate(obj("""{ "saveVersion": 3, "lastSavedAt": 7, "inventory": [] }"""))
+        assertEquals(JsonPrimitive(4), migrated.getValue("saveVersion"))
+        assertEquals(JsonNull, migrated.getValue("excavation"))
+        assertEquals(JsonPrimitive(7), migrated.getValue("lastSavedAt"))
+        val loaded = SaveCodec.DEFAULT.decode(SaveFixtures.read("v3_full.json"))
+        assertEquals(4, loaded.saveVersion)
+        assertNull(loaded.excavation)
+        assertEquals(SaveFixtures.fullV3.inventory, loaded.inventory)
     }
 
     @Test
     fun currentVersionIsReturnedUnchanged() {
-        val save = obj("""{ "saveVersion": 3, "x": 5 }""")
+        val save = obj("""{ "saveVersion": 4, "x": 5 }""")
         assertSame(save, SaveMigrator.DEFAULT.migrate(save))
     }
 
@@ -105,10 +118,10 @@ class SaveMigratorTest {
     @Test
     fun tooNewVersionIsRejected() {
         val error = assertThrows<SaveException.UnsupportedVersion> {
-            SaveMigrator.DEFAULT.migrate(obj("""{ "saveVersion": 4 }"""))
+            SaveMigrator.DEFAULT.migrate(obj("""{ "saveVersion": 5 }"""))
         }
-        assertEquals(4, error.foundVersion)
-        assertEquals(3, error.supportedVersion)
+        assertEquals(5, error.foundVersion)
+        assertEquals(4, error.supportedVersion)
         assertTrue(error.isTooNew)
     }
 

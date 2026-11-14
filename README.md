@@ -12,7 +12,8 @@ zusammensetzen und im eigenen Museum ausstellen. Hobbyprojekt, umgesetzt mit Cla
 > dem Branch `archive/incremental-v1.1`. Der Code auf `main` wird schrittweise auf das neue Design
 > umgestellt (Arbeitspakete `AP2-XX`). Seit AP2-02 sind die Idle-Systeme entfernt; die App startet
 > bis zu einem leeren Hauptbildschirm mit Einstellungen. Seit AP2-03 gilt das neue Datenmodell
-> (Einzelknochen, Spielstand-Version 3); alte Spielstände werden mit einem Hinweis verworfen.
+> (Einzelknochen); alte Spielstände werden mit einem Hinweis verworfen. Seit AP2-05 gibt es die
+> Grabungsfläche in `core` (noch ohne Screen, Spielstand-Version 4).
 
 ## Projektstruktur
 

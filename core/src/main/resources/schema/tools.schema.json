@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://noelkoeppen.de/fossil-collector/schema/tools.schema.json",
+  "title": "tools.json",
+  "description": "Grabungswerkzeuge fuer das grobe Buddeln (Kapitel 3, AP2-05)",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "properties": {
+      "id": {
+        "$ref": "common.schema.json#/$defs/id"
+      },
+      "removal": {
+        "type": "integer",
+        "minimum": 1,
+        "description": "Abgetragene Erde pro Anwendung und Zelle (Erdeinheiten); hoechstens excavation.hintDepth"
+      },
+      "radius": {
+        "type": "number",
+        "exclusiveMinimum": 0,
+        "description": "Wirkradius um den Mittelpunkt in Zellen"
+      },
+      "rough": {
+        "type": "boolean",
+        "description": "Grobes Werkzeug: beschaedigt Knochen, die es trifft"
+      },
+      "boneDamage": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 1,
+        "description": "Qualitaetsverlust pro Anwendung und getroffenem Knochen vor damage_reduction; > 0 genau bei groben Werkzeugen"
+      }
+    },
+    "required": [
+      "id",
+      "removal",
+      "radius",
+      "rough",
+      "boneDamage"
+    ],
+    "additionalProperties": false
+  },
+  "minItems": 1
+}

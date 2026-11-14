@@ -65,6 +65,32 @@ Ausgrabung wählen (Schicht / Fundort)
 - **Sondieren als Upgrade [Später]:** z. B. Bodenradar, das Fundstellen grob anzeigt. Am Anfang gräbt man
   blind mit Hinweisen.
 
+Umsetzung (AP2-05, `ExcavationGenerator` und `Excavator` in `core`, Parameter in
+`balance.json: excavation` und `tools.json`, Startwerte vorläufig bis zum Playtest):
+- **Raster:** `width` x `height` Zellen (Start 32 x 48). Jede Zelle hat eine Erdtiefe in Erdeinheiten,
+  gleichverteilt zwischen `depthMin` und `depthMax` (Start 60 bis 100).
+- **Funde:** Anzahl aus der gewichteten Tabelle `findCountWeights` (Start 2: 30, 3: 40, 4: 30), jeder
+  Fund gewürfelt nach Kapitel 4 und platziert wie unter „Lage“ beschrieben.
+- **Werkzeuge** (`tools.json`): Abtrag pro Anwendung und Zelle (`removal`), Wirkradius in Zellen
+  (`radius`), `rough` (grob ja/nein) und `boneDamage` (Qualitätsverlust pro Treffer, nur bei groben
+  Werkzeugen > 0). Startwerte: Schaufel 20 / 2.5 / grob / 0.08, Kelle 6 / 1.5 / nicht grob / 0.
+- **Aktion „Werkzeug wirkt auf Bereich“:** Eingabe Werkzeug-ID und Ansatzpunkt in Zellkoordinaten.
+  Betroffen sind alle Zellen, deren Mittelpunkt höchstens `radius` vom Ansatzpunkt entfernt ist; dort
+  wird bis zu `removal` Erde abgetragen. Ergebnis als Daten: neue Fläche, abgetragene Erde, geänderte
+  Zellen, neue Hinweise, Schaden je Knochen, neu entdeckte Knochen. Wie oft die UI die Aktion beim
+  Wischen auslöst, legt AP2-07 fest.
+- **Hinweis:** Eine Knochenzelle zeigt einen Hinweis, sobald höchstens `hintDepth` Erde (Start 20)
+  darüber liegt. `hintDepth` ist kleiner als `depthMin`, und kein Werkzeug trägt mehr als `hintDepth`
+  pro Anwendung ab (Datenvalidierung). Damit zeigt sich immer mindestens eine Anwendung vorher ein
+  Hinweis, bevor ein Werkzeug den Knochen trifft.
+- **Schaden:** Ein grobes Werkzeug trifft einen Knochen, wenn es in einer seiner Zellen tiefer gräbt,
+  als Erde darüber liegt (auch auf schon freiliegenden Knochen). Jeder getroffene Knochen verliert pro
+  Anwendung einmal `boneDamage * (1 - damage_reduction)`, höchstens bis Qualität 0. Der Knochen bleibt
+  immer erhalten (Kapitel 5). Nicht grobe Werkzeuge beschädigen nie.
+- **Entdeckt und „nichts mehr zu finden“:** Ein Knochen gilt als entdeckt („man stößt auf ihn“),
+  sobald eine seiner Zellen frei liegt. Sind alle Knochen der Fläche entdeckt, ist nichts mehr zu
+  finden. Das Freilegen der Restschicht folgt in 5.1 (AP2-08).
+
 ## 4. Fundsystem
 
 - **Einzelknochen:** Jede Art besteht aus allen Einzelknochen des 3D-Modells (links/rechts getrennt,
@@ -100,7 +126,12 @@ Ausgrabung wählen (Schicht / Fundort)
   zusammenhängend sein.
 - **Qualität zieht sich durch:** Alle Knochen eines Fundes teilen die Grundqualität, mit kleiner
   Abweichung pro Knochen. Schaden trifft jeden Knochen einzeln.
-- **Lage:** Zusammenhängende Knochen liegen in der Fläche beieinander.
+- **Lage:** Zusammenhängende Knochen liegen in der Fläche beieinander. Umsetzung (AP2-05): Die
+  Knochen eines Fundes werden in Breitensuche-Reihenfolge über seinen Nachbarschaftsgraph gesetzt, jeder
+  weitere Knochen an eine zufällige freie Stelle, an der er über eine Zellkante an einen schon gesetzten
+  Graph-Nachbarn grenzt. Knochen überlappen nie; Zellen verschiedener Funde haben mindestens
+  `findSpacing` Zellen Abstand (Start 2). Findet ein Knochen keine Stelle, beginnt der Fund von vorn;
+  nach `placementAttempts` Fehlversuchen (Start 20) wird er weggelassen.
 - **Qualitätsstufen und -farben** wie bisher: Fragment, Beschädigt, Gut, Exzellent, Museumsreif.
 - **Ereignisse [Später]:** Merkmale am Fund, z. B. „Bissspuren von Art X“. Verändern Qualität bzw. Wert
   und können Hinweise auf andere Arten geben.
@@ -199,6 +230,18 @@ Ausgrabung wählen (Schicht / Fundort)
   Schicht-ID und `GameRandom`, Ausgabe der `Find` samt Grundqualität). Parameter in
   `balance.json: finds`, geprüft im Schema und im `DataValidator`. Der Stat `quality_base_min` hebt
   die Untergrenze der Grundqualität an. Platziert und gespeichert werden Funde erst mit AP2-05.
+- **Stand nach AP2-05:** Die Grabungsfläche (`ExcavationSite`) mit Raster, Erdtiefen und platzierten
+  Funden steht in `core` (Kapitel 3 und 4), ohne Screen (AP2-07). Werkzeuge liegen in `tools.json`
+  (Namen `tool.<id>.name` in den Locale-Dateien), die Flächenparameter in `balance.json: excavation`.
+  **Übergang bis AP2-06:** Jeder Knochen belegt als Platzhalter dasselbe Rechteck
+  `excavation.placeholderFootprint` (Start 4 x 3 Zellen). Die Platzierung arbeitet über die
+  Schnittstelle `BoneFootprints` mit beliebigen Zellmengen; AP2-06/07 übergibt dort Umrisse aus den
+  Knochenmasken, ohne dass sich die Platzierung ändert. Die belegten Zellen werden pro Knochen
+  gespeichert, laufende Ausgrabungen bleiben also gültig, wenn sich die Umrisse ändern. Der Spielstand
+  hat `saveVersion` 4 mit dem Feld `excavation` (laufende Ausgrabung oder `null`); die Migration 3 -> 4
+  setzt `null`. Die Tiefen werden kompakt als Base64 von 16-Bit-Werten gespeichert (daher
+  `depthMax` höchstens 65535). Beim Import werden auch die Funde der Ausgrabung gegen die Spieldaten
+  geprüft (Arten, Knochen, Zusammenhang, Schicht).
 
 ## 11. Entscheidungen im Überblick
 
@@ -294,7 +337,9 @@ AP2-06 und AP2-10 hängen nur an AP2-01 und können vorgezogen werden.
 
 - Endgültiger Name (Arbeitstitel „Fossil Collector“).
 - Konkrete Balancing-Werte (Fundgrößen, Schaden, Preise, Ansehen) nach dem ersten Playtest.
-- Größe der Grabungsfläche und Anzahl Funde pro Ausgrabung.
+- Größe der Grabungsfläche und Anzahl Funde pro Ausgrabung (Startwerte seit AP2-05 in
+  `balance.json: excavation`, endgültig nach dem Playtest).
+- Knochengröße in Zellen, sobald die Umrisse aus AP2-06 kommen (Zellen pro Modelleinheit).
 - Ob ein kurzes Tutorial nötig ist.
 
 ## 14. Änderungsprotokoll
@@ -311,3 +356,8 @@ AP2-06 und AP2-10 hängen nur an AP2-01 und können vorgezogen werden.
   Fundgrößen-Tabelle, gleichverteilter Startknochen und Erweiterung über den Rand, gleichverteilte
   Grundqualität mit `quality_base_min` als Untergrenze, gleichverteilte Abweichung pro Knochen,
   Startwerte vorläufig). Kapitel 10 um den Stand nach AP2-04 ergänzt.
+- **AP2-05 (2026-11-14):** Kapitel 3 um die Umsetzung der Grabungsfläche ergänzt (Raster, Werkzeuge in
+  `tools.json`, Aktion „Werkzeug wirkt auf Bereich“, Hinweis-Schwelle, Schaden einmal pro Knochen und
+  Anwendung, „entdeckt“ ab einer freiliegenden Zelle, „nichts mehr zu finden“). Kapitel 4 „Lage“ um die
+  Platzierung ergänzt. Kapitel 10 um den Stand nach AP2-05 (Platzhalter-Umriss bis AP2-06, Spielstand
+  Version 4). Kapitel 13 präzisiert.
