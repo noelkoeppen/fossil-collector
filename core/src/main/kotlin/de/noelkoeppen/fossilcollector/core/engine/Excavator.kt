@@ -2,6 +2,7 @@ package de.noelkoeppen.fossilcollector.core.engine
 
 import de.noelkoeppen.fossilcollector.core.data.GameData
 import de.noelkoeppen.fossilcollector.core.data.ToolDefinition
+import de.noelkoeppen.fossilcollector.core.data.ToolStage
 import de.noelkoeppen.fossilcollector.core.model.BoneRef
 import de.noelkoeppen.fossilcollector.core.model.ExcavationSite
 import de.noelkoeppen.fossilcollector.core.model.Piece
@@ -79,10 +80,12 @@ class Excavator(
      * es wirken nur Zellen im Raster.
      *
      * @throws NoSuchElementException wenn das Werkzeug unbekannt ist
-     * @throws IllegalArgumentException wenn der Ansatzpunkt nicht endlich ist
+     * @throws IllegalArgumentException wenn das Werkzeug nicht zum groben Buddeln gehoert (`stage`)
+     *   oder der Ansatzpunkt nicht endlich ist
      */
     fun applyTool(site: ExcavationSite, toolId: String, centerX: Double, centerY: Double): ToolResult {
         val tool = data.tool(toolId)
+        require(tool.stage == ToolStage.DIG) { "Werkzeug $toolId gehoert nicht zum groben Buddeln" }
         val cells = cellsInReach(site, tool, centerX, centerY)
         val depths = site.depthsCopy()
         var removed = 0

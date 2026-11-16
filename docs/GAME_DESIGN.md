@@ -71,10 +71,12 @@ Umsetzung (AP2-05, `ExcavationGenerator` und `Excavator` in `core`, Parameter in
   gleichverteilt zwischen `depthMin` und `depthMax` (Start 60 bis 100).
 - **Funde:** Anzahl aus der gewichteten Tabelle `findCountWeights` (Start 2: 30, 3: 40, 4: 30), jeder
   Fund gewürfelt nach Kapitel 4 und platziert wie unter „Lage“ beschrieben.
-- **Werkzeuge** (`tools.json`): Abtrag pro Anwendung und Zelle (`removal`), Wirkradius in Zellen
+- **Werkzeuge** (`tools.json`): Einsatzbereich `stage` (`dig` = grobes Buddeln, `prepare` = feines
+  Freilegen nach 5.1, seit AP2-08), Abtrag pro Anwendung und Zelle (`removal`), Wirkradius in Zellen
   (`radius`), `rough` (grob ja/nein), `boneDamage` (Qualitätsverlust pro Treffer, nur bei groben
-  Werkzeugen > 0) und `strokeSpacing` (Abstand der Anwendungen beim Wischen in Zellen, seit AP2-07).
-  Startwerte: Schaufel 20 / 2.5 / grob / 0.08 / 2.5, Kelle 6 / 1.5 / nicht grob / 0 / 1.5.
+  Werkzeugen > 0), `strokeSpacing` (Abstand der Anwendungen beim Wischen in Zellen, seit AP2-07) und
+  `removesHard` (löst harte Stellen der Restschicht, nur `prepare`, seit AP2-08). Startwerte grobes
+  Buddeln: Schaufel 20 / 2.5 / grob / 0.08 / 2.5, Kelle 6 / 1.5 / nicht grob / 0 / 1.5.
 - **Aktion „Werkzeug wirkt auf Bereich“:** Eingabe Werkzeug-ID und Ansatzpunkt in Zellkoordinaten.
   Betroffen sind alle Zellen, deren Mittelpunkt höchstens `radius` vom Ansatzpunkt entfernt ist; dort
   wird bis zu `removal` Erde abgetragen. Ergebnis als Daten: neue Fläche, abgetragene Erde, geänderte
@@ -90,7 +92,8 @@ Umsetzung (AP2-05, `ExcavationGenerator` und `Excavator` in `core`, Parameter in
   immer erhalten (Kapitel 5). Nicht grobe Werkzeuge beschädigen nie.
 - **Entdeckt und „nichts mehr zu finden“:** Ein Knochen gilt als entdeckt („man stößt auf ihn“),
   sobald eine seiner Zellen frei liegt. Sind alle Knochen der Fläche entdeckt, ist nichts mehr zu
-  finden. Das Freilegen der Restschicht folgt in 5.1 (AP2-08).
+  finden. Das Freilegen der Restschicht folgt in 5.1 (AP2-08): Ein entdeckter Knochen lässt sich in
+  der Nahansicht öffnen (langes Drücken auf den Knochen oder „Freilegen“ in der Anzeige oben).
 - **Umrisse der Knochen** (seit AP2-07): aus den Umrissmasken der Knochenbilder (Kapitel 8) mit
   `excavation.cellsPerUnit` Zellen pro Modelleinheit (Start 8), ohne Drehung. Eine Zelle gilt als
   belegt, wenn mindestens 5 % ihrer Fläche Knochen ist, jeder Knochen hat mindestens eine Zelle.
@@ -183,6 +186,56 @@ Screen grobes Buddeln (AP2-07):
 - Gleiche Wisch-Bedienung wie beim groben Buddeln, nur feiner.
 - Upgrade-Ideen: weicherer Pinsel, präziserer Kratzer, Kratzer verzeiht kurze Berührungen.
 
+Umsetzung (AP2-08, `PreparationGenerator` und `Preparer` in `core`, Parameter in
+`balance.json: preparation` und `tools.json`, Startwerte vorläufig bis zum Playtest):
+- **Nahansicht pro Knochen:** Die Nahansicht gehört zu genau einem entdeckten Knochen, nicht zum
+  ganzen Fund. Begründung: Qualität, Freilegen (hier „Der Knochen steckt …“) und Bergen (5.2, AP2-09
+  „danach liegt der Knochen im Inventar“) sind pro Knochen; Knochen eines Fundes werden einzeln
+  entdeckt, ein Nachbar kann noch unter grober Erde liegen.
+- **Öffnen:** auf der Fläche langes Drücken auf einen entdeckten Knochen (Systemzeit für langes
+  Drücken, Bediengeste) oder „Freilegen“ beim zuletzt entdeckten bzw. getroffenen Knochen. Beim
+  ersten Öffnen entsteht die Restschicht; die restliche grobe Erde über den Zellen dieses Knochens
+  fällt dabei weg (ab dann liegt über ihm nur die Restschicht). Weitere Öffnungen zeigen den
+  gespeicherten Stand. „Zur Fläche“ bzw. Zurück schließt die Nahansicht.
+- **Raster:** das Rechteck der Zellen des Knochens plus `margin` Zellen Rand (Start 1), jede Zelle
+  in `subdivision` x `subdivision` feine Zellen geteilt (Start 4, also 12 Bildpixel je feiner
+  Zelle beim Höhlenbären). Der Oberschenkel hat so 44 x 16 feine Zellen.
+- **Knochenzellen:** der feine Umriss `fineRows` aus `data/footprints/<speciesId>.json`
+  (Kapitel 8), wenn die gespeicherten Zellen dem Umriss entsprechen; sonst (Spielstand mit
+  Platzhalter-Zellen) alle feinen Zellen der belegten Zellen. Sie werden mit der Nahansicht
+  gespeichert.
+- **Restschicht:** jede feine Zelle trägt lose Erde mit Dicke gleichverteilt in
+  `looseDepthMin..looseDepthMax` (Start 3 bis 6). Harte Stellen: im Mittel `hardSpotsPerCell`
+  (Start 0,35) je Zelle des Knochens in der Fläche (Anzahl `floor(n * hardSpotsPerCell + u)`),
+  jede ein Kreis um eine zufällige Knochenzelle mit Radius in `hardSpotRadiusMin..hardSpotRadiusMax`
+  feinen Zellen (Start 1 bis 2,5) und Dicke in `hardDepthMin..hardDepthMax` (Start 4 bis 8).
+  Zufall nur über `GameRandom`, gleiche Reihenfolge, gleicher Seed, gleiche Restschicht.
+- **Aktion „Werkzeug wirkt auf Bereich“** wie beim groben Buddeln, in feinen Zellen: betroffen
+  sind alle feinen Zellen, deren Mittelpunkt höchstens `radius` vom Ansatzpunkt entfernt ist. Lose
+  Erde trägt jedes Werkzeug ab (`removal`), harte Stellen nur ein Werkzeug mit `removesHard`.
+  Startwerte (`removal` / `radius` / grob / `boneDamage` / `strokeSpacing` / `removesHard`): Pinsel
+  1 / 2.0 / nicht grob / 0 / 1.0 / nein, Kratzer 10 / 1.0 / grob / 0.005 / 1.0 / ja. Der Pinsel
+  braucht für lose Erde ein bis zwei Wischzüge, der Kratzer löst jede Stelle mit einer Anwendung.
+- **Schaden-Regel:** Der Kratzer trifft den Knochen, wenn in seinem Wirkbereich eine Knochenzelle
+  liegt, auf der schon **vor dieser Wischbewegung** keine Restschicht mehr lag. Zellen, die erst im
+  selben Zug frei geworden sind, zählen nicht (sonst würde jeder Zug über eine harte Stelle den
+  Knochen treffen, weil sich die Anwendungen beim Wischen überlappen). Ein neuer Zug über eben
+  freigelegten Knochen trifft. Jede Anwendung mit Treffer kostet einmal
+  `boneDamage * (1 - damage_reduction)`, höchstens bis Qualität 0. Der Pinsel beschädigt nie.
+  Tipp für Spieler: harte Stellen zuerst abkratzen, solange lose Erde drumherum liegt.
+- **Fortschritt:** Anteil der Knochenzellen ohne Restschicht. **Fertig freigelegt** ist der
+  Knochen, sobald der Anteil `finishedShare` (Start 0,95) erreicht; der Zustand wird gespeichert und
+  bleibt (auch wenn sich die Schwelle ändert). Das Ergebnis des Freilegens ist die Qualität des
+  Knochens im Fund und der Zustand „fertig“ seiner Nahansicht; daran schließt das Bergen an
+  (AP2-09). Weiterarbeiten nach „fertig“ ist erlaubt.
+- **Screen:** Nahansicht mit Boden der Grube, Knochenbild und Restschicht darüber (Kapitel 8),
+  gleiche Gesten wie beim groben Buddeln (ein Finger arbeitet, zwei verschieben und zoomen, Zoom 1
+  bis 4). Oben Name und Qualität des Knochens (rot mit „Getroffen!“ nach einem Treffer, dazu leuchtet
+  die Stelle kurz rot auf), Fortschrittsbalken mit Prozent und eine kurze Bedienhilfe, bei „fertig“
+  eine Meldung. Unten Pinsel/Kratzer und „Zur Fläche“. Gespeichert wird wie beim groben Buddeln nach
+  jeder Wischbewegung sowie beim Öffnen und Schließen. Welche Nahansicht offen ist, ist Bedienzustand
+  und wird nicht gespeichert (nach dem Neustart öffnet die App die Fläche).
+
 ### 5.2 Bergen: Sichern und heben
 - Brüchige Stellen am Knochen leuchten auf und müssen mit Gips gesichert werden (antippen).
 - Danach wird der Knochen mit ruhigem Ziehen herausgehoben. Ruckartige Bewegungen und ungesicherte
@@ -234,6 +287,15 @@ Screen grobes Buddeln (AP2-07):
     und dazu die Lage des Bilds relativ zu diesen Zellen (`imageLeft`, `imageTop` in Bildpixeln). Den
     Maßstab `cellsPerUnit` liest es aus `balance.json`; die CI prüft mit `--check`, der
     `DataValidator` prüft Vollständigkeit, Maßstab und dass jeder Umriss in die Fläche passt.
+  - Feine Umrisse (AP2-08): `bone_footprints.py` schreibt je Knochen zusätzlich `fineRows`, das
+    Rechteck des Umrisses in `preparation.subdivision` x `subdivision` feine Zellen geteilt, `#`
+    dort, wo mindestens `fineCoverage` (Skript-Parameter, Standard 0,5) der feinen Zelle Knochen
+    ist. Die Unterteilung liest es aus `balance.json`; `formatVersion` der Datei ist 2.
+  - Nahansicht (AP2-08): Boden der Grube und Knochenbild wie in der Fläche, darüber die Restschicht
+    als kleines Bild (8 Pixel je feiner Zelle, gestreckt und gefiltert, Kanten weich interpoliert
+    und ausgefranst). Lose Erde ist heller, feinkörniger Sand und leicht durchscheinend (der Knochen
+    zeichnet sich schwach ab), harte Stellen sind dunkle, rotbraune, fleckige Kruste und decken.
+    Nach einer Aktion wird nur der geänderte Ausschnitt neu gerechnet.
   - Grabungsfläche (AP2-07): kein sichtbares Raster. Unten der Boden der Grube (Gesteinstextur der
     Schicht, abgedunkelt) mit den Knochenbildern an ihren Zellen, darüber die Erde als
     Gesteinstextur, ausgestanzt mit einer Erdmaske. Die Maske (8 Pixel je Zelle, gestreckt und
@@ -314,6 +376,15 @@ Screen grobes Buddeln (AP2-07):
   auf dem Rechteck. **Übergang bis AP2-08/09:** „Ausgrabung beenden“ setzt `excavation` auf `null`;
   gefundene Knochen werden noch nicht freigelegt, geborgen oder ins Inventar gelegt, sie entfallen mit
   der Fläche. Wie es nach dem groben Buddeln weitergeht, legen AP2-08 und AP2-09 fest.
+- **Stand nach AP2-08:** Feines Freilegen ist spielbar (Kapitel 5.1). Werkzeuge haben ein Feld
+  `stage` (`dig`/`prepare`) und `removesHard`; Schaufel und Kelle wirken nur auf der Fläche, Pinsel
+  und Kratzer nur in der Nahansicht. Die Fläche speichert je begonnenem Knochen eine Nahansicht
+  (`preparations`: Raster, Ursprung, Unterteilung, Restschicht als Base64 mit einem Byte je feiner
+  Zelle, Bit 7 hart, Bits 0..6 Dicke, daher Dicke höchstens 127; Knochenzellen als Bitfeld; `finished`).
+  Der Spielstand hat `saveVersion` 5; die Migration 4 -> 5 ergänzt in einer laufenden Ausgrabung
+  `preparations: []`. **Übergang bis AP2-09:** „Ausgrabung beenden“ setzt `excavation` weiter auf
+  `null`; freigelegte Knochen samt Qualität entfallen mit der Fläche, bis AP2-09 sie bergen und ins
+  Inventar legen lässt.
 
 ## 11. Entscheidungen im Überblick
 
@@ -332,6 +403,7 @@ Screen grobes Buddeln (AP2-07):
 | Knochenbilder | Liegelage pro Knochen (Seite mit der größten Fläche), einheitlicher Maßstab pro Art |
 | Knochenumrisse in der Fläche | aus den Masken, 8 Zellen pro Modelleinheit (vorläufig), ohne Drehung (ab AP2-07) |
 | Wischen | eine Anwendung je `strokeSpacing` Zellen Wischweg, ein Finger gräbt, zwei verschieben/zoomen |
+| Nahansicht | pro Knochen, feines Raster (4 x 4 je Zelle), Restschicht lose/hart, Kratzer trifft nur Knochen, der vor dem Zug schon frei lag (ab AP2-08) |
 | Erster Stand | nur Höhlenbär, weitere Arten einzeln |
 
 ## 12. Arbeitspakete
@@ -418,6 +490,10 @@ AP2-06 und AP2-10 hängen nur an AP2-01 und können vorgezogen werden.
   im Mittel nur rund 44 von 1 536 Zellen (knapp 3 %).
 - Tempo beim Wischen (`strokeSpacing`) und ob ein Hinweis bei der Schaufel lange genug sichtbar ist
   (ein Wischzug kann eine Zelle zweimal treffen), nach dem Playtest.
+- Feines Freilegen (AP2-08): Schaden des Kratzers (`boneDamage` 0.005 je Anwendung, ein ganzer Zug
+  über den freien Oberschenkel kostet rund 0,16 Qualität), Menge und Größe der harten Stellen, Tempo
+  des Pinsels und die Schwelle `finishedShare`, nach dem Playtest. Ob langes Drücken zum Öffnen der
+  Nahansicht gut auffindbar ist.
 - Ob ein kurzes Tutorial nötig ist.
 
 ## 14. Änderungsprotokoll
@@ -451,3 +527,10 @@ AP2-06 und AP2-10 hängen nur an AP2-01 und können vorgezogen werden.
   bezogen. Kapitel 8 um `bone_footprints.py` und die Darstellung der Fläche ergänzt. Kapitel 10 um
   den Stand nach AP2-07 samt Übergang bis AP2-08/09, Kapitel 11 um das Wischen, Kapitel 13 um offene
   Balancing-Punkte.
+- **AP2-08 (2026-11-16):** Kapitel 5.1 um die Umsetzung des feinen Freilegens ergänzt (Nahansicht
+  pro Knochen mit Begründung, Öffnen, feines Raster, Restschicht mit losen und harten Stellen,
+  Pinsel und Kratzer, Schaden-Regel „vor dem Zug schon frei“, Fortschritt und „fertig freigelegt“,
+  Screen). Präzisierung: Beim ersten Öffnen fällt die restliche grobe Erde über dem Knochen weg.
+  Kapitel 3 um `stage`/`removesHard` der Werkzeuge und das Öffnen, Kapitel 8 um `fineRows` und die
+  Darstellung der Restschicht, Kapitel 10 um den Stand nach AP2-08 (Spielstand Version 5, Übergang
+  bis AP2-09), Kapitel 11 und 13 ergänzt.

@@ -19,6 +19,8 @@ data class BalanceDefinition(
     val finds: FindBalance,
     /** Parameter der Grabungsflaeche (Kapitel 3). */
     val excavation: ExcavationBalance,
+    /** Parameter des feinen Freilegens (Kapitel 5.1, AP2-08). */
+    val preparation: PreparationBalance,
 )
 
 /** Eine Qualitaetsstufe: gilt ab [minQuality] (inklusive) bis zur naechsten Stufe. */
@@ -99,4 +101,37 @@ data class ExcavationBalance(
 data class FindCountWeight(
     val count: Int,
     val weight: Double,
+)
+
+/**
+ * Parameter des feinen Freilegens (Kapitel 5.1, AP2-08), verwendet von `PreparationGenerator` und
+ * `Preparer`. Startwerte vorlaeufig bis zum Playtest.
+ *
+ * Die Nahansicht eines Knochens ist ein feines Raster: jede Zelle der Flaeche in [subdivision] x
+ * [subdivision] feine Zellen geteilt, ueber dem Rechteck des Knochens plus [margin] Zellen Rand. Jede
+ * feine Zelle traegt eine duenne Restschicht: lose Erde mit Dicke gleichverteilt in
+ * `[looseDepthMin, looseDepthMax]`, an harten Stellen stattdessen harte Erde mit Dicke in
+ * `[hardDepthMin, hardDepthMax]`. Harte Stellen sind Kreise mit Radius in
+ * `[hardSpotRadiusMin, hardSpotRadiusMax]` feinen Zellen um zufaellige Knochenzellen; ihre Anzahl
+ * ist im Mittel [hardSpotsPerCell] je Zelle, die der Knochen in der Flaeche belegt. Fertig
+ * freigelegt ist der Knochen, sobald mindestens [finishedShare] seiner feinen Zellen frei liegen.
+ */
+@Serializable
+data class PreparationBalance(
+    /** Feine Zellen je Zelle und Achse; `bone_footprints.py` liest den Wert von hier. */
+    val subdivision: Int,
+    /** Rand um das Rechteck des Knochens in Zellen der Flaeche. */
+    val margin: Int,
+    val looseDepthMin: Int,
+    val looseDepthMax: Int,
+    val hardDepthMin: Int,
+    val hardDepthMax: Int,
+    /** Mittlere Anzahl harter Stellen je Zelle, die der Knochen in der Flaeche belegt. */
+    val hardSpotsPerCell: Double,
+    /** Kleinster Radius einer harten Stelle in feinen Zellen. */
+    val hardSpotRadiusMin: Double,
+    /** Groesster Radius einer harten Stelle in feinen Zellen. */
+    val hardSpotRadiusMax: Double,
+    /** Anteil freiliegender Knochenzellen, ab dem der Knochen fertig freigelegt ist (0 < x <= 1). */
+    val finishedShare: Double,
 )

@@ -4,6 +4,7 @@ import androidx.compose.runtime.Immutable
 import de.noelkoeppen.fossilcollector.core.data.BoneFootprintDefinition
 import de.noelkoeppen.fossilcollector.core.data.GameData
 import de.noelkoeppen.fossilcollector.core.data.LayerTexture
+import de.noelkoeppen.fossilcollector.core.data.ToolStage
 import de.noelkoeppen.fossilcollector.core.engine.Excavator
 import de.noelkoeppen.fossilcollector.core.model.BoneRef
 import de.noelkoeppen.fossilcollector.core.model.ExcavationSite
@@ -15,6 +16,9 @@ import de.noelkoeppen.fossilcollector.core.model.ExcavationSite
  *
  * @property footprint Umriss aus den Daten (fuer die Lage des Bilds) oder `null`
  * @property pxPerCell Bildpixel je Zelle der Art
+ * @property preparationProgress Fortschritt des feinen Freilegens (AP2-08) oder `null`, wenn es
+ *   noch nicht begonnen hat
+ * @property prepared fertig freigelegt (Kapitel 5.1)
  */
 @Immutable
 data class DigBone(
@@ -26,6 +30,8 @@ data class DigBone(
     val pxPerCell: Int,
     val quality: Double,
     val discovered: Boolean,
+    val preparationProgress: Double? = null,
+    val prepared: Boolean = false,
 )
 
 /**
@@ -33,7 +39,7 @@ data class DigBone(
  *
  * @property site laufende Flaeche (unveraenderlich); die UI liest daraus die Tiefen
  * @property hinted je Zelle, ob sie einen Hinweis zeigt (aus `Excavator.isHinted`); nicht veraendern
- * @property tools Werkzeug-IDs in Datenreihenfolge
+ * @property tools Werkzeug-IDs des groben Buddelns (`stage` = `dig`) in Datenreihenfolge
  * @property selectedTool gewaehltes Werkzeug
  * @property discoveredCount entdeckte Knochen
  * @property nothingLeftToFind alle Knochen entdeckt (Meldung „keine Knochen mehr“)
@@ -57,6 +63,19 @@ class DigUiState(
     fun bone(ref: BoneRef): DigBone? = bones.firstOrNull { it.ref == ref }
 
     companion object {
+        /**
+         * Entdeckter Knochen an Position ([x], [y]) in Zellkoordinaten oder `null` (Ziel fuer das
+         * Oeffnen der Nahansicht, AP2-08).
+         */
+        fun discoveredBoneAt(dig: DigUiState, x: Double, y: Double): BoneRef? {
+            if (!x.isFinite() || !y.isFinite() || x < 0.0 || y < 0.0) return null
+            val cx = x.toInt()
+            val cy = y.toInt()
+            if (!dig.site.contains(cx, cy)) return null
+            val ref = dig.site.boneAt(cx, cy) ?: return null
+            return ref.takeIf { dig.site.isDiscovered(it) }
+        }
+
         /** Baut den Anzeigezustand aus Flaeche und Daten. Reine Funktion. */
         fun from(
             site: ExcavationSite,
@@ -78,6 +97,8 @@ class DigUiState(
                     pxPerCell = footprints?.pxPerCell ?: 1,
                     quality = piece.quality,
                     discovered = site.isDiscovered(ref),
+                    preparationProgress = site.preparation(ref)?.progress,
+                    prepared = site.isPrepared(ref),
                 )
             }
             val layer = data.layer(site.layerId)
@@ -85,7 +106,7 @@ class DigUiState(
                 site = site,
                 hinted = hinted,
                 bones = bones,
-                tools = data.tools.map { it.id },
+                tools = data.tools.filter { it.stage == ToolStage.DIG }.map { it.id },
                 selectedTool = selectedTool,
                 discoveredCount = bones.count { it.discovered },
                 nothingLeftToFind = site.nothingLeftToFind,

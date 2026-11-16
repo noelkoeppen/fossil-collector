@@ -179,13 +179,88 @@
         "cellsPerUnit"
       ],
       "additionalProperties": false
+    },
+    "preparation": {
+      "type": "object",
+      "description": "Feines Freilegen (Kapitel 5.1, AP2-08): feines Raster, Restschicht mit losen und harten Stellen, Schwelle fuer fertig",
+      "properties": {
+        "subdivision": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Feine Zellen je Zelle und Achse; bone_footprints.py liest den Wert von hier"
+        },
+        "margin": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Rand um das Rechteck des Knochens in Zellen der Flaeche"
+        },
+        "looseDepthMin": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 127,
+          "description": "Kleinste Dicke loser Erde (Einheiten der Restschicht)"
+        },
+        "looseDepthMax": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 127,
+          "description": "Groesste Dicke loser Erde"
+        },
+        "hardDepthMin": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 127,
+          "description": "Kleinste Dicke einer harten Stelle"
+        },
+        "hardDepthMax": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 127,
+          "description": "Groesste Dicke einer harten Stelle"
+        },
+        "hardSpotsPerCell": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Mittlere Anzahl harter Stellen je Zelle des Knochens in der Flaeche"
+        },
+        "hardSpotRadiusMin": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "Kleinster Radius einer harten Stelle in feinen Zellen"
+        },
+        "hardSpotRadiusMax": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "Groesster Radius einer harten Stelle in feinen Zellen"
+        },
+        "finishedShare": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1,
+          "description": "Anteil freiliegender Knochenzellen, ab dem der Knochen fertig freigelegt ist"
+        }
+      },
+      "required": [
+        "subdivision",
+        "margin",
+        "looseDepthMin",
+        "looseDepthMax",
+        "hardDepthMin",
+        "hardDepthMax",
+        "hardSpotsPerCell",
+        "hardSpotRadiusMin",
+        "hardSpotRadiusMax",
+        "finishedShare"
+      ],
+      "additionalProperties": false
     }
   },
   "required": [
     "qualityTiers",
     "statLimits",
     "finds",
-    "excavation"
+    "excavation",
+    "preparation"
   ],
   "additionalProperties": false
 }

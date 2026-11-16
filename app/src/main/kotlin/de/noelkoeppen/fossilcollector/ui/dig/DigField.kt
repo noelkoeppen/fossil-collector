@@ -3,11 +3,6 @@ package de.noelkoeppen.fossilcollector.ui.dig
 import android.graphics.Bitmap
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.calculateCentroid
-import androidx.compose.foundation.gestures.calculatePan
-import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -33,8 +28,6 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.CanvasDrawScope
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.withTransform
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.input.pointer.positionChanged
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Density
@@ -42,6 +35,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.LayoutDirection
 import de.noelkoeppen.fossilcollector.core.data.LayerTexture
+import de.noelkoeppen.fossilcollector.core.model.BoneRef
 import de.noelkoeppen.fossilcollector.core.model.ExcavationSite
 import de.noelkoeppen.fossilcollector.vm.DigUiState
 import kotlin.math.roundToInt
@@ -50,11 +44,12 @@ import kotlin.math.roundToInt
  * Grabungsflaeche des groben Buddelns (AP2-07, Kapitel 3 und 8): Boden mit Knochenbildern, darueber
  * die Erde als Maske ([EarthRaster]) ueber der Gesteinstextur der Schicht, ohne sichtbares Raster.
  *
- * Bedienung: Ein Finger graebt. Die Anwendung startet erst, wenn sich der Finger um die Beruehrungs-
- * Toleranz bewegt hat oder wieder abhebt (Tippen = eine Anwendung); setzt vorher ein zweiter Finger
- * auf, wird nicht gegraben. Zwei Finger verschieben und zoomen ([DigViewport]). Die Positionen gehen
- * als Zellkoordinaten an [onDigStart]/[onDigMove]; wie oft daraus Anwendungen werden, entscheidet
- * `DigStroke` in `core`.
+ * Bedienung ([digGestures]): Ein Finger graebt. Die Anwendung startet erst, wenn sich der Finger um
+ * die Beruehrungs-Toleranz bewegt hat oder wieder abhebt (Tippen = eine Anwendung); setzt vorher ein
+ * zweiter Finger auf, wird nicht gegraben. Zwei Finger verschieben und zoomen ([DigViewport]). Die
+ * Positionen gehen als Zellkoordinaten an [onDigStart]/[onDigMove]; wie oft daraus Anwendungen
+ * werden, entscheidet `DigStroke` in `core`. Langes Druecken auf einen entdeckten Knochen oeffnet
+ * seine Nahansicht ([onOpenBone], feines Freilegen, AP2-08).
  *
  * Leistung: Kein Element pro Zelle. Alles wird in einer Zeichenfunktion gezeichnet; Verschieben,
  * Zoomen und die Schadensmarkierung zeichnen nur neu, ohne Recomposition. Die Erde ist ein kleines
@@ -67,6 +62,7 @@ fun DigField(
     onDigStart: (Double, Double) -> Unit,
     onDigMove: (Double, Double) -> Unit,
     onDigEnd: () -> Unit,
+    onOpenBone: (BoneRef) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -91,9 +87,14 @@ fun DigField(
             flash.animateTo(0f, tween(FLASH_MILLIS))
         }
     }
-    val start by rememberUpdatedState(onDigStart)
-    val move by rememberUpdatedState(onDigMove)
-    val end by rememberUpdatedState(onDigEnd)
+    val callbacks = rememberUpdatedState(
+        DigGestureCallbacks(
+            onStart = onDigStart,
+            onMove = onDigMove,
+            onEnd = onDigEnd,
+            onLongPress = { x, y -> openBoneAt(currentDig, x, y, onOpenBone) },
+        ),
+    )
 
     Box(
         modifier = modifier
@@ -103,48 +104,7 @@ fun DigField(
                 val h = size.height.toFloat()
                 viewport.value = viewport.value?.resized(w, h) ?: DigViewport.fit(w, h, cols, rows)
             }
-            .pointerInput(cols, rows) {
-                awaitEachGesture {
-                    val down = awaitFirstDown(requireUnconsumed = false)
-                    var digging = false
-                    var transforming = false
-                    fun cell(position: Offset): Pair<Double, Double>? = viewport.value?.screenToCell(position.x, position.y)
-                    do {
-                        val event = awaitPointerEvent()
-                        val pressed = event.changes.count { it.pressed }
-                        if (pressed >= 2) {
-                            if (digging) {
-                                end()
-                                digging = false
-                            }
-                            transforming = true
-                            val current = viewport.value
-                            if (current != null) {
-                                val centroid = event.calculateCentroid(useCurrent = true)
-                                val pan = event.calculatePan()
-                                viewport.value = current.transformed(centroid.x, centroid.y, pan.x, pan.y, event.calculateZoom())
-                            }
-                            event.changes.forEach { if (it.positionChanged()) it.consume() }
-                        } else if (!transforming) {
-                            val change = event.changes.firstOrNull { it.id == down.id } ?: continue
-                            if (!digging && change.pressed && (change.position - down.position).getDistance() > viewConfiguration.touchSlop) {
-                                cell(down.position)?.let { (x, y) -> start(x, y) }
-                                digging = true
-                            }
-                            if (digging && change.pressed && change.positionChanged()) {
-                                cell(change.position)?.let { (x, y) -> move(x, y) }
-                                change.consume()
-                            }
-                            if (!change.pressed && !digging) {
-                                // Tippen ohne Bewegung: eine Anwendung.
-                                cell(down.position)?.let { (x, y) -> start(x, y) }
-                                digging = true
-                            }
-                        }
-                    } while (event.changes.any { it.pressed })
-                    if (digging) end()
-                }
-            }
+            .digGestures(cols to rows, viewport, callbacks)
             .drawWithCache {
                 val fit = DigViewport.fit(size.width, size.height, cols, rows)
                 val base = IntSize((cols * fit.baseCellPx).roundToInt().coerceAtLeast(1), (rows * fit.baseCellPx).roundToInt().coerceAtLeast(1))
@@ -163,6 +123,13 @@ fun DigField(
                 }
             },
     )
+}
+
+/** Langes Druecken an ([x], [y]): oeffnet die Nahansicht, wenn dort ein entdeckter Knochen liegt. */
+private fun openBoneAt(dig: DigUiState, x: Double, y: Double, onOpenBone: (BoneRef) -> Unit): Boolean {
+    val ref = DigUiState.discoveredBoneAt(dig, x, y) ?: return false
+    onOpenBone(ref)
+    return true
 }
 
 /** Zeichnet Boden, Knochen, Erde und Schadensmarkierung in Flaechenpixeln bei Zoom 1. */
@@ -212,7 +179,7 @@ private fun DrawScope.drawSite(
 }
 
 /** Gesteinstextur der Schicht als Bitmap in Flaechengroesse (einmal je Groesse). */
-private fun renderTexture(size: IntSize, palette: LayerTexturePalette, texture: LayerTexture, layerId: String, density: Density): ImageBitmap {
+internal fun renderTexture(size: IntSize, palette: LayerTexturePalette, texture: LayerTexture, layerId: String, density: Density): ImageBitmap {
     val image = ImageBitmap(size.width, size.height)
     val pattern = LayerTexturePattern.generate(
         texture,

@@ -131,10 +131,64 @@ class SaveRoundTripTest {
     fun runningExcavationIsStoredCompactly() {
         val text = codec.encode(SaveFixtures.withExcavation())
         val site = Json.parseToJsonElement(text).jsonObject.getValue("excavation").jsonObject
-        assertEquals(setOf("layerId", "width", "height", "depths", "finds"), site.keys)
+        assertEquals(setOf("layerId", "width", "height", "depths", "finds", "preparations"), site.keys)
         assertTrue(site.getValue("depths") is JsonPrimitive, "Tiefen als kompakter Text")
         // 32x48 Zellen: 4 KB Base64 fuer die Tiefen plus Funde; deutlich unter einer JSON-Zahlenliste.
         assertTrue(text.length < 8_000, "Spielstand mit Ausgrabung ist ${text.length} Zeichen lang")
+    }
+
+    // --- Feines Freilegen (AP2-08) ---
+
+    @Test
+    fun runningPreparationRoundTrip() {
+        val state = SaveFixtures.withPreparation()
+        val prep = checkNotNull(state.excavation).preparations.single()
+        assertTrue(prep.progress > 0.0 && prep.progress < 1.0, "teilweise freigelegt: ${prep.progress}")
+        assertTrue((0 until prep.cellCount).any { prep.isHard(it) }, "harte Stellen vorhanden")
+        val text = codec.encode(state)
+        val loaded = codec.decode(text)
+        assertEquals(state, loaded)
+        assertEquals(text, codec.encode(loaded))
+        val loadedPrep = checkNotNull(loaded.excavation).preparations.single()
+        assertTrue(prep.depthsCopy().contentEquals(loadedPrep.depthsCopy()))
+        assertTrue(prep.hardCopy().contentEquals(loadedPrep.hardCopy()))
+        assertTrue(prep.boneCopy().contentEquals(loadedPrep.boneCopy()))
+        assertEquals(prep.progress, loadedPrep.progress)
+        // Qualitaet nach dem Kratzer-Treffer bleibt im Fund.
+        assertEquals(checkNotNull(state.excavation).piece(prep.ref).quality, checkNotNull(loaded.excavation).piece(prep.ref).quality)
+    }
+
+    @Test
+    fun runningPreparationIsStoredCompactly() {
+        val state = SaveFixtures.withPreparation()
+        val prep = checkNotNull(state.excavation).preparations.single()
+        val text = codec.encode(state)
+        val stored = Json.parseToJsonElement(text).jsonObject.getValue("excavation").jsonObject
+            .getValue("preparations").jsonArray.single().jsonObject
+        assertEquals(
+            setOf("findIndex", "boneId", "originX", "originY", "subdivision", "width", "height", "residue", "bone", "finished"),
+            stored.keys,
+        )
+        // Ein Byte je feiner Zelle (Base64: 4 Zeichen je 3 Bytes), ein Bit je Zelle fuer den Knochen.
+        val residue = stored.getValue("residue").jsonPrimitive.content
+        assertTrue(residue.length <= (prep.cellCount + 2) / 3 * 4, "Restschicht ${residue.length} Zeichen")
+        val bone = stored.getValue("bone").jsonPrimitive.content
+        assertTrue(bone.length <= ((prep.cellCount + 7) / 8 + 2) / 3 * 4, "Knochenzellen ${bone.length} Zeichen")
+    }
+
+    @Test
+    fun invalidPreparationIsRejected() {
+        val state = SaveFixtures.withPreparation()
+        val base = codec.encode(state)
+        val stored = Json.parseToJsonElement(base).jsonObject.getValue("excavation").jsonObject
+            .getValue("preparations").jsonArray.single().jsonObject
+        val residue = stored.getValue("residue").jsonPrimitive.content
+        val bone = stored.getValue("bone").jsonPrimitive.content
+        assertThrows<SaveException.InvalidContent> { codec.decode(base.replace(residue, "###")) }
+        assertThrows<SaveException.InvalidContent> { codec.decode(base.replace(residue, residue.drop(4))) }
+        assertThrows<SaveException.InvalidContent> { codec.decode(base.replace("\"bone\":\"$bone\"", "\"bone\":\"\"")) }
+        val boneId = stored.getValue("boneId").jsonPrimitive.content
+        assertThrows<SaveException.InvalidContent> { codec.decode(base.replace("\"boneId\":\"$boneId\"", "\"boneId\":\"unknown\"")) }
     }
 
     @Test

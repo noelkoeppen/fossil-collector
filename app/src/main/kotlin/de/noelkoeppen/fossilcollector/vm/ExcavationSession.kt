@@ -1,6 +1,7 @@
 package de.noelkoeppen.fossilcollector.vm
 
 import de.noelkoeppen.fossilcollector.core.data.GameData
+import de.noelkoeppen.fossilcollector.core.data.ToolStage
 import de.noelkoeppen.fossilcollector.core.engine.DigPoint
 import de.noelkoeppen.fossilcollector.core.engine.DigStroke
 import de.noelkoeppen.fossilcollector.core.engine.ExcavationGenerator
@@ -45,8 +46,8 @@ class ExcavationSession(
     private val generator = ExcavationGenerator(data, modifiers)
     private val excavator = Excavator(data, modifiers)
 
-    /** Gewaehltes Werkzeug; zu Beginn das erste aus `tools.json`. */
-    var toolId: String = data.tools.first().id
+    /** Gewaehltes Werkzeug; zu Beginn das erste des groben Buddelns aus `tools.json`. */
+    var toolId: String = data.tools.first { it.stage == ToolStage.DIG }.id
         private set
 
     /** Letzte Rueckmeldung (Schaden, Entdeckung). */
@@ -66,9 +67,12 @@ class ExcavationSession(
         return state.copy(excavation = generator.generate(startLayerId, random))
     }
 
-    /** Werkzeug waehlen; unbekannte IDs werden ignoriert. Eine laufende Wischbewegung endet. */
+    /**
+     * Werkzeug waehlen; unbekannte IDs und Werkzeuge des feinen Freilegens werden ignoriert. Eine
+     * laufende Wischbewegung endet.
+     */
     fun selectTool(id: String): Boolean {
-        if (id !in data.toolsById || id == toolId) return false
+        if (data.toolsById[id]?.stage != ToolStage.DIG || id == toolId) return false
         endStroke()
         toolId = id
         return true
@@ -95,7 +99,7 @@ class ExcavationSession(
         stroke = null
     }
 
-    /** Ausgrabung beenden: Die Flaeche entfaellt (Uebergang bis AP2-08/09, siehe GAME_DESIGN.md Kapitel 10). */
+    /** Ausgrabung beenden: Die Flaeche entfaellt (Uebergang bis AP2-09, siehe GAME_DESIGN.md Kapitel 10). */
     fun end(state: GameState): GameState {
         endStroke()
         feedback = DigFeedback(feedback.sequence + 1, emptyList(), emptyList(), null)

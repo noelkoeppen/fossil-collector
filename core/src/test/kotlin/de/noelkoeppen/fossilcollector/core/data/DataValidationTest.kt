@@ -9,6 +9,7 @@ import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -110,14 +111,89 @@ class DataValidationTest {
 
     @Test
     fun toolsContainShovelAndTrowel() {
-        assertEquals(listOf("shovel", "trowel"), data.tools.map { it.id })
+        val dig = data.tools.filter { it.stage == ToolStage.DIG }
+        assertEquals(listOf("shovel", "trowel"), dig.map { it.id })
         assertTrue(data.tool("shovel").rough)
         assertTrue(data.tool("shovel").boneDamage > 0.0)
         assertEquals(false, data.tool("trowel").rough)
         assertEquals(0.0, data.tool("trowel").boneDamage)
-        data.tools.forEach { assertTrue(it.removal <= data.balance.excavation.hintDepth, it.id) }
+        dig.forEach { assertTrue(it.removal <= data.balance.excavation.hintDepth, it.id) }
+        dig.forEach { assertFalse(it.removesHard, it.id) }
         assertEquals("Schaufel", TextProvider.fromGameData(data, "de").toolName("shovel"))
         assertEquals("Trowel", TextProvider.fromGameData(data, "en").toolName("trowel"))
+    }
+
+    @Test
+    fun toolsContainBrushAndScraper() {
+        val prepare = data.tools.filter { it.stage == ToolStage.PREPARE }
+        assertEquals(listOf("brush", "scraper"), prepare.map { it.id })
+        val brush = data.tool("brush")
+        val scraper = data.tool("scraper")
+        // Pinsel: ungefaehrlich, langsam, nur lose Erde. Kratzer: schnell, loest harte Stellen, beschaedigt.
+        assertFalse(brush.rough)
+        assertFalse(brush.removesHard)
+        assertEquals(0.0, brush.boneDamage)
+        assertTrue(scraper.rough)
+        assertTrue(scraper.removesHard)
+        assertTrue(scraper.boneDamage > 0.0)
+        assertTrue(scraper.removal > brush.removal)
+        assertTrue(scraper.removal >= data.balance.preparation.hardDepthMax, "Kratzer loest eine harte Stelle in einer Anwendung")
+        assertEquals("Pinsel", TextProvider.fromGameData(data, "de").toolName("brush"))
+        assertEquals("Scraper", TextProvider.fromGameData(data, "en").toolName("scraper"))
+    }
+
+    @Test
+    fun balanceContainsPreparationParameters() {
+        val prep = data.balance.preparation
+        assertEquals(4, prep.subdivision)
+        assertTrue(prep.margin >= 0)
+        assertTrue(prep.looseDepthMin in 1..prep.looseDepthMax)
+        assertTrue(prep.hardDepthMin in 1..prep.hardDepthMax)
+        assertTrue(prep.hardSpotRadiusMin <= prep.hardSpotRadiusMax)
+        assertTrue(prep.finishedShare > 0.0 && prep.finishedShare <= 1.0)
+    }
+
+    @Test
+    fun detectsInvalidPreparation() {
+        val errors = errorsOf(DataRepository.BALANCE) {
+            it.replace("\"subdivision\": 4", "\"subdivision\": 0")
+                .replace("\"margin\": 1", "\"margin\": -1")
+                .replace("\"looseDepthMin\": 3", "\"looseDepthMin\": 7")
+                .replace("\"hardDepthMax\": 8", "\"hardDepthMax\": 200")
+                .replace("\"hardSpotsPerCell\": 0.35", "\"hardSpotsPerCell\": -1")
+                .replace("\"hardSpotRadiusMin\": 1.0", "\"hardSpotRadiusMin\": 3.0")
+                .replace("\"finishedShare\": 0.95", "\"finishedShare\": 1.5")
+        }
+        listOf(
+            "preparation: subdivision muss >= 1 sein",
+            "preparation: margin muss >= 0 sein",
+            "preparation: looseDepthMin > looseDepthMax",
+            "preparation: hardDepthMin/hardDepthMax muessen in 1..127 liegen",
+            "preparation: hardSpotsPerCell muss >= 0 sein",
+            "preparation: hardSpotRadiusMin > hardSpotRadiusMax",
+            "preparation: finishedShare muss in (0, 1] liegen",
+        ).forEach { expected -> assertTrue(errors.any { expected in it }, "$expected fehlt in $errors") }
+    }
+
+    @Test
+    fun detectsInvalidPrepareTools() {
+        val errors = errorsOf(DataRepository.TOOLS) {
+            it.replace("\"strokeSpacing\": 1.5, \"removesHard\": false", "\"strokeSpacing\": 1.5, \"removesHard\": true")
+                .replace("\"strokeSpacing\": 1.0, \"removesHard\": true", "\"strokeSpacing\": 1.0, \"removesHard\": false")
+        }
+        listOf(
+            "tools.json/trowel: removesHard gibt es nur beim feinen Freilegen",
+            "tools.json: kein Werkzeug zum feinen Freilegen loest harte Stellen",
+        ).forEach { expected -> assertTrue(errors.any { expected in it }, "$expected fehlt in $errors") }
+        val noPrepare = errorsOf(DataRepository.TOOLS) { it.replace("\"stage\": \"prepare\"", "\"stage\": \"dig\"") }
+        assertTrue(noPrepare.any { "kein Werkzeug fuer stage 'prepare'" in it }, noPrepare.toString())
+    }
+
+    @Test
+    fun rejectsUnknownToolStage() {
+        val repo = patchedRepository(DataRepository.TOOLS) { it.replaceFirst("\"stage\": \"dig\"", "\"stage\": \"blast\"") }
+        val e = assertThrows<DataValidationException> { repo.load() }
+        assertTrue(e.errors.single().startsWith(DataRepository.TOOLS), e.errors.toString())
     }
 
     // --- Der Validator erkennt kaputte Daten ---
@@ -341,6 +417,35 @@ class DataValidationTest {
             "$file/nasal_l: Umriss 40x1 passt nicht in die Flaeche 32x48",
             "$file/nasal_r: leere Randzeile oder -spalte",
             "$file/jugal_l: Zeilen unterschiedlich lang",
+        ).forEach { expected -> assertTrue(errors.any { expected in it }, "$expected fehlt in $errors") }
+    }
+
+    @Test
+    fun everyBoneHasAFineFootprint() {
+        val sub = data.balance.preparation.subdivision
+        data.species.forEach { species ->
+            val footprints = data.footprints.getValue(species.id)
+            assertEquals(sub, footprints.subdivision)
+            footprints.bones.forEach { bone ->
+                assertEquals(bone.height * sub, bone.fineRows.size, bone.id)
+                assertTrue(bone.fineRows.all { it.length == bone.width * sub }, bone.id)
+                assertTrue(bone.fineCells().isNotEmpty(), bone.id)
+            }
+        }
+    }
+
+    @Test
+    fun detectsInvalidFineFootprints() {
+        val file = DataRepository.footprintFile("cave_bear")
+        val errors = errorsOf(file) { text ->
+            text.replace("{\"id\": \"premaxilla_l\", \"rows\": [\"#\"], \"imageLeft\": -4, \"imageTop\": 0, \"fineRows\": [\".##.\"", "{\"id\": \"premaxilla_l\", \"rows\": [\"#\"], \"imageLeft\": -4, \"imageTop\": 0, \"fineRows\": [\".##\"")
+                .replace("{\"id\": \"premaxilla_r\", \"rows\": [\"#\"], \"imageLeft\": -4, \"imageTop\": 0, \"fineRows\": [\".##.\", \"####\", \"####\", \".#..\"]", "{\"id\": \"premaxilla_r\", \"rows\": [\"#\"], \"imageLeft\": -4, \"imageTop\": 0, \"fineRows\": [\"....\", \"....\", \"....\", \"....\"]")
+        }
+        val subErrors = errorsOf(file) { it.replace("\"subdivision\": 4", "\"subdivision\": 2") }
+        assertTrue(subErrors.any { "$file: subdivision 2 passt nicht zu balance.json (4)" in it }, subErrors.toString())
+        listOf(
+            "$file/premaxilla_l: fineRows muessen 4x4 sein",
+            "$file/premaxilla_r: fineRows ohne Knochenzelle",
         ).forEach { expected -> assertTrue(errors.any { expected in it }, "$expected fehlt in $errors") }
     }
 

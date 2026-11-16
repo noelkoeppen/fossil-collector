@@ -46,6 +46,8 @@ import de.noelkoeppen.fossilcollector.core.model.Settings
 import de.noelkoeppen.fossilcollector.ui.dig.DigActions
 import de.noelkoeppen.fossilcollector.ui.dig.DigScreen
 import de.noelkoeppen.fossilcollector.ui.home.HomeScreen
+import de.noelkoeppen.fossilcollector.ui.prep.PrepActions
+import de.noelkoeppen.fossilcollector.ui.prep.PrepScreen
 import de.noelkoeppen.fossilcollector.ui.rememberTextProvider
 import de.noelkoeppen.fossilcollector.ui.theme.AppIcons
 import de.noelkoeppen.fossilcollector.ui.theme.FossilCollectorTheme
@@ -64,6 +66,7 @@ import de.noelkoeppen.fossilcollector.vm.GameViewModel
  *
  * Inhalt (AP2-07): Laeuft eine Ausgrabung, der Screen grobes Buddeln (auch direkt nach dem Start
  * der App, die Ausgrabung steht im Spielstand), sonst der Hauptbildschirm mit „Ausgrabung starten“.
+ * Ist eine Nahansicht offen (AP2-08), der Screen feines Freilegen; Zurueck fuehrt zur Flaeche.
  */
 @Composable
 fun AppShell(viewModel: GameViewModel) {
@@ -127,8 +130,18 @@ fun GameShell(
     ) { padding ->
         Box(modifier = Modifier.fillMaxSize().padding(padding)) {
             val dig = state.dig
+            val prep = state.prep
+            BackHandler(enabled = !showSettings && prep != null) { viewModel?.closePreparation() }
             if (!showSettings) {
-                if (dig != null) {
+                if (prep != null) {
+                    val texts = rememberTextProvider(state.texts, state.settings)
+                    PrepScreen(
+                        prep = prep,
+                        texts = texts,
+                        qualityTiers = state.qualityTiers,
+                        actions = remember(viewModel) { viewModel?.let(::prepActions) ?: PrepActions.NONE },
+                    )
+                } else if (dig != null) {
                     val texts = rememberTextProvider(state.texts, state.settings)
                     DigScreen(
                         dig = dig,
@@ -158,6 +171,15 @@ private fun digActions(viewModel: GameViewModel) = DigActions(
     onDigEnd = viewModel::digEnd,
     onSelectTool = viewModel::selectTool,
     onEndExcavation = viewModel::endExcavation,
+    onOpenBone = viewModel::openPreparation,
+)
+
+private fun prepActions(viewModel: GameViewModel) = PrepActions(
+    onStart = viewModel::prepStart,
+    onMove = viewModel::prepMove,
+    onEnd = viewModel::prepEnd,
+    onSelectTool = viewModel::selectPrepTool,
+    onBack = viewModel::closePreparation,
 )
 
 /** Obere Leiste: App-Name und Zahnrad bzw. Zurueck, solange die Einstellungen offen sind. */

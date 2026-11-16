@@ -7,7 +7,8 @@ Quelle pro Art sind die Ausgaben von bone_images.py (AP2-06):
     app/src/main/assets/bones/<speciesId>/masks/<boneId>.png    1 Bit, 1 = Knochen
 
 und aus den Spieldaten `balance.json: excavation.cellsPerUnit` (Zellen pro Modelleinheit, ein
-Balancing-Wert, der nur dort gepflegt wird) sowie die Knochenreihenfolge aus `species.json`.
+Balancing-Wert, der nur dort gepflegt wird), `balance.json: preparation.subdivision` (feine Zellen je
+Zelle und Achse fuer das feine Freilegen, AP2-08) sowie die Knochenreihenfolge aus `species.json`.
 
 Ziel (Spieldaten, von core geladen):
 
@@ -23,6 +24,11 @@ Verfahren pro Knochen (ohne Drehung, GAME_DESIGN.md Kapitel 10/11):
 4. Gespeichert werden die belegten Zellen als Zeilen (`#` belegt, `.` frei, umschliessendes Rechteck)
    und die linke obere Bildecke in Maskenpixeln relativ zur linken oberen Ecke dieses Rechtecks
    (`imageLeft`, `imageTop`), damit die App das Bild passend zu den Zellen zeichnet.
+5. Feiner Umriss fuer das feine Freilegen (AP2-08): Das Rechteck aus Schritt 4 wird in
+   `subdivision` x `subdivision` feine Zellen je Zelle geteilt. Eine feine Zelle ist Knochen, wenn
+   mindestens `fineCoverage` ihrer Flaeche Knochen ist (mindestens eine feine Zelle, sonst die mit dem
+   groessten Anteil). Gespeichert als `fineRows` (gleiche Schreibweise, Groesse des Rechtecks mal
+   `subdivision`). Knochenpixel ausserhalb des Rechtecks (unter `minCoverage`) bleiben aussen vor.
 
 Aufruf (aus dem Repo-Wurzelverzeichnis):
     python3 tools/models3d/bone_footprints.py              # alle Arten mit Knochenbildern
@@ -47,7 +53,7 @@ ASSETS_DIR = os.path.join(REPO, "app", "src", "main", "assets", "bones")
 DATA_DIR = os.path.join(REPO, "core", "src", "main", "resources", "data")
 
 FOOTPRINTS_DIR = "footprints"
-FORMAT_VERSION = 1
+FORMAT_VERSION = 2
 OCCUPIED = "#"
 FREE = "."
 
@@ -56,6 +62,8 @@ DEFAULTS = {
     "minCoverage": 0.05,
     # Schrittweite (Maskenpixel) beim Verschieben des Zellrasters gegen die Maske.
     "offsetStep": 4,
+    # Mindestanteil Knochen an einer feinen Zelle (feines Freilegen, AP2-08).
+    "fineCoverage": 0.5,
 }
 
 
@@ -77,6 +85,18 @@ def cells_per_unit(data_dir=DATA_DIR):
         raise FootprintError("balance.json: excavation.cellsPerUnit fehlt") from e
     if not isinstance(value, int) or value < 1:
         raise FootprintError(f"balance.json: excavation.cellsPerUnit muss eine ganze Zahl >= 1 sein, ist {value!r}")
+    return value
+
+
+def subdivision(data_dir=DATA_DIR):
+    """`preparation.subdivision` aus balance.json (einzige Quelle des Werts)."""
+    balance = read_json(os.path.join(data_dir, "balance.json"))
+    try:
+        value = balance["preparation"]["subdivision"]
+    except KeyError as e:
+        raise FootprintError("balance.json: preparation.subdivision fehlt") from e
+    if not isinstance(value, int) or value < 1:
+        raise FootprintError(f"balance.json: preparation.subdivision muss eine ganze Zahl >= 1 sein, ist {value!r}")
     return value
 
 
@@ -133,6 +153,30 @@ def footprint(mask, cell_px, min_coverage, offset_step):
     return lines, image_left, image_top, int(box.sum()), covered / total
 
 
+def fine_footprint(mask, cell_px, image_left, image_top, rows, cols, sub, fine_coverage):
+    """Feiner Umriss im Rechteck aus `rows` x `cols` Zellen: Zeilen mit `sub` feinen Zellen je Zelle.
+
+    Das Bild liegt mit seiner linken oberen Ecke bei (`image_left`, `image_top`) Pixeln relativ zum
+    Rechteck; Pixel ausserhalb des Rechtecks werden nicht beachtet.
+    """
+    if cell_px % sub != 0:
+        raise FootprintError(f"Zellbreite {cell_px} Pixel ist nicht durch subdivision {sub} teilbar")
+    fine_px = cell_px // sub
+    h, w = mask.shape
+    canvas = np.zeros((rows * cell_px, cols * cell_px), dtype=bool)
+    # Ueberlappung von Bild und Rechteck
+    y0, x0 = max(0, image_top), max(0, image_left)
+    y1, x1 = min(canvas.shape[0], image_top + h), min(canvas.shape[1], image_left + w)
+    if y1 > y0 and x1 > x0:
+        canvas[y0:y1, x0:x1] = mask[y0 - image_top:y1 - image_top, x0 - image_left:x1 - image_left]
+    counts = canvas.reshape(rows * sub, fine_px, cols * sub, fine_px).sum(axis=(1, 3))
+    occupied = counts >= fine_coverage * fine_px * fine_px
+    if not occupied.any():
+        occupied = np.zeros_like(occupied)
+        occupied.flat[int(np.argmax(counts))] = True
+    return ["".join(OCCUPIED if v else FREE for v in row) for row in occupied]
+
+
 def build_species(species_id, params, assets_dir=ASSETS_DIR, data_dir=DATA_DIR):
     """Inhalt von footprints/<speciesId>.json und Kennzahlen je Knochen."""
     manifest_path = os.path.join(assets_dir, species_id, "manifest.json")
@@ -144,8 +188,14 @@ def build_species(species_id, params, assets_dir=ASSETS_DIR, data_dir=DATA_DIR):
     if px_per_unit % cpu != 0:
         raise FootprintError(f"{species_id}: pxPerUnit {px_per_unit} ist kein Vielfaches von cellsPerUnit {cpu}")
     cell_px = int(px_per_unit // cpu)
+    sub = subdivision(data_dir)
+    if cell_px % sub != 0:
+        raise FootprintError(f"{species_id}: Zellbreite {cell_px} Pixel ist nicht durch preparation.subdivision {sub} teilbar")
     min_coverage = float(params["minCoverage"])
     offset_step = int(params["offsetStep"])
+    fine_coverage = float(params["fineCoverage"])
+    if not 0.0 < fine_coverage <= 1.0:
+        raise FootprintError(f"fineCoverage muss in (0, 1] liegen, ist {fine_coverage}")
     if not 0.0 < min_coverage <= 1.0:
         raise FootprintError(f"minCoverage muss in (0, 1] liegen, ist {min_coverage}")
     if not 1 <= offset_step <= cell_px:
@@ -161,14 +211,16 @@ def build_species(species_id, params, assets_dir=ASSETS_DIR, data_dir=DATA_DIR):
         if (mask.shape[1], mask.shape[0]) != tuple(sizes[bone_id]):
             raise FootprintError(f"{species_id}/{bone_id}: Maskengroesse passt nicht zum Manifest")
         lines, left, top, count, kept = footprint(mask, cell_px, min_coverage, offset_step)
-        bones.append({"id": bone_id, "rows": lines, "imageLeft": left, "imageTop": top})
+        fine = fine_footprint(mask, cell_px, left, top, len(lines), len(lines[0]), sub, fine_coverage)
+        bones.append({"id": bone_id, "rows": lines, "imageLeft": left, "imageTop": top, "fineRows": fine})
         stats[bone_id] = (count, kept)
     content = {
         "formatVersion": FORMAT_VERSION,
         "species": species_id,
         "cellsPerUnit": cpu,
         "pxPerUnit": px_per_unit,
-        "params": {"minCoverage": min_coverage, "offsetStep": offset_step},
+        "subdivision": sub,
+        "params": {"minCoverage": min_coverage, "offsetStep": offset_step, "fineCoverage": fine_coverage},
         "bones": bones,
     }
     return content, stats
@@ -203,12 +255,14 @@ def main(argv=None):
                         help=f"Mindestanteil Knochen je Zelle (Standard {DEFAULTS['minCoverage']})")
     parser.add_argument("--offset-step", type=int,
                         help=f"Schrittweite der Rasterverschiebung in Pixeln (Standard {DEFAULTS['offsetStep']})")
+    parser.add_argument("--fine-coverage", type=float,
+                        help=f"Mindestanteil Knochen je feiner Zelle (Standard {DEFAULTS['fineCoverage']})")
     parser.add_argument("--stats", action="store_true", help="Kennzahlen je Knochen ausgeben")
     parser.add_argument("--assets-dir", default=ASSETS_DIR, help=argparse.SUPPRESS)
     parser.add_argument("--data-dir", default=DATA_DIR, help=argparse.SUPPRESS)
     args = parser.parse_args(argv)
 
-    overrides = {"minCoverage": args.min_coverage, "offsetStep": args.offset_step}
+    overrides = {"minCoverage": args.min_coverage, "offsetStep": args.offset_step, "fineCoverage": args.fine_coverage}
     overrides = {k: v for k, v in overrides.items() if v is not None}
     if args.check and overrides:
         print("Fehler: --check nimmt die Parameter aus der Datei", file=sys.stderr)

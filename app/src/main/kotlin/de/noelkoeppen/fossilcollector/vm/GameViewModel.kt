@@ -11,6 +11,7 @@ import de.noelkoeppen.fossilcollector.core.data.DataValidationException
 import de.noelkoeppen.fossilcollector.core.data.GameData
 import de.noelkoeppen.fossilcollector.core.data.TextProvider
 import de.noelkoeppen.fossilcollector.core.engine.Excavator
+import de.noelkoeppen.fossilcollector.core.model.BoneRef
 import de.noelkoeppen.fossilcollector.core.model.GameState
 import de.noelkoeppen.fossilcollector.core.model.LanguageSetting
 import de.noelkoeppen.fossilcollector.core.model.Settings
@@ -42,7 +43,8 @@ import java.io.IOException
  * Es gibt keine Spielschleife und keine Zeit-Simulation (GAME_DESIGN.md, Kapitel 0 Regel 9). Der
  * Spielstand aendert sich nur durch Aktionen: Einstellungen, Export, Import und Loeschen des
  * Spielstands sowie das grobe Buddeln (AP2-07, ueber [ExcavationSession]: Ausgrabung starten,
- * Werkzeug waehlen, Wischen, Ausgrabung beenden).
+ * Werkzeug waehlen, Wischen, Ausgrabung beenden) und das feine Freilegen (AP2-08, ueber
+ * [PreparationSession]: Nahansicht oeffnen, Pinsel/Kratzer waehlen, Wischen, zurueck zur Flaeche).
  *
  * - **Laden:** Spieldaten ueber [loadData] (Standard: [DataRepository] aus den Klassenpfad-Ressourcen
  *   von `core`, die im APK liegen; ungueltige Daten fuehren zu [GameUiState.DataError]), dann den
@@ -51,7 +53,8 @@ import java.io.IOException
  *   seine Spracheinstellung, und [messages] liefert [GameMessage.OldSaveDiscarded].
  * - **Speichern:** direkt nach jeder Aenderung, nach dem Anlegen eines neuen Spiels und beim Wechsel
  *   in den Hintergrund ([onAppBackground]). Beim Graben nicht nach jeder Anwendung, sondern am Ende
- *   jeder Wischbewegung ([digEnd]), sowie beim Starten und Beenden der Ausgrabung. `lastSavedAt` wird
+ *   jeder Wischbewegung ([digEnd], [prepEnd]), sowie beim Starten und Beenden der Ausgrabung und beim
+ *   Oeffnen und Schliessen einer Nahansicht. `lastSavedAt` wird
  *   beim Speichern auf die aktuelle Zeit gesetzt.
  * - **Einstellungen:** Die Sprache aendert den Spielstand und wird sofort gespeichert. Export, Import
  *   und "Spielstand loeschen" laufen ueber [SaveTransfer]; ein importierter bzw. neuer Stand ersetzt
@@ -63,7 +66,8 @@ import java.io.IOException
  * @param storage Spielstand-Dateien
  * @param time Zeitquelle
  * @param loadData laedt und validiert die Spieldaten
- * @param newRandom Zufallsquelle fuer eine neue Ausgrabung (Tests mit festem Seed)
+ * @param newRandom Zufallsquelle fuer eine neue Ausgrabung und die Restschicht einer neuen
+ *   Nahansicht (Tests mit festem Seed)
  */
 class GameViewModel(
     private val storage: SaveStorage,
@@ -91,6 +95,7 @@ class GameViewModel(
     private var texts: TextProvider = TextProvider.EMPTY
     private var transfer: SaveTransfer? = null
     private var session: ExcavationSession? = null
+    private var prepSession: PreparationSession? = null
     private var excavator: Excavator? = null
 
     private val saveMutex = Mutex()
@@ -150,9 +155,71 @@ class GameViewModel(
 
     /**
      * Ausgrabung beenden (die UI fragt vorher nach, wenn noch Knochen in der Flaeche liegen). Die
-     * Flaeche entfaellt; was mit gefundenen Knochen passiert, kommt mit AP2-08/09.
+     * Flaeche entfaellt; was mit freigelegten Knochen passiert, kommt mit AP2-09 (Bergen).
      */
-    fun endExcavation() = excavationAction(save = true) { s, st -> s.end(st) }
+    fun endExcavation() = excavationAction(save = true) { s, st ->
+        prepSession?.close()
+        s.end(st)
+    }
+
+    // --- Feines Freilegen (AP2-08) ---
+
+    /** Nahansicht eines entdeckten Knochens oeffnen (beim ersten Mal beginnt das Freilegen) und speichern. */
+    fun openPreparation(ref: BoneRef) {
+        viewModelScope.launch(gameDispatcher) {
+            val prep = prepSession ?: return@launch
+            val current = state ?: return@launch
+            session?.endStroke()
+            val next = prep.open(current, ref, newRandom())
+            state = next
+            publish()
+            if (next !== current) saveCurrent()
+        }
+    }
+
+    /** Zurueck zur Grabungsflaeche (Bedienzustand; der Stand ist schon gespeichert). */
+    fun closePreparation() {
+        viewModelScope.launch(gameDispatcher) {
+            val prep = prepSession ?: return@launch
+            if (prep.openBone == null) return@launch
+            prep.close()
+            publish()
+            saveCurrent()
+        }
+    }
+
+    /** Pinsel oder Kratzer waehlen (Bedienzustand, wird nicht gespeichert). */
+    fun selectPrepTool(toolId: String) {
+        viewModelScope.launch(gameDispatcher) {
+            if (prepSession?.selectTool(toolId) == true) publish()
+        }
+    }
+
+    /** Finger setzt in der Nahansicht auf; Position in feinen Zellkoordinaten. */
+    fun prepStart(x: Double, y: Double) = preparationAction { p, st -> p.strokeStart(st, x, y) }
+
+    /** Finger bewegt sich in der Nahansicht. */
+    fun prepMove(x: Double, y: Double) = preparationAction { p, st -> p.strokeMove(st, x, y) }
+
+    /** Finger hebt in der Nahansicht ab: Wischbewegung beenden und speichern. */
+    fun prepEnd() {
+        viewModelScope.launch(gameDispatcher) {
+            prepSession?.endStroke()
+            saveCurrent()
+        }
+    }
+
+    private fun preparationAction(action: (PreparationSession, GameState) -> GameState) {
+        viewModelScope.launch(gameDispatcher) {
+            val prep = prepSession ?: return@launch
+            val current = state ?: return@launch
+            val before = prep.feedback
+            val next = action(prep, current)
+            if (next === current && prep.feedback == before) return@launch
+            state = next
+            publish()
+        }
+    }
 
     private fun excavationAction(save: Boolean, action: (ExcavationSession, GameState) -> GameState) {
         viewModelScope.launch(gameDispatcher) {
@@ -235,6 +302,7 @@ class GameViewModel(
      */
     private suspend fun replaceState(newState: GameState, save: Boolean = true) {
         session?.endStroke()
+        prepSession?.close()
         state = newState
         publish()
         if (save) saveCurrent(force = true)
@@ -284,6 +352,7 @@ class GameViewModel(
         texts = TextProvider.fromGameData(loadedData)
         transfer = SaveTransfer(data = loadedData)
         session = ExcavationSession(loadedData)
+        prepSession = PreparationSession(loadedData)
         excavator = Excavator(loadedData)
         state = loadedState
         lastSavedState = if (needsInitialSave) null else loadedState
@@ -301,11 +370,17 @@ class GameViewModel(
             if (currentSession == null || currentExcavator == null) return@let null
             DigUiState.from(site, gameData, currentExcavator, currentSession.toolId, currentSession.feedback)
         }
+        val currentPrep = prepSession
+        val prep = current.excavation?.let { site ->
+            val ref = currentPrep?.openBone ?: return@let null
+            PrepUiState.from(site, ref, gameData, currentPrep.toolId, currentPrep.feedback)
+        }
         _uiState.value = GameUiState.Ready(
             settings = current.settings,
             qualityTiers = gameData.balance.qualityTiers,
             texts = texts,
             dig = dig,
+            prep = prep,
         )
     }
 

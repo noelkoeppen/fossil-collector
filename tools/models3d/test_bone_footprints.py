@@ -68,6 +68,31 @@ class FootprintTest(unittest.TestCase):
         self.assertEqual(1, count)
         self.assertEqual((-CELL, -CELL), (left, top))
 
+    def test_fine_rows_follow_mask_inside_rectangle(self):
+        # Zwei Zellen breit, Knochen nur in der linken Haelfte der linken Zelle und voll in der rechten.
+        mask = np.zeros((CELL, 2 * CELL), dtype=bool)
+        mask[:, :CELL // 2] = True
+        mask[:, CELL:] = True
+        rows = bone_footprints.fine_footprint(mask, CELL, 0, 0, 1, 2, 4, 0.5)
+        self.assertEqual(["##..####"] * 4, rows)
+
+    def test_fine_rows_use_image_offset_and_crop_to_rectangle(self):
+        # Bild um eine feine Zelle (12 Pixel) nach rechts und unten versetzt, ragt ueber das Rechteck hinaus.
+        mask = np.ones((CELL, CELL), dtype=bool)
+        rows = bone_footprints.fine_footprint(mask, CELL, 12, 12, 1, 1, 4, 0.5)
+        self.assertEqual(["....", ".###", ".###", ".###"], rows)
+
+    def test_fine_rows_have_at_least_one_cell(self):
+        mask = np.zeros((CELL, CELL), dtype=bool)
+        mask[30:33, 30:33] = True
+        rows = bone_footprints.fine_footprint(mask, CELL, 0, 0, 1, 1, 4, 0.5)
+        self.assertEqual(1, sum(r.count("#") for r in rows))
+        self.assertEqual("..#.", rows[2])
+
+    def test_fine_rows_need_divisible_cell_size(self):
+        with self.assertRaises(bone_footprints.FootprintError):
+            bone_footprints.fine_footprint(np.ones((CELL, CELL), dtype=bool), CELL, 0, 0, 1, 1, 5, 0.5)
+
     def test_empty_mask_is_an_error(self):
         with self.assertRaises(bone_footprints.FootprintError):
             bone_footprints.footprint(np.zeros((4, 4), dtype=bool), CELL, 0.05, 4)
@@ -82,7 +107,7 @@ class SpeciesTest(unittest.TestCase):
         self.data = os.path.join(root, "data")
         os.makedirs(self.data)
         with open(os.path.join(self.data, "balance.json"), "w") as f:
-            json.dump({"excavation": {"cellsPerUnit": 8}}, f)
+            json.dump({"excavation": {"cellsPerUnit": 8}, "preparation": {"subdivision": 4}}, f)
         with open(os.path.join(self.data, "species.json"), "w") as f:
             json.dump([{"id": "toy", "bones": ["long", "dot"]}], f)
         masks = {
@@ -116,11 +141,13 @@ class SpeciesTest(unittest.TestCase):
         self.assertEqual(["long", "dot"], [b["id"] for b in content["bones"]])
         self.assertEqual(["###"], content["bones"][0]["rows"])
         self.assertEqual(["#"], content["bones"][1]["rows"])
+        self.assertEqual(4, content["subdivision"])
+        self.assertEqual(["#" * 12] * 4, content["bones"][0]["fineRows"])
         self.assertEqual(0, self.run_main("--check")[0])
 
     def test_cells_per_unit_comes_from_balance(self):
         with open(os.path.join(self.data, "balance.json"), "w") as f:
-            json.dump({"excavation": {"cellsPerUnit": 4}}, f)
+            json.dump({"excavation": {"cellsPerUnit": 4}, "preparation": {"subdivision": 4}}, f)
         self.assertEqual(0, self.run_main()[0])
         content = bone_footprints.read_json(bone_footprints.footprint_path("toy", self.data))
         self.assertEqual(4, content["cellsPerUnit"])
@@ -133,7 +160,7 @@ class SpeciesTest(unittest.TestCase):
         self.assertIn("toy (fehlt)", out)
         self.run_main()
         with open(os.path.join(self.data, "balance.json"), "w") as f:
-            json.dump({"excavation": {"cellsPerUnit": 4}}, f)
+            json.dump({"excavation": {"cellsPerUnit": 4}, "preparation": {"subdivision": 4}}, f)
         self.assertEqual(1, self.run_main("--check")[0])
 
     def test_params_are_kept_on_rerun_and_check_rejects_overrides(self):
@@ -143,9 +170,22 @@ class SpeciesTest(unittest.TestCase):
         self.assertEqual(0.5, content["params"]["minCoverage"])
         self.assertEqual(2, self.run_main("--check", "--min-coverage", "0.1")[0])
 
+    def test_subdivision_comes_from_balance_and_missing_is_an_error(self):
+        with open(os.path.join(self.data, "balance.json"), "w") as f:
+            json.dump({"excavation": {"cellsPerUnit": 8}, "preparation": {"subdivision": 2}}, f)
+        self.assertEqual(0, self.run_main()[0])
+        content = bone_footprints.read_json(bone_footprints.footprint_path("toy", self.data))
+        self.assertEqual(2, content["subdivision"])
+        self.assertEqual(["######"] * 2, content["bones"][0]["fineRows"])
+        with open(os.path.join(self.data, "balance.json"), "w") as f:
+            json.dump({"excavation": {"cellsPerUnit": 8}}, f)
+        code, out = self.run_main()
+        self.assertEqual(2, code)
+        self.assertIn("subdivision fehlt", out)
+
     def test_missing_cells_per_unit_is_an_error(self):
         with open(os.path.join(self.data, "balance.json"), "w") as f:
-            json.dump({"excavation": {}}, f)
+            json.dump({"excavation": {}, "preparation": {"subdivision": 4}}, f)
         code, out = self.run_main()
         self.assertEqual(2, code)
         self.assertIn("cellsPerUnit fehlt", out)
