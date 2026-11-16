@@ -28,9 +28,9 @@ class ExcavatorTest {
     private val realData: GameData = DataRepository().load()
 
     /** Testwerkzeuge mit Radius 0.5: wirken genau auf die Zelle unter dem Ansatzpunkt (Zellmitte). */
-    private val rough = ToolDefinition("test_rough", removal = REMOVAL, radius = 0.5, rough = true, boneDamage = DAMAGE)
-    private val gentle = ToolDefinition("test_gentle", removal = REMOVAL, radius = 0.5, rough = false, boneDamage = 0.0)
-    private val wide = ToolDefinition("test_wide", removal = REMOVAL, radius = 1.5, rough = true, boneDamage = DAMAGE)
+    private val rough = ToolDefinition("test_rough", removal = REMOVAL, radius = 0.5, rough = true, boneDamage = DAMAGE, strokeSpacing = 0.5)
+    private val gentle = ToolDefinition("test_gentle", removal = REMOVAL, radius = 0.5, rough = false, boneDamage = 0.0, strokeSpacing = 0.5)
+    private val wide = ToolDefinition("test_wide", removal = REMOVAL, radius = 1.5, rough = true, boneDamage = DAMAGE, strokeSpacing = 0.5)
 
     private val data: GameData = realData.copy(
         tools = listOf(rough, gentle, wide),

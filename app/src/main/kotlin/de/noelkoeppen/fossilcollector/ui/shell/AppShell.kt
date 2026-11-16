@@ -43,6 +43,10 @@ import kotlinx.coroutines.launch
 import de.noelkoeppen.fossilcollector.BuildConfig
 import de.noelkoeppen.fossilcollector.R
 import de.noelkoeppen.fossilcollector.core.model.Settings
+import de.noelkoeppen.fossilcollector.ui.dig.DigActions
+import de.noelkoeppen.fossilcollector.ui.dig.DigScreen
+import de.noelkoeppen.fossilcollector.ui.home.HomeScreen
+import de.noelkoeppen.fossilcollector.ui.rememberTextProvider
 import de.noelkoeppen.fossilcollector.ui.theme.AppIcons
 import de.noelkoeppen.fossilcollector.ui.theme.FossilCollectorTheme
 import de.noelkoeppen.fossilcollector.ui.theme.QualityColors
@@ -58,8 +62,8 @@ import de.noelkoeppen.fossilcollector.vm.GameViewModel
  * App-Shell: Theme, Ladeanzeige bzw. Fehlerbild der Spieldaten, danach der Hauptbildschirm mit
  * oberer Leiste (Titel, Zahnrad) und dem Einstellungs-Screen (Zurueck schliesst ihn).
  *
- * Nach AP2-02 ist der Hauptbildschirm leer; die Screens des neuen Designs kommen mit den
- * folgenden Arbeitspaketen dazu.
+ * Inhalt (AP2-07): Laeuft eine Ausgrabung, der Screen grobes Buddeln (auch direkt nach dem Start
+ * der App, die Ausgrabung steht im Spielstand), sonst der Hauptbildschirm mit „Ausgrabung starten“.
  */
 @Composable
 fun AppShell(viewModel: GameViewModel) {
@@ -96,7 +100,7 @@ private fun messageText(message: GameMessage, context: android.content.Context):
 }
 
 /**
- * Geladenes Spiel: obere Leiste und Inhalt (leerer Hauptbildschirm oder Einstellungen).
+ * Geladenes Spiel: obere Leiste und Inhalt (Hauptbildschirm, Ausgrabung oder Einstellungen).
  *
  * @param viewModel Quelle der Aktionen; `null` in Vorschauen (keine Wirkung)
  */
@@ -122,6 +126,20 @@ fun GameShell(
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
         Box(modifier = Modifier.fillMaxSize().padding(padding)) {
+            val dig = state.dig
+            if (!showSettings) {
+                if (dig != null) {
+                    val texts = rememberTextProvider(state.texts, state.settings)
+                    DigScreen(
+                        dig = dig,
+                        texts = texts,
+                        qualityTiers = state.qualityTiers,
+                        actions = remember(viewModel) { viewModel?.let(::digActions) ?: DigActions.NONE },
+                    )
+                } else {
+                    HomeScreen(onStartExcavation = { viewModel?.startExcavation() })
+                }
+            }
             if (showSettings) {
                 SettingsScreen(
                     settings = state.settings,
@@ -133,6 +151,14 @@ fun GameShell(
         }
     }
 }
+
+private fun digActions(viewModel: GameViewModel) = DigActions(
+    onDigStart = viewModel::digStart,
+    onDigMove = viewModel::digMove,
+    onDigEnd = viewModel::digEnd,
+    onSelectTool = viewModel::selectTool,
+    onEndExcavation = viewModel::endExcavation,
+)
 
 /** Obere Leiste: App-Name und Zahnrad bzw. Zurueck, solange die Einstellungen offen sind. */
 @Composable

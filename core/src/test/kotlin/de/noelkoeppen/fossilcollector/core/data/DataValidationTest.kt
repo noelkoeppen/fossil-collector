@@ -129,7 +129,7 @@ class DataValidationTest {
                 .replace("\"placementAttempts\": 20", "\"placementAttempts\": 0")
                 .replace("\"findSpacing\": 2", "\"findSpacing\": -1")
                 .replace("{\"count\": 3, \"weight\": 40}", "{\"count\": 2, \"weight\": 0}")
-                .replace("\"placeholderFootprint\": {\"width\": 4", "\"placeholderFootprint\": {\"width\": 40")
+                .replace("\"cellsPerUnit\": 8", "\"cellsPerUnit\": 0")
         }
         listOf(
             "excavation: depthMin > depthMax",
@@ -137,7 +137,7 @@ class DataValidationTest {
             "excavation: findSpacing muss >= 0 sein",
             "excavation: findCountWeights.weight fuer Anzahl 2 muss > 0 sein",
             "excavation: findCountWeights.count 2 doppelt",
-            "excavation: placeholderFootprint ist groesser als die Flaeche",
+            "excavation: cellsPerUnit muss >= 1 sein",
         ).forEach { expected -> assertTrue(errors.any { expected in it }, "$expected fehlt in $errors") }
     }
 
@@ -304,6 +304,71 @@ class DataValidationTest {
         val repo = DataRepository { name -> if (name == DataRepository.SPECIES) null else resource(DataRepository.RESOURCE_ROOT + name) }
         val e = assertThrows<DataValidationException> { repo.load() }
         assertEquals(listOf("species.json: Datei fehlt"), e.errors)
+    }
+
+    // --- Knochenumrisse (AP2-07) ---
+
+    @Test
+    fun everyBoneHasAFootprintThatFitsTheArea() {
+        val ex = data.balance.excavation
+        data.species.forEach { species ->
+            val footprints = data.footprints.getValue(species.id)
+            assertEquals(species.bones, footprints.bones.map { it.id }, "Reihenfolge wie species.json")
+            assertEquals(ex.cellsPerUnit, footprints.cellsPerUnit)
+            assertEquals(48, footprints.pxPerCell)
+            footprints.bones.forEach { bone ->
+                assertTrue(bone.occupiedCells().isNotEmpty(), bone.id)
+                assertTrue(bone.width <= ex.width && bone.height <= ex.height, bone.id)
+            }
+        }
+    }
+
+    @Test
+    fun detectsInvalidFootprints() {
+        val file = DataRepository.footprintFile("cave_bear")
+        val errors = errorsOf(file) { text ->
+            text.replace("\"cellsPerUnit\": 8", "\"cellsPerUnit\": 4")
+                .replace(Regex("\\s*\\{\"id\": \"occipital\"[^\\n]*"), "")
+                .replace("{\"id\": \"sphenoid\", \"rows\": [", "{\"id\": \"sphenoid\", \"rows\": [\"x####\", ")
+                .replace("{\"id\": \"nasal_l\", \"rows\": [\"###\"]", "{\"id\": \"nasal_l\", \"rows\": [\"" + "#".repeat(40) + "\"]")
+                .replace("{\"id\": \"nasal_r\", \"rows\": [\"###\"]", "{\"id\": \"nasal_r\", \"rows\": [\"###\", \"...\"]")
+                .replace("{\"id\": \"jugal_l\", \"rows\": [\"###\"]", "{\"id\": \"jugal_l\", \"rows\": [\"###\", \"#\"]")
+        }
+        listOf(
+            "$file: cellsPerUnit 4 passt nicht zu balance.json (8)",
+            "$file: Umriss fuer Knochen 'occipital' fehlt",
+            "$file/sphenoid: nur '#' und '.' erlaubt",
+            "$file/nasal_l: Umriss 40x1 passt nicht in die Flaeche 32x48",
+            "$file/nasal_r: leere Randzeile oder -spalte",
+            "$file/jugal_l: Zeilen unterschiedlich lang",
+        ).forEach { expected -> assertTrue(errors.any { expected in it }, "$expected fehlt in $errors") }
+    }
+
+    @Test
+    fun detectsFootprintsOfWrongSpecies() {
+        val file = DataRepository.footprintFile("cave_bear")
+        val errors = errorsOf(file) { it.replace("\"species\": \"cave_bear\"", "\"species\": \"dodo\"") }
+        assertEquals(listOf("$file: species 'dodo' passt nicht zur Datei"), errors)
+    }
+
+    @Test
+    fun rejectsMissingFootprintFile() {
+        val file = DataRepository.footprintFile("cave_bear")
+        val repo = DataRepository { name -> if (name == file) null else resource(DataRepository.RESOURCE_ROOT + name) }
+        val e = assertThrows<DataValidationException> { repo.load() }
+        assertEquals(listOf("$file: Datei fehlt"), e.errors)
+    }
+
+    @Test
+    fun detectsInvalidStrokeSpacing() {
+        val errors = errorsOf(DataRepository.TOOLS) { it.replace("\"strokeSpacing\": 2.5", "\"strokeSpacing\": 0") }
+        assertEquals(listOf("tools.json/shovel: strokeSpacing muss > 0 sein"), errors)
+    }
+
+    @Test
+    fun footprintSchemaExists() {
+        val text = checkNotNull(resource("schema/footprints.schema.json")) { "Schema footprints.schema.json fehlt" }
+        assertTrue(Json.parseToJsonElement(text) is JsonObject)
     }
 
     // --- Serialisierung und Schemas ---

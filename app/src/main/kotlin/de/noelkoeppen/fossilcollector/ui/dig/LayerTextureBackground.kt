@@ -10,6 +10,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import de.noelkoeppen.fossilcollector.core.data.LayerTexture
@@ -39,24 +40,26 @@ fun LayerTextureBackground(
             .drawWithCache {
                 val pattern = LayerTexturePattern.generate(texture, seed, size.width, size.height, density)
                 val paths = TexturePaths.build(pattern)
-                val base = Color(palette.base)
-                onDrawBehind {
-                    drawRect(base)
-                    for ((tone, path) in paths.fills) drawPath(path, Color(palette.tone(tone)))
-                    for (stroke in paths.strokes) {
-                        drawPath(
-                            stroke.path,
-                            Color(palette.tone(stroke.tone)),
-                            style = Stroke(width = stroke.width, cap = StrokeCap.Round, join = StrokeJoin.Round),
-                        )
-                    }
-                }
+                onDrawBehind { drawTexture(paths, palette) }
             },
     )
 }
 
+/** Zeichnet Bandfarbe und Muster (auch fuer die Erde der Grabungsflaeche, AP2-07). */
+internal fun DrawScope.drawTexture(paths: TexturePaths, palette: LayerTexturePalette) {
+    drawRect(Color(palette.base))
+    for ((tone, path) in paths.fills) drawPath(path, Color(palette.tone(tone)))
+    for (stroke in paths.strokes) {
+        drawPath(
+            stroke.path,
+            Color(palette.tone(stroke.tone)),
+            style = Stroke(width = stroke.width, cap = StrokeCap.Round, join = StrokeJoin.Round),
+        )
+    }
+}
+
 /** Fertige Pfade eines Musters: Flaechen je Farbton und Linien mit eigener Breite. */
-private class TexturePaths(val fills: List<Pair<TextureTone, Path>>, val strokes: List<StrokePath>) {
+internal class TexturePaths(val fills: List<Pair<TextureTone, Path>>, val strokes: List<StrokePath>) {
 
     class StrokePath(val path: Path, val width: Float, val tone: TextureTone)
 

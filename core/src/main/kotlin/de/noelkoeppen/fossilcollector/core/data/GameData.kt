@@ -12,6 +12,8 @@ data class GameData(
     val tools: List<ToolDefinition>,
     /** Inhaltstexte je Sprachcode (`de`, `en`): Schluessel -> Text. */
     val locales: Map<String, Map<String, String>>,
+    /** Knochenumrisse je Art-ID aus `footprints/<speciesId>.json` (AP2-07). */
+    val footprints: Map<String, SpeciesFootprints> = emptyMap(),
 ) {
     val layersById: Map<String, LayerDefinition> = layers.associateBy { it.id }
     val speciesById: Map<String, SpeciesDefinition> = species.associateBy { it.id }

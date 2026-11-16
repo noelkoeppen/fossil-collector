@@ -24,12 +24,14 @@ class DataRepository(
     /** Laedt alle Dateien ohne Referenzpruefung (nur Struktur ueber die Deserialisierung). */
     fun parse(): GameData {
         val layers = decode<List<LayerDefinition>>(LAYERS)
+        val species = decode<List<SpeciesDefinition>>(SPECIES)
         return GameData(
             layers = layers.sortedBy { it.order },
-            species = decode(SPECIES),
+            species = species,
             balance = decode(BALANCE),
             tools = decode(TOOLS),
             locales = LANGUAGES.associateWith { decode<Map<String, String>>(localeFile(it)) },
+            footprints = species.map { it.id }.distinct().associateWith { decode<SpeciesFootprints>(footprintFile(it)) },
         )
     }
 
@@ -52,7 +54,10 @@ class DataRepository(
         /** Unterstuetzte Sprachen der Inhaltstexte; die erste ist der Standard. */
         val LANGUAGES: List<String> = listOf("de", "en")
 
-        /** Alle Datendateien relativ zu `data/`. */
+        /** Knochenumrisse einer Art (AP2-07), eine Datei je Art; nicht in [ALL_FILES], weil artabhaengig. */
+        fun footprintFile(speciesId: String) = "footprints/$speciesId.json"
+
+        /** Alle festen Datendateien relativ zu `data/` (ohne die Umrisse je Art, siehe [footprintFile]). */
         val ALL_FILES: List<String> =
             listOf(LAYERS, SPECIES, BALANCE, TOOLS) +
                 LANGUAGES.map { localeFile(it) }

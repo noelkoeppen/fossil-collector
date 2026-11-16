@@ -46,6 +46,8 @@ android {
             val assetsDir = file("src/main/assets")
             it.systemProperty("fossil.assetsDir", assetsDir.absolutePath)
             it.inputs.dir(assetsDir).withPropertyName("assets").withPathSensitivity(PathSensitivity.RELATIVE)
+            // Vorschau der Grabungsflaeche (AP2-07, DigPreviewExportTest): nur mit -Pfossil.previewDir=<Ordner>.
+            providers.gradleProperty("fossil.previewDir").orNull?.let { dir -> it.systemProperty("fossil.previewDir", dir) }
         }
     }
 }

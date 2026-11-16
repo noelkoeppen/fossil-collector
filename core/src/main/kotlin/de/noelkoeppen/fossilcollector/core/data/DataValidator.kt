@@ -18,6 +18,7 @@ object DataValidator {
         validateSpecies(data, errors)
         validateBalance(data.balance, errors)
         validateTools(data, errors)
+        validateFootprints(data, errors)
         validateLocales(data, errors)
         return errors
     }
@@ -106,7 +107,7 @@ object DataValidator {
     /**
      * Grabungsflaeche (Kapitel 3): positive Groessen, Tiefenbereich im Speicherformat, Hinweis-Schwelle
      * unter der kleinsten Tiefe (sonst waeren Knochen von Anfang an angedeutet), gueltige
-     * Fundanzahl-Tabelle, Platzhalter-Umriss passt in die Flaeche.
+     * Fundanzahl-Tabelle, Massstab der Umrisse >= 1.
      */
     private fun validateExcavation(ex: ExcavationBalance, ctx: String, errors: MutableList<String>) {
         if (ex.width < 1 || ex.height < 1) errors += "$ctx: width und height muessen >= 1 sein"
@@ -126,15 +127,71 @@ object DataValidator {
             .forEach { errors += "$ctx: findCountWeights.count $it doppelt" }
         if (ex.findSpacing < 0) errors += "$ctx: findSpacing muss >= 0 sein"
         if (ex.placementAttempts < 1) errors += "$ctx: placementAttempts muss >= 1 sein"
-        val fp = ex.placeholderFootprint
-        if (fp.width < 1 || fp.height < 1) errors += "$ctx: placeholderFootprint muss mindestens 1x1 sein"
-        if (fp.width > ex.width || fp.height > ex.height) errors += "$ctx: placeholderFootprint ist groesser als die Flaeche"
+        if (ex.cellsPerUnit < 1) errors += "$ctx: cellsPerUnit muss >= 1 sein"
+    }
+
+    /**
+     * Knochenumrisse (AP2-07): je Art eine Datei passend zur Art, gerechnet mit
+     * `excavation.cellsPerUnit`; genau ein Umriss je Knochen; jeder Umriss ist ein Rechteck aus Zeilen
+     * gleicher Laenge mit nur `#` und `.`, ohne leere Randzeile oder -spalte, und passt in die Flaeche.
+     */
+    private fun validateFootprints(data: GameData, errors: MutableList<String>) {
+        val ex = data.balance.excavation
+        data.species.forEach { species ->
+            val file = DataRepository.footprintFile(species.id)
+            val footprints = data.footprints[species.id]
+            if (footprints == null) {
+                errors += "$file: fehlt"
+                return@forEach
+            }
+            if (footprints.formatVersion != SpeciesFootprints.FORMAT_VERSION) {
+                errors += "$file: formatVersion ${footprints.formatVersion} wird nicht unterstuetzt"
+            }
+            if (footprints.species != species.id) errors += "$file: species '${footprints.species}' passt nicht zur Datei"
+            if (footprints.cellsPerUnit != ex.cellsPerUnit) {
+                errors += "$file: cellsPerUnit ${footprints.cellsPerUnit} passt nicht zu balance.json (${ex.cellsPerUnit}), bone_footprints.py ausfuehren"
+            }
+            if (footprints.cellsPerUnit < 1 || footprints.pxPerUnit < 1 || footprints.pxPerUnit % footprints.cellsPerUnit != 0) {
+                errors += "$file: pxPerUnit ${footprints.pxPerUnit} muss ein Vielfaches von cellsPerUnit sein"
+            }
+            val ids = footprints.bones.map { it.id }
+            ids.groupingBy { it }.eachCount().filterValues { it > 1 }.keys.forEach { errors += "$file: Knochen '$it' doppelt" }
+            (species.bones - ids.toSet()).forEach { errors += "$file: Umriss fuer Knochen '$it' fehlt" }
+            (ids.toSet() - species.bones.toSet()).forEach { errors += "$file: unbekannter Knochen '$it'" }
+            footprints.bones.forEach { validateFootprint(it, ex, "$file/${it.id}", errors) }
+        }
+        (data.footprints.keys - data.speciesById.keys).forEach { errors += "footprints: Umrisse fuer unbekannte Art '$it'" }
+    }
+
+    private fun validateFootprint(bone: BoneFootprintDefinition, ex: ExcavationBalance, ctx: String, errors: MutableList<String>) {
+        val rows = bone.rows
+        val allowed = setOf(BoneFootprintDefinition.OCCUPIED, BoneFootprintDefinition.FREE)
+        when {
+            rows.isEmpty() || rows.first().isEmpty() -> errors += "$ctx: Umriss ohne Zeilen"
+            rows.any { it.length != rows.first().length } -> errors += "$ctx: Zeilen unterschiedlich lang"
+            rows.any { row -> row.any { it !in allowed } } -> errors += "$ctx: nur '#' und '.' erlaubt"
+            else -> {
+                val occupied = bone.occupiedCells()
+                if (occupied.isEmpty()) {
+                    errors += "$ctx: Umriss ohne belegte Zelle"
+                    return
+                }
+                if (occupied.minOf { it.first } != 0 || occupied.maxOf { it.first } != bone.width - 1 ||
+                    occupied.minOf { it.second } != 0 || occupied.maxOf { it.second } != bone.height - 1
+                ) {
+                    errors += "$ctx: leere Randzeile oder -spalte"
+                }
+                if (bone.width > ex.width || bone.height > ex.height) {
+                    errors += "$ctx: Umriss ${bone.width}x${bone.height} passt nicht in die Flaeche ${ex.width}x${ex.height}"
+                }
+            }
+        }
     }
 
     /**
      * Werkzeuge (Kapitel 3): gueltige IDs, Abtrag >= 1 und hoechstens `hintDepth` (damit vor jeder
      * Beruehrung eines Knochens ein Hinweis erscheint), Radius > 0, Schaden in 0..1, Schaden > 0 genau
-     * bei groben Werkzeugen.
+     * bei groben Werkzeugen, Abstand der Anwendungen beim Wischen > 0.
      */
     private fun validateTools(data: GameData, errors: MutableList<String>) {
         val file = DataRepository.TOOLS
@@ -148,6 +205,7 @@ object DataValidator {
             if (tool.boneDamage !in 0.0..1.0) errors += "$ctx: boneDamage ${tool.boneDamage} liegt nicht in 0..1"
             if (tool.rough && tool.boneDamage <= 0.0) errors += "$ctx: grobes Werkzeug braucht boneDamage > 0"
             if (!tool.rough && tool.boneDamage != 0.0) errors += "$ctx: nicht grobes Werkzeug muss boneDamage 0 haben"
+            if (!(tool.strokeSpacing > 0.0 && tool.strokeSpacing.isFinite())) errors += "$ctx: strokeSpacing muss > 0 sein"
         }
     }
 
