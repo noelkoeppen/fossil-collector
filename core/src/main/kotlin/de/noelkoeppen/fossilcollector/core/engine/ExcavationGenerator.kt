@@ -27,7 +27,7 @@ import kotlin.math.floor
  *
  * @param data Spieldaten (validiert)
  * @param modifiers Modifier-System, weitergereicht an den [FindRoller]
- * @param footprints Umrisse der Knochen; bis AP2-06 der Platzhalter aus den Daten
+ * @param footprints Umrisse der Knochen; vorerst der Platzhalter aus den Daten
  */
 class ExcavationGenerator(
     private val data: GameData,

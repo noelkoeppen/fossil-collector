@@ -40,7 +40,13 @@ android {
     }
 
     testOptions {
-        unitTests.all { it.useJUnitPlatform() }
+        unitTests.all {
+            it.useJUnitPlatform()
+            // Knochenbilder (BoneImageAssetsTest): fuer jeden Knochen ein Bild und eine Maske.
+            val assetsDir = file("src/main/assets")
+            it.systemProperty("fossil.assetsDir", assetsDir.absolutePath)
+            it.inputs.dir(assetsDir).withPropertyName("assets").withPathSensitivity(PathSensitivity.RELATIVE)
+        }
     }
 }
 
@@ -68,5 +74,6 @@ dependencies {
     // JVM-Unit-Tests ohne Android (SaveStorage, Tab-Regeln, Raten), JUnit 5 wie in core.
     testImplementation(platform(libs.junit.bom))
     testImplementation(libs.junit.jupiter)
+    testImplementation(libs.kotlinx.serialization.json)
     testRuntimeOnly(libs.junit.platform.launcher)
 }
