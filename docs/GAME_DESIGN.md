@@ -181,15 +181,19 @@ Umsetzung (AP2-05, `ExcavationGenerator` und `Excavator` in `core`, Parameter in
 - **Graben in 2D, Skelett in 3D.**
   - Grabungsfläche, feines Freilegen und Bergen sind eine 2D-Draufsicht. Erde ist eine Maske, die mit dem
     Finger abgetragen wird. Die Knochen darin sind Bilder, die vorab automatisch aus den 3D-Modellen
-    gerendert werden (Build-Skript), damit sie zum Modell passen.
+    gerendert werden (Build-Skript), damit sie zum Modell passen. Jeder Knochen ist in seiner
+    Liegelage zu sehen (Seite mit der größten Fläche nach oben, so wie er flach im Boden läge), alle
+    Knochen einer Art im selben Maßstab.
   - Umsetzung (AP2-06): `tools/models3d/bone_images.py` rendert pro Knochen ein Bild (PNG mit
     Transparenz) und eine Umrissmaske (1-Bit-PNG) nach `app/src/main/assets/bones/<speciesId>/`, dazu
-    ein `manifest.json` mit den Parametern und pro Knochen Größe und Lage im gemeinsamen Pixelraster
-    der Art. Alle Knochen einer Art haben dieselbe Blickrichtung und denselben Maßstab (Parameter
-    `pxPerUnit`, Pixel pro Modelleinheit, Start 384), die Größenverhältnisse stimmen also.
-    Blickrichtung ist die Seitenansicht von links (Parameter `view`): Das Tier liegt auf der rechten
-    Seite in der Grabung, paarige Knochen haben denselben Umriss. Schattierung: Licht von oben,
-    Knochenfarbe aus dem Material der `.glb`. Renderer ist ein Software-Rasterizer mit numpy (läuft
+    ein `manifest.json` mit den Parametern und pro Knochen Drehung, Größe und Lage. Alle Knochen einer
+    Art haben denselben Maßstab (Parameter `pxPerUnit`, Pixel pro Modelleinheit, Start 384), die
+    Größenverhältnisse stimmen also. Liegelage (Parameter `view`, Standard `lying`): Hauptachsenanalyse
+    der Knochenoberfläche, Blick entlang der Achse mit der kleinsten Ausdehnung, die Achse mit der
+    größten Ausdehnung liegt waagerecht. Die Vorzeichen der Achsen legt das dritte Moment fest, damit
+    sind die Bilder stabil, und linke und rechte Knochen haben denselben Umriss. Feste Ansichten für
+    alle Knochen (`left`, `right`, `top`) bleiben als Option. Schattierung: Licht von oben (aus
+    Blickrichtung, leicht schräg von links oben), Knochenfarbe aus dem Material der `.glb`. Renderer ist ein Software-Rasterizer mit numpy (läuft
     ohne GPU, auch in der CI, deterministisch; die CI prüft mit `--check`, ob die Bilder aktuell sind).
     Eine neue Art braucht nur einen erneuten Aufruf.
   - Echtes 3D zum Drehen gibt es beim Zuordnen, im Museum und im Sammelbuch.
@@ -252,11 +256,12 @@ Umsetzung (AP2-05, `ExcavationGenerator` und `Excavator` in `core`, Parameter in
   setzt `null`. Die Tiefen werden kompakt als Base64 von 16-Bit-Werten gespeichert (daher
   `depthMax` höchstens 65535). Beim Import werden auch die Funde der Ausgrabung gegen die Spieldaten
   geprüft (Arten, Knochen, Zusammenhang, Schicht).
-- **Stand nach AP2-06:** Knochenbilder und Umrissmasken aller Knochen des Höhlenbären liegen in den
-  App-Assets (Kapitel 8), Pfade über `BoneImageAssets` in `app`, ein App-Test prüft, dass jeder
-  Knochen jeder Art Bild und Maske hat. Die Grabungsfläche nutzt weiter den Platzhalter-Umriss: Die
-  Umstellung von `BoneFootprints` auf Umrisse aus den Masken braucht die offene Entscheidung zur
-  Knochengröße in Zellen (Kapitel 13) und folgt mit AP2-07 oder einem eigenen AP.
+- **Stand nach AP2-06:** Knochenbilder (Liegelage) und Umrissmasken aller Knochen des Höhlenbären
+  liegen in den App-Assets (Kapitel 8), Pfade über `BoneImageAssets` in `app`, ein App-Test prüft,
+  dass jeder Knochen jeder Art Bild und Maske hat. Die Grabungsfläche nutzt noch den
+  Platzhalter-Umriss. Entschieden ist: Umrisse kommen aus den Masken, mit
+  `excavation.cellsPerUnit` = 8 Zellen pro Modelleinheit (vorläufiger Balancing-Wert) und ohne Drehung
+  beim Platzieren; umgesetzt wird das in AP2-07.
 
 ## 11. Entscheidungen im Überblick
 
@@ -272,6 +277,8 @@ Umsetzung (AP2-05, `ExcavationGenerator` und `Excavator` in `core`, Parameter in
 | Zuordnen | Hilfe wächst mit dem Wissen im Sammelbuch |
 | Museum | Ansehen schaltet Fundorte frei, Geld aus Duplikaten, dazu Aufträge |
 | Darstellung | Graben in 2D, Skelett in 3D |
+| Knochenbilder | Liegelage pro Knochen (Seite mit der größten Fläche), einheitlicher Maßstab pro Art |
+| Knochenumrisse in der Fläche | aus den Masken, 8 Zellen pro Modelleinheit (vorläufig), ohne Drehung (ab AP2-07) |
 | Erster Stand | nur Höhlenbär, weitere Arten einzeln |
 
 ## 12. Arbeitspakete
@@ -307,13 +314,14 @@ PR-Titel `AP2-XX: <Titel>` (Präfix `ap2`, damit es keine Verwechslung mit den a
   meldet Hinweise kurz vor einem Knochen, berechnet Schaden bei grobem Werkzeug auf Knochen. Zustand
   „nichts mehr zu finden“. Fläche ist speicherbar. Tests für alle Punkte.
 - **AP2-06 – Knochenbilder aus 3D-Modellen** (AP2-01)
-  Skript in `tools/`, das pro Knochen aus der `.glb` ein Draufsicht-Bild mit Transparenz und eine
-  Umrissmaske rendert. Läuft für den Höhlenbären durch, Ausgabe wird ins App-Modul eingebunden.
+  Skript in `tools/`, das pro Knochen aus der `.glb` ein Bild in Liegelage (Seite mit der größten
+  Fläche, einheitlicher Maßstab) mit Transparenz und eine Umrissmaske rendert. Läuft für den Höhlenbären durch, Ausgabe wird ins App-Modul eingebunden.
   Anleitung im README des Skripts. Für eine neue Art reicht ein erneuter Aufruf.
 - **AP2-07 – Screen grobes Buddeln** (AP2-05, AP2-06)
   Freie Fläche ohne sichtbares Raster, Wischen trägt Erde ab, Werkzeugwahl (Schaufel, Kelle), Hinweise
   sichtbar, Schaden wird angezeigt, Verschieben/Zoomen der Fläche, Meldung „keine Knochen mehr“,
-  Ausgrabung beenden. Läuft flüssig auf einem Mittelklasse-Gerät.
+  Ausgrabung beenden. Echte Umrisse aus den Masken (`cellsPerUnit` 8, ohne Drehung) statt
+  Platzhalter-Footprint. Läuft flüssig auf einem Mittelklasse-Gerät.
 - **AP2-08 – Fein freilegen** (AP2-07)
   Nahansicht einer Fundstelle nach 5.1: Pinsel und Kratzer, Restschicht mit losen und harten Stellen,
   Schaden bei Kratzer auf Knochen, Fortschrittsanzeige. Logik in `core` mit Tests, Werte aus JSON.
@@ -354,13 +362,6 @@ AP2-06 und AP2-10 hängen nur an AP2-01 und können vorgezogen werden.
 - Konkrete Balancing-Werte (Fundgrößen, Schaden, Preise, Ansehen) nach dem ersten Playtest.
 - Größe der Grabungsfläche und Anzahl Funde pro Ausgrabung (Startwerte seit AP2-05 in
   `balance.json: excavation`, endgültig nach dem Playtest).
-- Knochengröße in Zellen, sobald die Umrisse aus AP2-06 kommen (Zellen pro Modelleinheit), und ob
-  Knochen beim Platzieren gedreht werden dürfen. Die Masken liegen seit AP2-06 vor; bei 32 x 48 Zellen
-  passen die größten Knochen (Oberschenkel, Brustbein, Becken: knapp 1 Modelleinheit) erst ab etwa
-  8 Zellen pro Einheit gut in die Fläche.
-- Blickrichtung der Knochenbilder: Seitenansicht für alle Knochen (AP2-06). Rippen und Pfoten wirken
-  von der Seite schmal; Alternative wäre eine Liegelage pro Knochen (größte Ansichtsfläche) bei
-  gleichem Maßstab.
 - Ob ein kurzes Tutorial nötig ist.
 
 ## 14. Änderungsprotokoll
@@ -382,7 +383,9 @@ AP2-06 und AP2-10 hängen nur an AP2-01 und können vorgezogen werden.
   Anwendung, „entdeckt“ ab einer freiliegenden Zelle, „nichts mehr zu finden“). Kapitel 4 „Lage“ um die
   Platzierung ergänzt. Kapitel 10 um den Stand nach AP2-05 (Platzhalter-Umriss bis AP2-06, Spielstand
   Version 4). Kapitel 13 präzisiert.
-- **AP2-06 (2026-11-14):** Kapitel 8 um die Umsetzung der Knochenbilder ergänzt (Skript, Ausgabeort,
-  einheitliche Seitenansicht und einheitlicher Maßstab pro Art, Renderer). Kapitel 10 um den Stand nach
-  AP2-06 (Platzhalter-Umriss bleibt bis zur Entscheidung über die Knochengröße in Zellen). Kapitel 13
-  um Drehung und Blickrichtung ergänzt.
+- **AP2-06 (2026-11-16):** „Draufsicht“ der Knochenbilder präzisiert als Liegelage pro Knochen (Seite
+  mit der größten Fläche) bei einheitlichem Maßstab pro Art (Kapitel 8, 11, 12), damit Rippen ihre
+  Krümmung zeigen und Wirbel und Becken erkennbar sind. Kapitel 8 um die Umsetzung ergänzt (Skript,
+  Ausgabeort, Hauptachsenanalyse, Renderer). Entscheidung zu den Knochenumrissen in der Fläche
+  (8 Zellen pro Modelleinheit, ohne Drehung) in Kapitel 10 und 11 festgehalten, Umsetzung in AP2-07
+  (Kapitel 12); der offene Punkt dazu in Kapitel 13 ist erledigt.

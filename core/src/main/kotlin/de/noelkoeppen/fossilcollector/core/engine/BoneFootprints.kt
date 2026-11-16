@@ -36,8 +36,8 @@ data class BoneFootprint(val cells: List<Offset>) {
  * Liefert den Umriss eines Knochens fuer die Platzierung in der Grabungsflaeche.
  *
  * Uebergang: [PlaceholderFootprints] gibt jedem Knochen dasselbe Rechteck aus
- * `balance.json: excavation.placeholderFootprint`. Die Knochenmasken liegen seit AP2-06 vor; sobald
- * die Knochengroesse in Zellen entschieden ist (GAME_DESIGN.md Kapitel 13), werden daraus Umrisse,
+ * `balance.json: excavation.placeholderFootprint`. Die Knochenmasken liegen seit AP2-06 vor; AP2-07
+ * macht daraus Umrisse (8 Zellen pro Modelleinheit, ohne Drehung, GAME_DESIGN.md Kapitel 10/11),
  * indem dem `ExcavationGenerator` eine andere Implementierung uebergeben wird. Die Platzierung selbst
  * arbeitet mit beliebigen Zellmengen.
  */

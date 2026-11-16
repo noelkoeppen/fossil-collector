@@ -4,9 +4,9 @@ package de.noelkoeppen.fossilcollector.ui.dig
  * Pfade der vorgerenderten Knochenbilder in den App-Assets (AP2-06, `GAME_DESIGN.md` Kapitel 8).
  *
  * Erzeugt von `tools/models3d/bone_images.py` aus `art/models3d/<speciesId>/`, ein Ordner pro Art:
- * - `manifest.json`: Render-Parameter (Blickrichtung, Pixel pro Modelleinheit) und pro Knochen
- *   Bildgroesse und Lage im gemeinsamen Pixelraster der Art,
- * - `images/<boneId>.png`: Draufsicht mit Transparenz,
+ * - `manifest.json`: Render-Parameter (Ansicht, Pixel pro Modelleinheit) und pro Knochen Drehung,
+ *   Bildgroesse und Lage,
+ * - `images/<boneId>.png`: Knochen in Liegelage (Seite mit der groessten Flaeche) mit Transparenz,
  * - `masks/<boneId>.png`: Umrissmaske (1 Bit).
  *
  * Die Pfade ergeben sich nur aus Art- und Knochen-ID, eine neue Art braucht keinen Code.

@@ -6,7 +6,7 @@ Skripte rund um die 3D-Modelle in `art/models3d/<speciesId>/`.
 |---|---|
 | `build_extract.py`, `extract.py` | Erzeugen die Einzelknochen-Meshes des Höhlenbären aus den Shader-Seiten (siehe `art/models3d/cave_bear/README.md`). |
 | `neighbors.py` | Leitet Knochenliste, Nachbarschaftsgraph und Knochennamen einer Art aus ihrem Modell ab und schreibt sie in die Spieldaten. |
-| `bone_images.py` | Rendert pro Knochen ein Draufsicht-Bild mit Transparenz und eine Umrissmaske in die App-Assets (AP2-06). |
+| `bone_images.py` | Rendert pro Knochen ein Bild in Liegelage (Seite mit der größten Fläche) mit Transparenz und eine Umrissmaske in die App-Assets (AP2-06). |
 
 ## neighbors.py
 
@@ -50,7 +50,7 @@ Ablauf pro Art:
 Braucht Python 3 mit `numpy` und `Pillow` (`pip install numpy pillow`). Keine GPU, kein OpenGL:
 Der Renderer ist ein kleiner Software-Rasterizer mit numpy (orthografische Projektion, Z-Puffer,
 4x4-Überabtastung für glatte Kanten, Licht von oben, Knochenfarbe aus dem Material der `.glb`).
-Für den Höhlenbären (105 Knochen) dauert ein Lauf etwa 12 Sekunden.
+Für den Höhlenbären (105 Knochen) dauert ein Lauf etwa 11 Sekunden.
 
 ```bash
 python3 tools/models3d/bone_images.py                  # alle Arten mit Modellordner (wie --all)
@@ -64,37 +64,46 @@ Ausgabe pro Art unter `app/src/main/assets/bones/<speciesId>/`:
 
 | Datei | Inhalt |
 |---|---|
-| `images/<boneId>.png` | Draufsicht, RGBA, Hintergrund transparent, Kanten geglättet |
+| `images/<boneId>.png` | Knochen in Liegelage, RGBA, Hintergrund transparent, Kanten geglättet |
 | `masks/<boneId>.png` | Umrissmaske, 1 Bit (weiß = Knochen, Alpha >= 50 %) |
-| `manifest.json` | Render-Parameter und pro Knochen `width`, `height`, `left`, `top`, `maskPixels` |
+| `manifest.json` | Render-Parameter und pro Knochen `rotation`, `width`, `height`, `left`, `top`, `maskPixels` |
 
 Die App findet die Dateien nur über Art- und Knochen-ID (`BoneImageAssets` in `app`), eine neue Art
 braucht keinen Code.
 
 Parameter (Optionen, gespeichert unter `params` im Manifest):
 
-- `view` (`--view`, Standard `left`): Blickrichtung, für alle Knochen einer Art gleich. `left`
-  schaut von der linken Seite des Tieres (Bild-rechts = hinten, Bild-oben = oben): Das Tier liegt auf
-  der rechten Seite in der Grabung. Paarige Knochen haben damit denselben Umriss; rechte Knochen
-  zeigen ihre Innenseite. Weitere Werte: `right`, `top`.
+- `view` (`--view`, Standard `lying`): Liegelage pro Knochen. Jeder Knochen wird so gezeigt, wie er
+  flach im Boden läge: Blick senkrecht auf die Seite mit der größten Fläche. Bestimmt wird das per
+  Hauptachsenanalyse der Oberfläche (exakte Flächenmomente der Dreiecke, Eigenvektoren mit einem
+  Jacobi-Verfahren in reinem Python, damit es überall gleich rechnet): Blick entlang der Achse mit der
+  kleinsten Ausdehnung, die Achse mit der größten Ausdehnung liegt waagerecht. Die Vorzeichen legt
+  das dritte Moment fest (die schwerere Seite liegt rechts bzw. oben, bei nahezu symmetrischen Achsen
+  entscheidet die erste deutliche Komponente in x, y, z). Die Bilder sind damit stabil, und linke und
+  rechte Knochen haben denselben Umriss (der rechte zeigt die andere Seite). Rippen zeigen so ihre
+  Krümmung, Wirbel sind von vorn zu sehen. Feste Ansichten für alle Knochen gibt es weiter:
+  `left` (von der linken Seite des Tieres), `right`, `top`.
 - `pxPerUnit` (`--px-per-unit`, Standard 384): Pixel pro Modelleinheit (1 Einheit = Schädellänge),
   für alle Knochen einer Art gleich, damit die Größenverhältnisse stimmen. Der Oberschenkel wird
-  damit etwa 236 x 384 Pixel groß, ein Schwanzwirbel etwa 30 x 30.
+  damit 426 x 104 Pixel groß, Rippe 9 341 x 163, der letzte Schwanzwirbel 25 x 17.
 - `supersample` (`--supersample`, Standard 4) und `padding` (`--padding`, Standard 2 Pixel Rand).
 - Licht und Schattierung (`light`, `ambient`, `diffuse`, `specular`, `depthShade`) und die
   Ersatzfarbe `color` stehen als Standardwerte im Skript.
 
-Alle Bilder einer Art liegen im selben Pixelraster: `left`/`top` ist die linke obere Bildecke in
-Pixeln der Ansicht (Modellkoordinate mal `pxPerUnit`, Zeilen nach unten). Setzt man alle Bilder an
-diese Stellen, ergibt sich das Skelett in der Seitenansicht.
+`rotation` sind die Modellachsen für Bild-rechts, Bild-oben und zur Kamera hin (Zeilen einer
+Drehmatrix, Determinante +1). `left`/`top` ist die linke obere Bildecke in Pixeln der gedrehten
+Ansicht. Der Mittelpunkt von Pixel (Spalte c, Zeile r) liegt damit in der Modellebene bei
+`((left + c + 0.5) * rechts - (top + r + 0.5) * oben) / pxPerUnit` (plus beliebige Tiefe zur Kamera).
+Bei einer festen Ansicht teilen alle Knochen dieses Raster; setzt man die Bilder dann an ihre
+Stellen, ergibt sich das Skelett.
 
 Ein erneuter Lauf ohne Optionen nimmt die Parameter aus dem vorhandenen Manifest und schreibt nur
 Dateien, deren Pixel sich geändert haben. Bilder von Knochen, die es nicht mehr gibt, werden
 gelöscht. `--check` rendert neu und vergleicht dekodierte Pixel statt Dateibytes (verschiedene
 zlib-Versionen komprimieren dieselben Pixel unterschiedlich). Die Rechnung ist deterministisch;
 damit Rundungsunterschiede zwischen Plattformen nicht stören, darf ein Bild in höchstens 0,2 %
-seiner Pixel um mehr als 2 Stufen je Kanal abweichen. Eine echte Änderung an Modell oder Parametern
-betrifft weit mehr Pixel.
+seiner Pixel um mehr als 2 Stufen je Kanal abweichen, Drehungen im Manifest um höchstens 1e-4. Eine
+echte Änderung an Modell oder Parametern betrifft weit mehr Pixel.
 
 Nach jeder Änderung an den Meshes einer Art das Skript erneut ausführen und die geänderten Dateien
 mit einchecken. Die CI führt `bone_images.py --check` aus, die App-Unit-Tests

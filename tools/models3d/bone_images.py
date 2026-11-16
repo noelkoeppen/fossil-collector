@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Rendert pro Knochen einer Art ein Draufsicht-Bild mit Transparenz und eine Umrissmaske.
+"""Rendert pro Knochen einer Art ein Bild in Liegelage mit Transparenz und eine Umrissmaske.
 
 Quelle pro Art ist der Modellordner art/models3d/<speciesId>/ (bones.json, bones/<id>.glb).
 Ziel ist das App-Modul, damit die Grabungsflaeche (Kapitel 8) die Bilder per Art- und Knochen-ID
@@ -9,10 +9,17 @@ findet:
     app/src/main/assets/bones/<speciesId>/images/<boneId>.png   RGBA, Hintergrund transparent
     app/src/main/assets/bones/<speciesId>/masks/<boneId>.png    1 Bit, 1 = Knochen
 
-Alle Knochen einer Art werden mit derselben Blickrichtung (--view) und demselben Massstab
-(--px-per-unit, Pixel pro Modelleinheit) gerendert, die Groessenverhaeltnisse stimmen also. Das
-Manifest haelt die Parameter und pro Knochen Bildgroesse und Lage der linken oberen Bildecke in
-Modellkoordinaten fest; --check rendert mit den Parametern aus dem Manifest neu.
+Ansicht: Standard ist die Liegelage pro Knochen (--view lying): Der Knochen wird so gezeigt, wie er
+flach im Boden liegen wuerde, also mit Blick senkrecht auf seine flachste Ausdehnung. Bestimmt
+wird das per Hauptachsenanalyse (PCA) der Oberflaeche (exakte Flaechenmomente der Dreiecke): Blick
+entlang der Achse mit der kleinsten Streuung, die Achse mit der groessten Streuung liegt horizontal. Die
+Vorzeichen der Achsen werden ueber das dritte Moment (Schiefe) festgelegt; das ist fuer gespiegelte
+Knochen gleich, linke und rechte Knochen haben also denselben Umriss. Die Drehung pro Knochen steht
+im Manifest. Feste Ansichten fuer alle Knochen gibt es weiter als Option (left, right, top).
+
+Der Massstab (--px-per-unit, Pixel pro Modelleinheit) ist fuer alle Knochen einer Art gleich, die
+Groessenverhaeltnisse stimmen also. Das Manifest haelt die Parameter und pro Knochen Drehung,
+Bildgroesse und Lage fest; --check rendert mit den Parametern aus dem Manifest neu.
 
 Renderer: eigener Software-Rasterizer mit numpy (orthografische Projektion, Z-Puffer,
 Ueberabtastung fuer glatte Kanten), PNG ueber Pillow. Keine GPU, kein OpenGL. Das Ergebnis ist
@@ -49,9 +56,12 @@ IMAGES_DIR = "images"
 MASKS_DIR = "masks"
 FORMAT_VERSION = 1
 
-# Blickrichtungen im Skelett-Koordinatensystem (x nach hinten, y nach oben, z zur linken Seite des
-# Tieres). Je Ansicht: Modellachse fuer Bild-rechts, fuer Bild-oben und zur Kamera hin (Tiefe).
-VIEWS = {
+# Liegelage pro Knochen (Standard): Drehung aus der Hauptachsenanalyse des Knochens.
+VIEW_LYING = "lying"
+
+# Feste Blickrichtungen im Skelett-Koordinatensystem (x nach hinten, y nach oben, z zur linken Seite
+# des Tieres). Je Ansicht: Modellachse fuer Bild-rechts, fuer Bild-oben und zur Kamera hin (Tiefe).
+FIXED_VIEWS = {
     # Von der linken Seite: das Tier liegt auf der rechten Seite in der Grabung.
     "left": ((1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0)),
     # Von der rechten Seite (gespiegelt, Nase rechts).
@@ -60,8 +70,10 @@ VIEWS = {
     "top": ((1.0, 0.0, 0.0), (0.0, 0.0, -1.0), (0.0, 1.0, 0.0)),
 }
 
+VIEW_NAMES = [VIEW_LYING] + sorted(FIXED_VIEWS)
+
 DEFAULTS = {
-    "view": "left",
+    "view": VIEW_LYING,
     "pxPerUnit": 384,
     "supersample": 4,
     "padding": 2,
@@ -75,6 +87,11 @@ DEFAULTS = {
     # Knochenfarbe, wenn die .glb keine baseColorFactor hat.
     "color": [0.82, 0.76, 0.62],
 }
+
+# Toleranz fuer Werte der Drehung im Manifest (Rundungsunterschiede zwischen Plattformen).
+CHECK_ROTATION_TOLERANCE = 1e-4
+# Relative Schwelle fuer das dritte Moment: darunter gilt eine Achse als symmetrisch.
+SKEW_EPSILON = 1e-3
 
 # Toleranz fuer --check: Ein Pixel weicht ab, wenn ein Kanal um mehr als CHECK_CHANNEL_TOLERANCE
 # abweicht (Maske: wenn es kippt). Ein Bild gilt als veraltet, wenn mehr als CHECK_PIXEL_FRACTION
@@ -231,18 +248,109 @@ def _pow(x, exponent):
     return result
 
 
-def project(pos, view):
+def _jacobi_eigen(m):
+    """Eigenwerte und -vektoren einer symmetrischen 3x3-Matrix (zyklisches Jacobi-Verfahren).
+
+    Reines Python statt LAPACK, damit das Ergebnis auf jeder Plattform gleich ist. Liefert
+    (Eigenwerte, Eigenvektoren als Zeilen), absteigend nach Eigenwert sortiert.
+    """
+    a = [[float(m[i][j]) for j in range(3)] for i in range(3)]
+    v = [[1.0 if i == j else 0.0 for j in range(3)] for i in range(3)]
+    for _sweep in range(50):
+        off = a[0][1] ** 2 + a[0][2] ** 2 + a[1][2] ** 2
+        if off <= 1e-30 * (a[0][0] ** 2 + a[1][1] ** 2 + a[2][2] ** 2) or off == 0.0:
+            break
+        for p, q in ((0, 1), (0, 2), (1, 2)):
+            if a[p][q] == 0.0:
+                continue
+            theta = (a[q][q] - a[p][p]) / (2.0 * a[p][q])
+            t = (1.0 if theta >= 0 else -1.0) / (abs(theta) + math.sqrt(theta * theta + 1.0))
+            c = 1.0 / math.sqrt(t * t + 1.0)
+            sn = t * c
+            for k in range(3):
+                akp, akq = a[k][p], a[k][q]
+                a[k][p] = c * akp - sn * akq
+                a[k][q] = sn * akp + c * akq
+            for k in range(3):
+                apk, aqk = a[p][k], a[q][k]
+                a[p][k] = c * apk - sn * aqk
+                a[q][k] = sn * apk + c * aqk
+            for k in range(3):
+                vkp, vkq = v[k][p], v[k][q]
+                v[k][p] = c * vkp - sn * vkq
+                v[k][q] = sn * vkp + c * vkq
+    values = [a[i][i] for i in range(3)]
+    vectors = [[v[k][i] for k in range(3)] for i in range(3)]
+    order = sorted(range(3), key=lambda i: (-values[i], i))
+    return [values[i] for i in order], [vectors[i] for i in order]
+
+
+def _cross(a, b):
+    return [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]]
+
+
+def lying_rotation(pos, tris):
+    """Drehung fuer die Liegelage: (rechts, oben, zur Kamera) als Modellachsen.
+
+    Hauptachsen der Oberflaeche (Flaechentraegheit). Rechts = groesste Streuung, zur Kamera
+    = kleinste Streuung (der Knochen liegt auf seiner flachsten Seite). Vorzeichen: Das dritte
+    Moment entlang rechts bzw. oben ist positiv (die schwerere Seite liegt rechts bzw. oben); ist
+    eine Achse nahezu symmetrisch, entscheidet die erste deutlich von null verschiedene Komponente
+    (x, dann y, dann z). Die dritte Achse ergibt sich als Kreuzprodukt (echte Drehung, kein Spiegeln).
+    """
+    a, b, c = pos[tris[:, 0]], pos[tris[:, 1]], pos[tris[:, 2]]
+    cross = np.cross(b - a, c - a)
+    weight = np.sqrt((cross * cross).sum(axis=1)) * 0.5
+    total = float(weight.sum())
+    if total <= 0:
+        raise BoneImageError("Mesh ohne Flaeche")
+    centroid = (a + b + c) / 3.0
+    mean = (centroid * weight[:, None]).sum(axis=0) / total
+    # Exaktes zweites Moment der Oberflaeche (nicht nur der Schwerpunkte, sonst verfaelscht die
+    # Lage der Dreiecksdiagonalen die Achsen): pro Dreieck A/12 * (a a^T + b b^T + c c^T + s s^T),
+    # s = a + b + c, hier relativ zum Mittelpunkt.
+    ra, rb, rc = a - mean, b - mean, c - mean
+    rs = ra + rb + rc
+    cov = [[float(((ra[:, i] * ra[:, j] + rb[:, i] * rb[:, j] + rc[:, i] * rc[:, j] + rs[:, i] * rs[:, j])
+                   * weight).sum()) / (12.0 * total) for j in range(3)] for i in range(3)]
+    d = centroid - mean
+    values, vectors = _jacobi_eigen(cov)
+    axes = []
+    for k in (0, 1):
+        axis = vectors[k]
+        proj = (d * np.asarray(axis)).sum(axis=1)
+        m3 = float((proj * proj * proj * weight).sum()) / total
+        scale = max(values[k], 0.0) ** 1.5
+        if abs(m3) > SKEW_EPSILON * scale and m3 < 0:
+            axis = [-x for x in axis]
+        elif abs(m3) <= SKEW_EPSILON * scale:
+            first = next((x for x in axis if abs(x) > 1e-6), 1.0)
+            if first < 0:
+                axis = [-x for x in axis]
+        axes.append(axis)
+    axes.append(_cross(axes[0], axes[1]))
+    return tuple(tuple(float(x) for x in axis) for axis in axes)
+
+
+def bone_rotation(pos, tris, view):
+    """Drehung (rechts, oben, zur Kamera) fuer eine Ansicht: Liegelage oder feste Ansicht."""
+    if view == VIEW_LYING:
+        return lying_rotation(pos, tris)
+    return FIXED_VIEWS[view]
+
+
+def project(pos, rotation):
     """Modellkoordinaten -> (rechts, oben, Tiefe) der Ansicht."""
-    right, up, depth = (np.asarray(a, dtype=np.float64) for a in VIEWS[view])
+    right, up, depth = (np.asarray(a, dtype=np.float64) for a in rotation)
     # Elementweise statt Matrixprodukt (kein BLAS), damit das Ergebnis ueberall gleich ist.
     return np.stack([(pos * right).sum(axis=1), (pos * up).sum(axis=1), (pos * depth).sum(axis=1)], axis=1)
 
 
 def image_frame(projected, params):
-    """Bildrahmen in Pixeln: (Spalte links, Zeile oben, Breite, Hoehe) im Pixelraster der Art.
+    """Bildrahmen in Pixeln: (Spalte links, Zeile oben, Breite, Hoehe) in der gedrehten Ansicht.
 
-    Das Pixelraster ist fuer alle Knochen einer Art gleich (Pixel k deckt [k, k+1) / pxPerUnit ab),
-    daher passen Bilder benachbarter Knochen pixelgenau aneinander.
+    Pixel k deckt [k, k+1) / pxPerUnit der gedrehten Ansicht ab (Zeilen nach unten). Bei einer
+    festen Ansicht teilen alle Knochen einer Art dieses Raster.
     """
     s = params["pxPerUnit"]
     pad = params["padding"]
@@ -317,10 +425,10 @@ def rasterize(sx, sy, sz, tris, width, height):
 
 
 def render_bone(pos, tris, normals, color, params):
-    """Rendert einen Knochen. Liefert (RGBA uint8 H x W x 4, Maske bool H x W, Bildrahmen)."""
-    view = params["view"]
+    """Rendert einen Knochen. Liefert (RGBA uint8 H x W x 4, Maske bool H x W, Bildrahmen, Drehung)."""
+    rotation = bone_rotation(pos, tris, params["view"])
     ss = params["supersample"]
-    p = project(pos, view)
+    p = project(pos, rotation)
     left, top, width, height = image_frame(p, params)
     s = params["pxPerUnit"] * ss
     sx = p[:, 0] * s - left * ss
@@ -332,7 +440,7 @@ def render_bone(pos, tris, normals, color, params):
 
     if normals is None:
         normals = _vertex_normals(pos, tris)
-    n_view = _normalize(project(normals, view))
+    n_view = _normalize(project(normals, rotation))
     # Normale je Pixel: baryzentrisch interpoliert (glatte Schattierung).
     idx = np.nonzero(covered)[0]
     t = tri_of[idx]
@@ -370,7 +478,7 @@ def render_bone(pos, tris, normals, color, params):
     out[..., 3] = np.floor(alpha * 255.0 + 0.5).astype(np.uint8)
     out[out[..., 3] == 0, :3] = 0
     mask = alpha >= 0.5
-    return out, mask, (left, top, width, height)
+    return out, mask, (left, top, width, height), rotation
 
 
 # --- Ausgabe -------------------------------------------------------------------------------
@@ -387,24 +495,26 @@ def render_species(species_id, params, models_dir=MODELS_DIR):
     for key in DEFAULTS:
         if key not in params:
             raise BoneImageError(f"Parameter '{key}' fehlt")
-    if params["view"] not in VIEWS:
-        raise BoneImageError(f"Unbekannte Ansicht '{params['view']}' (moeglich: {', '.join(VIEWS)})")
+    if params["view"] not in VIEW_NAMES:
+        raise BoneImageError(f"Unbekannte Ansicht '{params['view']}' (moeglich: {', '.join(VIEW_NAMES)})")
     if params["pxPerUnit"] <= 0 or params["supersample"] < 1 or params["padding"] < 0:
         raise BoneImageError("pxPerUnit > 0, supersample >= 1 und padding >= 0 erforderlich")
     bones = {}
     entries = []
     for bone_id, path in load_bones(species_id, models_dir):
         pos, tris, normals, color = read_glb_mesh(path)
-        rgba, mask, (left, top, width, height) = render_bone(pos, tris, normals, color, params)
+        rgba, mask, (left, top, width, height), rotation = render_bone(pos, tris, normals, color, params)
         if not mask.any():
             raise BoneImageError(f"{species_id}/{bone_id}: Maske ist leer (pxPerUnit zu klein?)")
         bones[bone_id] = (rgba, mask)
         entries.append({
             "id": bone_id,
+            # Modellachsen fuer Bild-rechts, Bild-oben und zur Kamera hin (Zeilen einer Drehmatrix).
+            "rotation": [[round(x, 6) for x in axis] for axis in rotation],
             "width": width,
             "height": height,
-            # Linke obere Bildecke im Pixelraster der Art (Pixel = Modelleinheit * pxPerUnit,
-            # Spalten nach rechts, Zeilen nach unten der Ansicht).
+            # Linke obere Bildecke in Pixeln der gedrehten Ansicht (Modellkoordinate * pxPerUnit,
+            # Spalten nach rechts, Zeilen nach unten).
             "left": left,
             "top": top,
             "maskPixels": int(mask.sum()),
@@ -435,6 +545,25 @@ def read_manifest(species_id, assets_dir=ASSETS_DIR):
         return json.load(f)
 
 
+def manifests_match(old, new):
+    """Gleich bis auf Rundungsunterschiede in den Drehungen."""
+    if old is None or new is None:
+        return old == new
+
+    def strip(m):
+        copy = dict(m)
+        copy["bones"] = [{k: v for k, v in b.items() if k != "rotation"} for b in m.get("bones", [])]
+        return copy
+
+    if strip(old) != strip(new):
+        return False
+    for a, b in zip(old["bones"], new["bones"]):
+        ra, rb = np.asarray(a.get("rotation"), dtype=float), np.asarray(b.get("rotation"), dtype=float)
+        if ra.shape != rb.shape or np.abs(ra - rb).max() > CHECK_ROTATION_TOLERANCE:
+            return False
+    return True
+
+
 def _decode(path, mode):
     with Image.open(path) as img:
         return np.asarray(img.convert(mode))
@@ -445,7 +574,7 @@ def compare_species(species_id, manifest, bones, assets_dir=ASSETS_DIR):
     folder = os.path.join(assets_dir, species_id)
     problems = []
     current = read_manifest(species_id, assets_dir)
-    if current != json.loads(format_manifest(manifest)):
+    if not manifests_match(current, json.loads(format_manifest(manifest))):
         problems.append(f"{species_id}/{MANIFEST_FILE}")
     for sub in (IMAGES_DIR, MASKS_DIR):
         present = set(os.listdir(os.path.join(folder, sub))) if os.path.isdir(os.path.join(folder, sub)) else set()
@@ -538,7 +667,8 @@ def main(argv=None):
     parser.add_argument("--check", action="store_true",
                         help="nichts schreiben, nur pruefen, ob die Ausgabe aktuell ist (Parameter aus dem Manifest)")
     parser.add_argument("--px-per-unit", type=float, help=f"Pixel pro Modelleinheit (Standard {DEFAULTS['pxPerUnit']})")
-    parser.add_argument("--view", choices=sorted(VIEWS), help=f"Blickrichtung (Standard {DEFAULTS['view']})")
+    parser.add_argument("--view", choices=VIEW_NAMES,
+                        help=f"Liegelage pro Knochen oder feste Blickrichtung (Standard {DEFAULTS['view']})")
     parser.add_argument("--supersample", type=int, help=f"Ueberabtastung je Achse (Standard {DEFAULTS['supersample']})")
     parser.add_argument("--padding", type=int, help=f"freier Rand in Pixeln (Standard {DEFAULTS['padding']})")
     parser.add_argument("--preview", help="Kontaktbogen aller Knochen als PNG hierhin schreiben")
