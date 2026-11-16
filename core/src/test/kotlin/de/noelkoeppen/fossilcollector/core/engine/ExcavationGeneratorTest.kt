@@ -4,7 +4,6 @@ import de.noelkoeppen.fossilcollector.core.data.DataRepository
 import de.noelkoeppen.fossilcollector.core.data.ExcavationBalance
 import de.noelkoeppen.fossilcollector.core.data.FindCountWeight
 import de.noelkoeppen.fossilcollector.core.data.FindSizeWeight
-import de.noelkoeppen.fossilcollector.core.data.FootprintSize
 import de.noelkoeppen.fossilcollector.core.data.GameData
 import de.noelkoeppen.fossilcollector.core.model.ExcavationSite
 import de.noelkoeppen.fossilcollector.core.model.ReferenceValidator
@@ -76,21 +75,50 @@ class ExcavationGeneratorTest {
     // --- Platzierung ---
 
     @Test
-    fun findsAreValidPlacedWithFootprintAndInsideArea() {
-        val footprint = balance.placeholderFootprint
+    fun findsAreValidPlacedWithMaskFootprintAndInsideArea() {
+        // Standard sind die Umrisse aus den Knochenmasken (AP2-07): Jeder Knochen belegt genau seinen
+        // Umriss, verschoben an seine Stelle, ohne Drehung.
+        val footprints = DataFootprints(data)
         sites(ExcavationGenerator(data), 200, seed = 5).forEach { site ->
             assertEquals(emptyList<String>(), ReferenceValidator.validateExcavation(site, data))
             site.finds.forEach { placed ->
-                placed.cells.values.forEach { cells ->
-                    assertEquals(footprint.width * footprint.height, cells.size)
+                placed.cells.forEach { (boneId, cells) ->
                     assertTrue(cells.all { it in 0 until site.cellCount })
-                    val xs = cells.map { site.xOf(it) }
-                    val ys = cells.map { site.yOf(it) }
-                    assertEquals(footprint.width, xs.max() - xs.min() + 1)
-                    assertEquals(footprint.height, ys.max() - ys.min() + 1)
+                    val x0 = cells.minOf { site.xOf(it) }
+                    val y0 = cells.minOf { site.yOf(it) }
+                    val expected = footprints.footprint(placed.find.speciesId, boneId).cells.map { x0 + it.dx to y0 + it.dy }.toSet()
+                    assertEquals(expected, cells.map { site.xOf(it) to site.yOf(it) }.toSet(), boneId)
                 }
             }
         }
+    }
+
+    @Test
+    fun largestFindsStillFitWithMaskFootprints() {
+        // Grenzfall der Startwerte: immer die groesste Fundanzahl, jeder Fund mit der groessten
+        // Fundgroesse. Gezaehlt wird, wie viele Funde wegen Platzmangel wegfallen.
+        val maxCount = balance.findCountWeights.maxOf { it.count }
+        val maxSize = data.balance.finds.sizeWeights.maxOf { it.size }
+        val worst = withExcavation(
+            balance.copy(findCountWeights = listOf(FindCountWeight(count = maxCount, weight = 1.0))),
+            listOf(FindSizeWeight(size = maxSize, weight = 1.0)),
+        )
+        val generated = sites(ExcavationGenerator(worst), 1_000, seed = 14)
+        val dropped = generated.sumOf { maxCount - it.finds.size }
+        assertTrue(dropped <= generated.size * maxCount * MAX_DROPPED_SHARE, "$dropped von ${generated.size * maxCount} Funden weggelassen")
+    }
+
+    @Test
+    fun noFindIsDroppedWithStartValues() {
+        // Mit den Startwerten (Fundanzahl und -groesse aus den Daten) passt jeder gewuerfelte Fund.
+        val generator = ExcavationGenerator(data)
+        balance.findCountWeights.forEach { entry ->
+            val forced = ExcavationGenerator(
+                withExcavation(balance.copy(findCountWeights = listOf(FindCountWeight(count = entry.count, weight = 1.0)))),
+            )
+            sites(forced, 300, seed = 15L + entry.count).forEach { assertEquals(entry.count, it.finds.size) }
+        }
+        assertTrue(sites(generator, 10, seed = 16).all { it.finds.isNotEmpty() })
     }
 
     @Test
@@ -145,7 +173,8 @@ class ExcavationGeneratorTest {
             placementAttempts = 5,
         )
         val single = listOf(FindSizeWeight(size = 1, weight = 1.0))
-        sites(ExcavationGenerator(withExcavation(tiny, single)), 20, seed = 10).forEach { site ->
+        val block = BoneFootprint.rectangle(4, 3)
+        sites(ExcavationGenerator(withExcavation(tiny, single), footprints = { _, _ -> block }), 20, seed = 10).forEach { site ->
             assertEquals(1, site.finds.size)
             assertEquals(12, site.finds.single().cells.values.single().size)
         }
@@ -156,14 +185,15 @@ class ExcavationGeneratorTest {
         // Fuenf Knochen passen nie in 4x3 Zellen: Fund weglassen, Flaeche ohne Funde.
         val tiny = balance.copy(width = 4, height = 3, findCountWeights = listOf(FindCountWeight(count = 1, weight = 1.0)))
         val five = listOf(FindSizeWeight(size = 5, weight = 1.0))
-        val site = ExcavationGenerator(withExcavation(tiny, five)).generate(layerId, SeededRandom(11))
+        val block = BoneFootprint.rectangle(2, 2)
+        val site = ExcavationGenerator(withExcavation(tiny, five), footprints = { _, _ -> block }).generate(layerId, SeededRandom(11))
         assertTrue(site.finds.isEmpty())
         assertTrue(site.nothingLeftToFind)
     }
 
     @Test
     fun customFootprintsAreUsed() {
-        // L-foermiger Umriss: Die Platzierung arbeitet mit beliebigen Zellmengen (Vorbereitung AP2-06).
+        // L-foermiger Umriss: Die Platzierung arbeitet mit beliebigen Zellmengen.
         val l = BoneFootprint(listOf(BoneFootprint.Offset(0, 0), BoneFootprint.Offset(0, 1), BoneFootprint.Offset(1, 1)))
         val generator = ExcavationGenerator(data, footprints = { _, _ -> l })
         sites(generator, 50, seed = 12).forEach { site ->
@@ -186,13 +216,19 @@ class ExcavationGeneratorTest {
     }
 
     @Test
-    fun placeholderFootprintComesFromData() {
-        val placeholder = PlaceholderFootprints(FootprintSize(width = 2, height = 5))
-        val footprint = placeholder.footprint("cave_bear", "femur_l")
-        assertEquals(2, footprint.width)
-        assertEquals(5, footprint.height)
-        assertEquals(10, footprint.cells.size)
-        assertEquals(footprint, placeholder.footprint("cave_bear", "sternum"))
+    fun dataFootprintsComeFromFootprintFile() {
+        val footprints = DataFootprints(data)
+        val definition = data.footprints.getValue("cave_bear").bonesById.getValue("femur_l")
+        val femur = footprints.footprint("cave_bear", "femur_l")
+        assertEquals(definition.width, femur.width)
+        assertEquals(definition.height, femur.height)
+        assertEquals(definition.rows.sumOf { row -> row.count { it == '#' } }, femur.cells.size)
+        // Linke und rechte Knochen haben denselben Umriss (gleiches Bild, Kapitel 8).
+        assertEquals(femur, footprints.footprint("cave_bear", "femur_r"))
+        // Groessenverhaeltnisse bleiben erhalten: Oberschenkel groesser als ein Schwanzwirbel.
+        assertTrue(femur.cells.size > footprints.footprint("cave_bear", "caudal_8").cells.size)
+        assertThrows<NoSuchElementException> { footprints.footprint("cave_bear", "wing") }
+        assertThrows<NoSuchElementException> { footprints.footprint("dodo", "femur_l") }
         assertThrows<IllegalArgumentException> { BoneFootprint(emptyList()) }
         assertThrows<IllegalArgumentException> { BoneFootprint(listOf(BoneFootprint.Offset(-1, 0))) }
     }
@@ -219,5 +255,8 @@ class ExcavationGeneratorTest {
 
     private companion object {
         const val SHARE_TOLERANCE = 0.04
+
+        /** Hoechstens so viele Funde duerfen im Grenzfall (groesste Anzahl und Groesse) wegfallen. */
+        const val MAX_DROPPED_SHARE = 0.01
     }
 }

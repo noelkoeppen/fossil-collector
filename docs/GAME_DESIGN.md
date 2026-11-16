@@ -72,13 +72,14 @@ Umsetzung (AP2-05, `ExcavationGenerator` und `Excavator` in `core`, Parameter in
 - **Funde:** Anzahl aus der gewichteten Tabelle `findCountWeights` (Start 2: 30, 3: 40, 4: 30), jeder
   Fund gewürfelt nach Kapitel 4 und platziert wie unter „Lage“ beschrieben.
 - **Werkzeuge** (`tools.json`): Abtrag pro Anwendung und Zelle (`removal`), Wirkradius in Zellen
-  (`radius`), `rough` (grob ja/nein) und `boneDamage` (Qualitätsverlust pro Treffer, nur bei groben
-  Werkzeugen > 0). Startwerte: Schaufel 20 / 2.5 / grob / 0.08, Kelle 6 / 1.5 / nicht grob / 0.
+  (`radius`), `rough` (grob ja/nein), `boneDamage` (Qualitätsverlust pro Treffer, nur bei groben
+  Werkzeugen > 0) und `strokeSpacing` (Abstand der Anwendungen beim Wischen in Zellen, seit AP2-07).
+  Startwerte: Schaufel 20 / 2.5 / grob / 0.08 / 2.5, Kelle 6 / 1.5 / nicht grob / 0 / 1.5.
 - **Aktion „Werkzeug wirkt auf Bereich“:** Eingabe Werkzeug-ID und Ansatzpunkt in Zellkoordinaten.
   Betroffen sind alle Zellen, deren Mittelpunkt höchstens `radius` vom Ansatzpunkt entfernt ist; dort
   wird bis zu `removal` Erde abgetragen. Ergebnis als Daten: neue Fläche, abgetragene Erde, geänderte
   Zellen, neue Hinweise, Schaden je Knochen, neu entdeckte Knochen. Wie oft die UI die Aktion beim
-  Wischen auslöst, legt AP2-07 fest.
+  Wischen auslöst, steht unter „Screen“.
 - **Hinweis:** Eine Knochenzelle zeigt einen Hinweis, sobald höchstens `hintDepth` Erde (Start 20)
   darüber liegt. `hintDepth` ist kleiner als `depthMin`, und kein Werkzeug trägt mehr als `hintDepth`
   pro Anwendung ab (Datenvalidierung). Damit zeigt sich immer mindestens eine Anwendung vorher ein
@@ -90,6 +91,37 @@ Umsetzung (AP2-05, `ExcavationGenerator` und `Excavator` in `core`, Parameter in
 - **Entdeckt und „nichts mehr zu finden“:** Ein Knochen gilt als entdeckt („man stößt auf ihn“),
   sobald eine seiner Zellen frei liegt. Sind alle Knochen der Fläche entdeckt, ist nichts mehr zu
   finden. Das Freilegen der Restschicht folgt in 5.1 (AP2-08).
+- **Umrisse der Knochen** (seit AP2-07): aus den Umrissmasken der Knochenbilder (Kapitel 8) mit
+  `excavation.cellsPerUnit` Zellen pro Modelleinheit (Start 8), ohne Drehung. Eine Zelle gilt als
+  belegt, wenn mindestens 5 % ihrer Fläche Knochen ist, jeder Knochen hat mindestens eine Zelle.
+  Der Höhlenbär belegt so 1 (Schwanzwirbel, Pfotenknochen) bis 18 Zellen (Oberschenkel 9 x 2).
+  Mit den Startwerten der Fläche passt jeder gewürfelte Fund (2 000 Flächen mit 4 Funden zu je 6
+  Knochen: kein Fund weggelassen).
+
+Screen grobes Buddeln (AP2-07):
+- **Start:** Auf dem Hauptbildschirm „Ausgrabung starten“; im ersten Stand immer in der obersten
+  Schicht (Kapitel 9). Eine laufende Ausgrabung steht im Spielstand; die App öffnet sie nach dem Start
+  direkt wieder.
+- **Gesten:** Ein Finger gräbt, zwei Finger verschieben und zoomen. Die Anwendung startet erst, wenn
+  sich der Finger um die Berührungstoleranz des Systems bewegt hat, oder beim Abheben ohne Bewegung
+  (Tippen = eine Anwendung); setzt vorher ein zweiter Finger auf, wird nicht gegraben. Kommt
+  während des Grabens ein zweiter Finger dazu, endet die Wischbewegung.
+- **Wie oft eine Wischbewegung wirkt:** einmal am Ansatzpunkt und danach jedes Mal, wenn der Finger
+  entlang seines Weges weitere `strokeSpacing` Zellen zurückgelegt hat (`DigStroke` in `core`). Die
+  Ansatzpunkte liegen gleichmäßig auf dem Weg, unabhängig davon, wie schnell gewischt wird oder wie
+  oft das Gerät Bewegungen meldet. Ohne Bewegung passiert nichts (keine Zeit-Simulation). Mit
+  `strokeSpacing` = Radius trifft ein Wischzug eine Zelle im Mittel etwa 1,6-mal (höchstens 2-mal):
+  Die Schaufel trägt pro Zug rund 30 Erdeinheiten ab (2 bis 4 Züge bis zum Grund), die Kelle rund 9.
+- **Zoom:** von der ganzen Fläche (1) bis zum Vierfachen (UI-Konstanten, keine Spielwerte).
+- **Darstellung:** Kapitel 8. Hinweise erscheinen als helle, körnige Verfärbung der Erde, dünne Erde
+  über dem Grund wird leicht durchscheinend. Ein Treffer mit der Schaufel lässt die Zellen des
+  Knochens kurz rot aufleuchten; oben zeigt eine Anzeige den zuletzt getroffenen oder entdeckten
+  Knochen mit Name, Qualitätsstufe, Prozent und Stufenfarbe sowie die Zahl der entdeckten Knochen.
+- **„Keine Knochen mehr“:** Sind alle Knochen entdeckt, erscheint die Meldung, und „Ausgrabung
+  beenden“ wird hervorgehoben. Liegen noch unentdeckte Knochen in der Fläche, fragt „Ausgrabung
+  beenden“ vorher nach.
+- **Speichern:** nach jeder Wischbewegung (Finger hebt ab), beim Starten und Beenden und beim Wechsel
+  in den Hintergrund, nicht nach jeder einzelnen Anwendung.
 
 ## 4. Fundsystem
 
@@ -127,7 +159,8 @@ Umsetzung (AP2-05, `ExcavationGenerator` und `Excavator` in `core`, Parameter in
 - **Qualität zieht sich durch:** Alle Knochen eines Fundes teilen die Grundqualität, mit kleiner
   Abweichung pro Knochen. Schaden trifft jeden Knochen einzeln.
 - **Lage:** Zusammenhängende Knochen liegen in der Fläche beieinander. Umsetzung (AP2-05): Die
-  Knochen eines Fundes werden in Breitensuche-Reihenfolge über seinen Nachbarschaftsgraph gesetzt, jeder
+  Knochen eines Fundes werden mit ihren Umrissen (Kapitel 3) in Breitensuche-Reihenfolge über seinen
+  Nachbarschaftsgraph gesetzt, jeder
   weitere Knochen an eine zufällige freie Stelle, an der er über eine Zellkante an einen schon gesetzten
   Graph-Nachbarn grenzt. Knochen überlappen nie; Zellen verschiedener Funde haben mindestens
   `findSpacing` Zellen Abstand (Start 2). Findet ein Knochen keine Stelle, beginnt der Fund von vorn;
@@ -196,7 +229,19 @@ Umsetzung (AP2-05, `ExcavationGenerator` und `Excavator` in `core`, Parameter in
     Blickrichtung, leicht schräg von links oben), Knochenfarbe aus dem Material der `.glb`. Renderer ist ein Software-Rasterizer mit numpy (läuft
     ohne GPU, auch in der CI, deterministisch; die CI prüft mit `--check`, ob die Bilder aktuell sind).
     Eine neue Art braucht nur einen erneuten Aufruf.
-  - Echtes 3D zum Drehen gibt es beim Zuordnen, im Museum und im Sammelbuch.
+  - Umrisse in der Fläche (AP2-07): `tools/models3d/bone_footprints.py` rechnet aus den Masken die
+    belegten Zellen je Knochen (Kapitel 3) nach `core/src/main/resources/data/footprints/<speciesId>.json`
+    und dazu die Lage des Bilds relativ zu diesen Zellen (`imageLeft`, `imageTop` in Bildpixeln). Den
+    Maßstab `cellsPerUnit` liest es aus `balance.json`; die CI prüft mit `--check`, der
+    `DataValidator` prüft Vollständigkeit, Maßstab und dass jeder Umriss in die Fläche passt.
+  - Grabungsfläche (AP2-07): kein sichtbares Raster. Unten der Boden der Grube (Gesteinstextur der
+    Schicht, abgedunkelt) mit den Knochenbildern an ihren Zellen, darüber die Erde als
+    Gesteinstextur, ausgestanzt mit einer Erdmaske. Die Maske (8 Pixel je Zelle, gestreckt und
+    gefiltert) entsteht aus den Erdtiefen: Werte je Zelle werden weich zwischen den Zellmitten
+    interpoliert, Lochkanten mit festem Rauschen ausgefranst, die Tiefen-Abstufung (dunkler, je
+    tiefer gegraben) über 3 x 3 Zellen gemittelt und erst unterhalb der kleinsten Anfangstiefe,
+    damit die zufälligen Anfangstiefen kein Zellmuster zeigen. Nach einer Aktion wird nur der
+    geänderte Ausschnitt neu gerechnet; Verschieben und Zoomen zeichnen nur neu. zum Drehen gibt es beim Zuordnen, im Museum und im Sammelbuch.
 - 3D-Meshes: eine `.glb`-Datei pro Knochen plus `bones.json` pro Art
   (`art/models3d/<speciesId>/`). Realistisch wirkender Look, nicht zwingend anatomisch exakt.
 - Wahl des 3D-Renderers für Android/Compose: wird in AP-10 geprüft und hier nachgetragen.
@@ -262,6 +307,13 @@ Umsetzung (AP2-05, `ExcavationGenerator` und `Excavator` in `core`, Parameter in
   Platzhalter-Umriss. Entschieden ist: Umrisse kommen aus den Masken, mit
   `excavation.cellsPerUnit` = 8 Zellen pro Modelleinheit (vorläufiger Balancing-Wert) und ohne Drehung
   beim Platzieren; umgesetzt wird das in AP2-07.
+- **Stand nach AP2-07:** Grobes Buddeln ist spielbar (Kapitel 3, „Screen“). Der Platzhalter-Umriss
+  (`excavation.placeholderFootprint`) ist entfernt, die Umrisse kommen aus
+  `data/footprints/<speciesId>.json` (`excavation.cellsPerUnit`, Kapitel 8). Spielstände mit
+  Platzhalter-Zellen bleiben gültig (die Zellen sind gespeichert); deren Knochenbilder stehen mittig
+  auf dem Rechteck. **Übergang bis AP2-08/09:** „Ausgrabung beenden“ setzt `excavation` auf `null`;
+  gefundene Knochen werden noch nicht freigelegt, geborgen oder ins Inventar gelegt, sie entfallen mit
+  der Fläche. Wie es nach dem groben Buddeln weitergeht, legen AP2-08 und AP2-09 fest.
 
 ## 11. Entscheidungen im Überblick
 
@@ -279,6 +331,7 @@ Umsetzung (AP2-05, `ExcavationGenerator` und `Excavator` in `core`, Parameter in
 | Darstellung | Graben in 2D, Skelett in 3D |
 | Knochenbilder | Liegelage pro Knochen (Seite mit der größten Fläche), einheitlicher Maßstab pro Art |
 | Knochenumrisse in der Fläche | aus den Masken, 8 Zellen pro Modelleinheit (vorläufig), ohne Drehung (ab AP2-07) |
+| Wischen | eine Anwendung je `strokeSpacing` Zellen Wischweg, ein Finger gräbt, zwei verschieben/zoomen |
 | Erster Stand | nur Höhlenbär, weitere Arten einzeln |
 
 ## 12. Arbeitspakete
@@ -361,7 +414,10 @@ AP2-06 und AP2-10 hängen nur an AP2-01 und können vorgezogen werden.
 - Endgültiger Name (Arbeitstitel „Fossil Collector“).
 - Konkrete Balancing-Werte (Fundgrößen, Schaden, Preise, Ansehen) nach dem ersten Playtest.
 - Größe der Grabungsfläche und Anzahl Funde pro Ausgrabung (Startwerte seit AP2-05 in
-  `balance.json: excavation`, endgültig nach dem Playtest).
+  `balance.json: excavation`, endgültig nach dem Playtest). Mit den echten Umrissen belegen Knochen
+  im Mittel nur rund 44 von 1 536 Zellen (knapp 3 %).
+- Tempo beim Wischen (`strokeSpacing`) und ob ein Hinweis bei der Schaufel lange genug sichtbar ist
+  (ein Wischzug kann eine Zelle zweimal treffen), nach dem Playtest.
 - Ob ein kurzes Tutorial nötig ist.
 
 ## 14. Änderungsprotokoll
@@ -389,3 +445,9 @@ AP2-06 und AP2-10 hängen nur an AP2-01 und können vorgezogen werden.
   Ausgabeort, Hauptachsenanalyse, Renderer). Entscheidung zu den Knochenumrissen in der Fläche
   (8 Zellen pro Modelleinheit, ohne Drehung) in Kapitel 10 und 11 festgehalten, Umsetzung in AP2-07
   (Kapitel 12); der offene Punkt dazu in Kapitel 13 ist erledigt.
+- **AP2-07 (2026-11-16):** Kapitel 3 um die echten Umrisse und den Screen grobes Buddeln ergänzt
+  (Start, Gesten, `strokeSpacing` in `tools.json`, Zoom-Grenzen, Darstellung von Hinweisen und
+  Schaden, „keine Knochen mehr“, Beenden mit Rückfrage, Speichern). Kapitel 4 „Lage“ auf die Umrisse
+  bezogen. Kapitel 8 um `bone_footprints.py` und die Darstellung der Fläche ergänzt. Kapitel 10 um
+  den Stand nach AP2-07 samt Übergang bis AP2-08/09, Kapitel 11 um das Wischen, Kapitel 13 um offene
+  Balancing-Punkte.

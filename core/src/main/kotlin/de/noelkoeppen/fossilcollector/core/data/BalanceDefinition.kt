@@ -69,7 +69,8 @@ data class FindSizeWeight(
  *
  * Die Flaeche ist ein internes Raster aus [width] x [height] Zellen. Jede Zelle hat eine Erdtiefe in
  * Erdeinheiten, gleichverteilt in `[depthMin, depthMax]`. Liegt ueber einer Knochenzelle hoechstens
- * [hintDepth] Erde, zeigt sie einen Hinweis.
+ * [hintDepth] Erde, zeigt sie einen Hinweis. Die Umrisse der Knochen kommen aus den Knochenmasken
+ * ([cellsPerUnit], AP2-07).
  */
 @Serializable
 data class ExcavationBalance(
@@ -85,8 +86,12 @@ data class ExcavationBalance(
     val findSpacing: Int,
     /** Versuche, einen Fund zu platzieren; passt er danach nicht, wird er weggelassen. */
     val placementAttempts: Int,
-    /** Platzhalter-Umriss jedes Knochens, bis Umrisse aus den Masken (AP2-06) genutzt werden. */
-    val placeholderFootprint: FootprintSize,
+    /**
+     * Zellen pro Modelleinheit (AP2-07): Massstab der Knochenumrisse in der Flaeche. Die Umrisse in
+     * `data/footprints/<speciesId>.json` rechnet `tools/models3d/bone_footprints.py` mit diesem Wert
+     * aus den Knochenmasken; der `DataValidator` prueft, dass sie dazu passen.
+     */
+    val cellsPerUnit: Int,
 )
 
 /** Ein Eintrag der Tabelle der Fundanzahl: [count] Funde mit relativem Gewicht [weight]. */
@@ -94,11 +99,4 @@ data class ExcavationBalance(
 data class FindCountWeight(
     val count: Int,
     val weight: Double,
-)
-
-/** Rechteck in Zellen. */
-@Serializable
-data class FootprintSize(
-    val width: Int,
-    val height: Int,
 )

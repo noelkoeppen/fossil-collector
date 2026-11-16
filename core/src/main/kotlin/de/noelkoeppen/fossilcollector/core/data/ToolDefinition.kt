@@ -8,6 +8,7 @@ import kotlinx.serialization.Serializable
  * Eine Anwendung wirkt auf alle Zellen, deren Mittelpunkt hoechstens [radius] Zellen vom
  * Ansatzpunkt entfernt ist, und traegt dort bis zu [removal] Erdeinheiten ab. Ein grobes Werkzeug
  * ([rough]) beschaedigt jeden Knochen, den es trifft, um [boneDamage] (vor `damage_reduction`).
+ * Beim Wischen wirkt es alle [strokeSpacing] Zellen zurueckgelegter Strecke einmal.
  * Preise und Freischaltung kommen mit AP2-14.
  */
 @Serializable
@@ -21,4 +22,10 @@ data class ToolDefinition(
     val rough: Boolean,
     /** Qualitaetsverlust pro Anwendung und getroffenem Knochen; nur bei groben Werkzeugen > 0. */
     val boneDamage: Double,
+    /**
+     * Abstand in Zellen zwischen zwei Anwendungen entlang einer Wischbewegung (AP2-07): Die UI loest
+     * die Aktion beim Aufsetzen des Fingers einmal aus und danach jedes Mal, wenn der Finger diese
+     * Strecke weiter gewischt hat (siehe `DigStroke`).
+     */
+    val strokeSpacing: Double,
 )

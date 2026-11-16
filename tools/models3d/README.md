@@ -7,6 +7,7 @@ Skripte rund um die 3D-Modelle in `art/models3d/<speciesId>/`.
 | `build_extract.py`, `extract.py` | Erzeugen die Einzelknochen-Meshes des Höhlenbären aus den Shader-Seiten (siehe `art/models3d/cave_bear/README.md`). |
 | `neighbors.py` | Leitet Knochenliste, Nachbarschaftsgraph und Knochennamen einer Art aus ihrem Modell ab und schreibt sie in die Spieldaten. |
 | `bone_images.py` | Rendert pro Knochen ein Bild in Liegelage (Seite mit der größten Fläche) mit Transparenz und eine Umrissmaske in die App-Assets (AP2-06). |
+| `bone_footprints.py` | Rechnet aus den Umrissmasken die Umrisse der Knochen im Raster der Grabungsfläche und schreibt sie in die Spieldaten (AP2-07). |
 
 ## neighbors.py
 
@@ -43,7 +44,8 @@ Ablauf pro Art:
 3. `python3 tools/models3d/neighbors.py <speciesId>` ausführen, Graph prüfen, bei Bedarf
    `neighbors_overrides.json` anlegen und das Skript erneut ausführen.
 4. `python3 tools/models3d/bone_images.py <speciesId>` ausführen (Knochenbilder und Masken).
-5. `./gradlew :core:test` (Datenvalidierung) und `./gradlew :app:testDebugUnitTest` müssen grün sein.
+5. `python3 tools/models3d/bone_footprints.py <speciesId>` ausführen (Umrisse in der Grabungsfläche).
+6. `./gradlew :core:test` (Datenvalidierung) und `./gradlew :app:testDebugUnitTest` müssen grün sein.
 
 ## bone_images.py
 
@@ -109,12 +111,49 @@ Nach jeder Änderung an den Meshes einer Art das Skript erneut ausführen und di
 mit einchecken. Die CI führt `bone_images.py --check` aus, die App-Unit-Tests
 (`BoneImageAssetsTest`) prüfen, dass für jeden Knochen jeder Art Bild und Maske existieren.
 
+## bone_footprints.py
+
+Braucht Python 3 mit `numpy` und `Pillow`. Liest pro Art `manifest.json` und `masks/<boneId>.png`
+von `bone_images.py`, die Knochenreihenfolge aus `species.json` und den Maßstab
+`excavation.cellsPerUnit` aus `balance.json` (der Wert wird nur dort gepflegt, Start 8 Zellen pro
+Modelleinheit). Ergebnis ist `core/src/main/resources/data/footprints/<speciesId>.json`, das `core`
+lädt (`DataFootprints`) und der `DataValidator` prüft.
+
+```bash
+python3 tools/models3d/bone_footprints.py                 # alle Arten mit Knochenbildern
+python3 tools/models3d/bone_footprints.py cave_bear       # nur eine Art
+python3 tools/models3d/bone_footprints.py --check         # nur prüfen (Exit-Code 1, wenn nicht aktuell)
+python3 tools/models3d/bone_footprints.py --stats         # Zellen und abgedeckter Pixelanteil je Knochen
+python3 tools/models3d/bone_footprints.py --min-coverage 0.1   # andere Schwelle ausprobieren
+```
+
+Verfahren pro Knochen (ohne Drehung):
+
+1. Eine Zelle ist `pxPerUnit / cellsPerUnit` Maskenpixel breit (Höhlenbär 384 / 8 = 48).
+2. Das Zellraster wird in Schritten von `offsetStep` Pixeln (Standard 4) gegen die Maske verschoben.
+   Eine Zelle ist belegt, wenn mindestens `minCoverage` (Standard 0,05) ihrer Fläche Knochen ist.
+   Hat keine Zelle genug Anteil, ist die mit dem größten Anteil belegt (jeder Knochen hat mindestens
+   eine Zelle).
+3. Gewählt wird die Lage mit den wenigsten Zellen, bei Gleichstand die mit den meisten abgedeckten
+   Knochenpixeln, dann die kleinste Verschiebung. Das Ergebnis ist deterministisch.
+4. Gespeichert werden die belegten Zellen als Zeilen (`#` belegt, `.` frei) und die linke obere
+   Bildecke relativ zum Umriss in Bildpixeln (`imageLeft`, `imageTop`). Damit zeichnet die App das
+   Knochenbild deckungsgleich mit den Zellen.
+
+Höhlenbär mit den Startwerten: 105 Knochen, 604 Zellen, im Mittel 96 % der Knochenpixel auf
+belegten Zellen, mindestens 81 %. Der Oberschenkel belegt 9 x 2 Zellen, das Becken 7 x 3, kleine
+Pfotenknochen und Schwanzwirbel eine Zelle. Die Parameter stehen unter `params` in der Datei; ein
+erneuter Lauf ohne Optionen nimmt sie von dort. Nach jeder Änderung an den Masken oder an
+`cellsPerUnit` das Skript erneut ausführen; die CI prüft das mit `--check`, der `DataValidator`
+prüft, dass `cellsPerUnit` der Datei zu `balance.json` passt.
+
 ## Tests
 
 ```bash
 python3 -m unittest discover -s tools/models3d -p 'test_*.py'
 ```
 
-Die Tests prüfen beide Skripte an kleinen synthetischen Modellen und, dass die eingecheckten Daten
-dem Skript-Ergebnis von `neighbors.py` entsprechen. Die CI führt sie zusammen mit
-`neighbors.py --check` und `bone_images.py --check` aus.
+Die Tests prüfen die Skripte an kleinen synthetischen Modellen bzw. Masken und, dass die
+eingecheckten Daten dem Skript-Ergebnis von `neighbors.py` und `bone_footprints.py` entsprechen. Die
+CI führt sie zusammen mit `neighbors.py --check`, `bone_images.py --check` und
+`bone_footprints.py --check` aus.

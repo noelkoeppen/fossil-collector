@@ -18,4 +18,21 @@
     <string name="message_save_unreadable">Your save could not be read. A new game was started.</string>
     <string name="message_old_save_discarded">Your save came from an old version of the game and no longer fits the new excavation game. A new game was started; your language setting was kept.</string>
     <string name="message_save_failed">Saving failed. It will be retried shortly.</string>
+
+    <!-- Main screen (AP2-07) -->
+    <string name="home_title">Dig site</string>
+    <string name="home_text">Remove the soil with your finger and uncover fossils. Watch for discoloured ground: a bone lies just below the surface there.</string>
+    <string name="home_start">Start excavation</string>
+
+    <!-- Rough digging (AP2-07) -->
+    <string name="dig_found_count">Bones found: %1$d</string>
+    <string name="dig_controls_hint">One finger digs, two fingers move and zoom.</string>
+    <string name="dig_bone_quality">%1$s, %2$d %%</string>
+    <string name="dig_bone_hit">Hit! %1$s</string>
+    <string name="dig_nothing_left">There are no more bones here.</string>
+    <string name="dig_end">End excavation</string>
+    <string name="dig_end_confirm_title">End excavation?</string>
+    <string name="dig_end_confirm_text">There are still undiscovered bones in this area. Do you want to end the excavation anyway?</string>
+    <string name="dig_end_confirm">End</string>
+    <string name="dig_end_cancel">Keep digging</string>
 </resources>

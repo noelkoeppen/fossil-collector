@@ -36,6 +36,6 @@
     ],
     "findSpacing": 2,
     "placementAttempts": 20,
-    "placeholderFootprint": {"width": 4, "height": 3}
+    "cellsPerUnit": 8
   }
 }

@@ -1,6 +1,5 @@
 package de.noelkoeppen.fossilcollector.core.engine
 
-import de.noelkoeppen.fossilcollector.core.data.FootprintSize
 import de.noelkoeppen.fossilcollector.core.data.GameData
 
 /**
@@ -33,27 +32,27 @@ data class BoneFootprint(val cells: List<Offset>) {
 }
 
 /**
- * Liefert den Umriss eines Knochens fuer die Platzierung in der Grabungsflaeche.
- *
- * Uebergang: [PlaceholderFootprints] gibt jedem Knochen dasselbe Rechteck aus
- * `balance.json: excavation.placeholderFootprint`. Die Knochenmasken liegen seit AP2-06 vor; AP2-07
- * macht daraus Umrisse (8 Zellen pro Modelleinheit, ohne Drehung, GAME_DESIGN.md Kapitel 10/11),
- * indem dem `ExcavationGenerator` eine andere Implementierung uebergeben wird. Die Platzierung selbst
- * arbeitet mit beliebigen Zellmengen.
+ * Liefert den Umriss eines Knochens fuer die Platzierung in der Grabungsflaeche. Die Platzierung im
+ * `ExcavationGenerator` arbeitet mit beliebigen Zellmengen; Standard sind die Umrisse aus den Daten
+ * ([DataFootprints]), Tests koennen eigene Umrisse einsetzen.
  */
 fun interface BoneFootprints {
     fun footprint(speciesId: String, boneId: String): BoneFootprint
 }
 
-/** Platzhalter: dasselbe Rechteck fuer jeden Knochen jeder Art. */
-class PlaceholderFootprints(size: FootprintSize) : BoneFootprints {
-    private val footprint = BoneFootprint.rectangle(size.width, size.height)
+/**
+ * Umrisse aus `data/footprints/<speciesId>.json` (AP2-07): aus den Knochenmasken mit
+ * `excavation.cellsPerUnit` Zellen pro Modelleinheit, ohne Drehung (GAME_DESIGN.md Kapitel 3/10).
+ */
+class DataFootprints(data: GameData) : BoneFootprints {
+    private val footprints: Map<String, Map<String, BoneFootprint>> =
+        data.footprints.mapValues { (_, species) ->
+            species.bones.associate { bone ->
+                bone.id to BoneFootprint(bone.occupiedCells().map { (dx, dy) -> BoneFootprint.Offset(dx, dy) })
+            }
+        }
 
-    override fun footprint(speciesId: String, boneId: String): BoneFootprint = footprint
-
-    companion object {
-        /** Platzhalter aus `balance.json: excavation.placeholderFootprint`. */
-        fun fromGameData(data: GameData): PlaceholderFootprints =
-            PlaceholderFootprints(data.balance.excavation.placeholderFootprint)
-    }
+    /** @throws NoSuchElementException wenn Art oder Knochen keinen Umriss haben */
+    override fun footprint(speciesId: String, boneId: String): BoneFootprint =
+        footprints[speciesId]?.get(boneId) ?: throw NoSuchElementException("Kein Umriss fuer $speciesId/$boneId")
 }

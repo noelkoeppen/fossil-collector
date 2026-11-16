@@ -19,17 +19,19 @@ sealed interface GameUiState {
     data object DataError : GameUiState
 
     /**
-     * Geladenes Spiel. Nach AP2-02 noch ohne Spielinhalt (leerer Hauptbildschirm).
+     * Geladenes Spiel: Hauptbildschirm oder laufende Ausgrabung (AP2-07).
      *
      * @property settings Einstellungen des Spielstands
      * @property qualityTiers Qualitaetsstufen aus den Spieldaten (fuer die Qualitaetsfarben)
      * @property texts Inhaltstexte (Standardsprache); die UI waehlt die Sprache per `TextProvider.withLanguage`
+     * @property dig laufende Ausgrabung (grobes Buddeln) oder `null`
      */
     @Immutable
     data class Ready(
         val settings: Settings,
         val qualityTiers: List<QualityTierDefinition>,
         val texts: TextProvider = TextProvider.EMPTY,
+        val dig: DigUiState? = null,
     ) : GameUiState
 }
 

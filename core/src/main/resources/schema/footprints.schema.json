@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://noelkoeppen.de/fossil-collector/schema/footprints.schema.json",
+  "title": "footprints/<speciesId>.json",
+  "description": "Knochenumrisse einer Art im Raster der Grabungsflaeche (AP2-07), erzeugt von tools/models3d/bone_footprints.py",
+  "type": "object",
+  "properties": {
+    "formatVersion": {
+      "const": 1
+    },
+    "species": {
+      "$ref": "common.schema.json#/$defs/id"
+    },
+    "cellsPerUnit": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "muss balance.json: excavation.cellsPerUnit entsprechen"
+    },
+    "pxPerUnit": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Pixel pro Modelleinheit der Knochenbilder"
+    },
+    "params": {
+      "type": "object",
+      "properties": {
+        "minCoverage": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1
+        },
+        "offsetStep": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "minCoverage",
+        "offsetStep"
+      ],
+      "additionalProperties": false
+    },
+    "bones": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "$ref": "common.schema.json#/$defs/id"
+          },
+          "rows": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "pattern": "^[#.]+$"
+            },
+            "description": "Zeilen des Umrisses von oben nach unten, # = belegt"
+          },
+          "imageLeft": {
+            "type": "integer",
+            "description": "linke Bildkante in Bildpixeln relativ zum Umriss-Rechteck"
+          },
+          "imageTop": {
+            "type": "integer",
+            "description": "obere Bildkante in Bildpixeln relativ zum Umriss-Rechteck"
+          }
+        },
+        "required": [
+          "id",
+          "rows",
+          "imageLeft",
+          "imageTop"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "formatVersion",
+    "species",
+    "cellsPerUnit",
+    "pxPerUnit",
+    "params",
+    "bones"
+  ],
+  "additionalProperties": false
+}

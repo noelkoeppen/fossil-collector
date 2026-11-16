@@ -29,6 +29,11 @@
         "minimum": 0,
         "maximum": 1,
         "description": "Qualitaetsverlust pro Anwendung und getroffenem Knochen vor damage_reduction; > 0 genau bei groben Werkzeugen"
+      },
+      "strokeSpacing": {
+        "type": "number",
+        "exclusiveMinimum": 0,
+        "description": "Abstand in Zellen zwischen zwei Anwendungen entlang einer Wischbewegung (AP2-07)"
       }
     },
     "required": [
@@ -36,7 +41,8 @@
       "removal",
       "radius",
       "rough",
-      "boneDamage"
+      "boneDamage",
+      "strokeSpacing"
     ],
     "additionalProperties": false
   },

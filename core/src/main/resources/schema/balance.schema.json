@@ -161,24 +161,10 @@
           "minimum": 1,
           "description": "Versuche pro Fund, danach wird er weggelassen"
         },
-        "placeholderFootprint": {
-          "type": "object",
-          "description": "Uebergang bis zu Umrissen aus den Knochenmasken (AP2-06): Rechteck pro Knochen in Zellen",
-          "properties": {
-            "width": {
-              "type": "integer",
-              "minimum": 1
-            },
-            "height": {
-              "type": "integer",
-              "minimum": 1
-            }
-          },
-          "required": [
-            "width",
-            "height"
-          ],
-          "additionalProperties": false
+        "cellsPerUnit": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Zellen pro Modelleinheit fuer die Knochenumrisse aus den Masken (AP2-07); bone_footprints.py liest den Wert von hier"
         }
       },
       "required": [
@@ -190,7 +176,7 @@
         "findCountWeights",
         "findSpacing",
         "placementAttempts",
-        "placeholderFootprint"
+        "cellsPerUnit"
       ],
       "additionalProperties": false
     }
