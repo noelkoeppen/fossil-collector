@@ -3,6 +3,8 @@ package de.noelkoeppen.fossilcollector.core.save
 import de.noelkoeppen.fossilcollector.core.data.DataRepository
 import de.noelkoeppen.fossilcollector.core.engine.ExcavationGenerator
 import de.noelkoeppen.fossilcollector.core.engine.Excavator
+import de.noelkoeppen.fossilcollector.core.engine.PreparationGenerator
+import de.noelkoeppen.fossilcollector.core.engine.Preparer
 import de.noelkoeppen.fossilcollector.core.random.SeededRandom
 import de.noelkoeppen.fossilcollector.core.model.GameState
 import de.noelkoeppen.fossilcollector.core.model.LanguageSetting
@@ -52,5 +54,25 @@ internal object SaveFixtures {
         }
         check(site.piece(bone).quality < ExcavationGenerator(data).generate("quaternary", SeededRandom(2026)).piece(bone).quality)
         return rich.copy(excavation = site)
+    }
+
+    /**
+     * Spielstand mit laufendem feinen Freilegen (AP2-08): [withExcavation], dann die Nahansicht des
+     * ersten Knochens begonnen, eine Reihe mit dem Pinsel bearbeitet und zweimal an derselben Stelle
+     * gekratzt (der zweite Zug trifft freiliegenden Knochen).
+     */
+    fun withPreparation(): GameState {
+        val data = DataRepository().load()
+        val state = withExcavation()
+        var site = checkNotNull(state.excavation)
+        val bone = site.bones.first()
+        site = PreparationGenerator(data).start(site, bone, SeededRandom(8))
+        val preparer = Preparer(data)
+        val prep = checkNotNull(site.preparation(bone))
+        val boneCell = (0 until prep.cellCount).first { prep.isBone(it) }
+        val y = prep.yOf(boneCell) + 0.5
+        for (x in 0 until prep.width) site = preparer.applyTool(site, bone, "brush", x + 0.5, y).site
+        repeat(2) { site = preparer.applyTool(site, bone, "scraper", prep.xOf(boneCell) + 0.5, y).site }
+        return state.copy(excavation = site)
     }
 }

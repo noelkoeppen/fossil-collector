@@ -46,6 +46,7 @@ class ExcavationSessionTest {
         assertEquals("trowel", session.toolId)
         assertFalse(session.selectTool("trowel"))
         assertFalse(session.selectTool("dynamite"))
+        assertFalse(session.selectTool("brush"), "Pinsel gehoert zum feinen Freilegen")
         assertEquals("trowel", session.toolId)
     }
 
@@ -136,7 +137,7 @@ class ExcavationSessionTest {
         val excavator = Excavator(data)
         val ui = DigUiState.from(site, data, excavator, session.toolId, session.feedback)
         assertEquals(site.bones.size, ui.bones.size)
-        assertEquals(data.tools.map { it.id }, ui.tools)
+        assertEquals(listOf("shovel", "trowel"), ui.tools, "nur Werkzeuge des groben Buddelns")
         assertEquals(0, ui.discoveredCount)
         assertFalse(ui.nothingLeftToFind)
         assertTrue(ui.hinted.none { it })

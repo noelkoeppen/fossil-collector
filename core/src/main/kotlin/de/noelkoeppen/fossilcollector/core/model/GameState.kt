@@ -3,7 +3,8 @@ package de.noelkoeppen.fossilcollector.core.model
 import kotlinx.serialization.Serializable
 
 /**
- * Spielstand (Datenmodell 2.0, AP2-03; laufende Ausgrabung seit AP2-05, Version 4).
+ * Spielstand (Datenmodell 2.0, AP2-03; laufende Ausgrabung seit AP2-05, Version 4; feines
+ * Freilegen in der Ausgrabung seit AP2-08, Version 5).
  *
  * Spielstaende vor Version [OLDEST_SUPPORTED_SAVE_VERSION] (Incremental-Stand und Uebergangsstand
  * nach AP2-02) werden nicht migriert, sondern verworfen; uebernommen wird nur die Spracheinstellung
@@ -29,7 +30,7 @@ data class GameState(
 ) {
     companion object {
         /** Aktuelle Version des Speicherformats. Bei jeder Formataenderung erhoehen und Migration ergaenzen. */
-        const val CURRENT_SAVE_VERSION: Int = 4
+        const val CURRENT_SAVE_VERSION: Int = 5
 
         /**
          * Aelteste Version, die noch geladen (und bei Bedarf migriert) wird. Aeltere Spielstaende

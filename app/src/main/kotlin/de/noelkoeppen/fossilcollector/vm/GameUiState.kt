@@ -25,6 +25,7 @@ sealed interface GameUiState {
      * @property qualityTiers Qualitaetsstufen aus den Spieldaten (fuer die Qualitaetsfarben)
      * @property texts Inhaltstexte (Standardsprache); die UI waehlt die Sprache per `TextProvider.withLanguage`
      * @property dig laufende Ausgrabung (grobes Buddeln) oder `null`
+     * @property prep offene Nahansicht beim feinen Freilegen (AP2-08) oder `null`; nur bei laufender Ausgrabung
      */
     @Immutable
     data class Ready(
@@ -32,6 +33,7 @@ sealed interface GameUiState {
         val qualityTiers: List<QualityTierDefinition>,
         val texts: TextProvider = TextProvider.EMPTY,
         val dig: DigUiState? = null,
+        val prep: PrepUiState? = null,
     ) : GameUiState
 }
 

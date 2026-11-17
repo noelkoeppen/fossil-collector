@@ -38,8 +38,8 @@ import de.noelkoeppen.fossilcollector.R
 import de.noelkoeppen.fossilcollector.core.data.QualityTierDefinition
 import de.noelkoeppen.fossilcollector.core.data.TextProvider
 import de.noelkoeppen.fossilcollector.core.engine.QualityTiers
+import de.noelkoeppen.fossilcollector.core.model.BoneRef
 import de.noelkoeppen.fossilcollector.ui.theme.LocalQualityColors
-import de.noelkoeppen.fossilcollector.vm.DigBone
 import de.noelkoeppen.fossilcollector.vm.DigUiState
 import kotlin.math.roundToInt
 
@@ -50,16 +50,20 @@ data class DigActions(
     val onDigEnd: () -> Unit,
     val onSelectTool: (String) -> Unit,
     val onEndExcavation: () -> Unit,
+    /** Nahansicht eines entdeckten Knochens oeffnen (feines Freilegen, AP2-08). */
+    val onOpenBone: (BoneRef) -> Unit,
 ) {
     companion object {
-        val NONE = DigActions({ _, _ -> }, { _, _ -> }, {}, {}, {})
+        val NONE = DigActions({ _, _ -> }, { _, _ -> }, {}, {}, {}, {})
     }
 }
 
 /**
  * Screen grobes Buddeln (AP2-07): Grabungsflaeche, Werkzeugwahl, Rueckmeldung zum zuletzt
  * getroffenen oder entdeckten Knochen, Meldung „keine Knochen mehr“ und „Ausgrabung beenden“ (mit
- * Bestaetigung, solange noch Knochen in der Flaeche liegen).
+ * Bestaetigung, solange noch Knochen in der Flaeche liegen). Feines Freilegen (AP2-08): langes
+ * Druecken auf einen entdeckten Knochen oder „Freilegen“ beim zuletzt entdeckten Knochen oeffnet
+ * dessen Nahansicht.
  *
  * @param texts Inhaltstexte in der UI-Sprache (Werkzeug-, Knochen- und Stufennamen)
  */
@@ -78,9 +82,10 @@ fun DigScreen(
                 onDigStart = actions.onDigStart,
                 onDigMove = actions.onDigMove,
                 onDigEnd = actions.onDigEnd,
+                onOpenBone = actions.onOpenBone,
                 modifier = Modifier.fillMaxSize(),
             )
-            StatusPanel(dig, texts, qualityTiers, Modifier.align(Alignment.TopCenter).padding(12.dp))
+            StatusPanel(dig, texts, qualityTiers, actions.onOpenBone, Modifier.align(Alignment.TopCenter).padding(12.dp))
         }
         Surface(color = MaterialTheme.colorScheme.surfaceContainer) {
             Row(
@@ -125,7 +130,13 @@ fun DigScreen(
 
 /** Oben ueber der Flaeche: Anzahl entdeckter Knochen, zuletzt betroffener Knochen, Meldung „keine Knochen mehr“. */
 @Composable
-private fun StatusPanel(dig: DigUiState, texts: TextProvider, qualityTiers: List<QualityTierDefinition>, modifier: Modifier) {
+private fun StatusPanel(
+    dig: DigUiState,
+    texts: TextProvider,
+    qualityTiers: List<QualityTierDefinition>,
+    onOpenBone: (BoneRef) -> Unit,
+    modifier: Modifier,
+) {
     val focus = dig.feedback.focus?.let { dig.bone(it) }?.takeIf { it.discovered }
     Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Surface(
@@ -138,7 +149,24 @@ private fun StatusPanel(dig: DigUiState, texts: TextProvider, qualityTiers: List
                     style = MaterialTheme.typography.labelLarge,
                 )
                 if (focus != null) {
-                    BoneQualityRow(focus, hit = focus.ref in dig.feedback.damaged, texts, qualityTiers)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        BoneQualityLine(
+                            speciesId = focus.speciesId,
+                            boneId = focus.boneId,
+                            quality = focus.quality,
+                            hit = focus.ref in dig.feedback.damaged,
+                            texts = texts,
+                            qualityTiers = qualityTiers,
+                            status = if (focus.prepared) stringResource(R.string.dig_bone_prepared) else null,
+                        )
+                        Spacer(Modifier.width(12.dp))
+                        TextButton(onClick = { onOpenBone(focus.ref) }) { Text(stringResource(R.string.prep_open)) }
+                    }
+                    Text(
+                        text = stringResource(R.string.prep_open_hint),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 } else if (dig.discoveredCount == 0) {
                     Text(
                         text = stringResource(R.string.dig_controls_hint),
@@ -165,21 +193,33 @@ private fun StatusPanel(dig: DigUiState, texts: TextProvider, qualityTiers: List
     }
 }
 
-/** Name und Qualitaet (Stufe, Prozent, Stufenfarbe) eines Knochens; [hit] zeigt einen Treffer an. */
+/**
+ * Name und Qualitaet (Stufe, Prozent, Stufenfarbe) eines Knochens; [hit] zeigt einen Treffer an,
+ * [status] haengt einen Zustand an (z. B. „freigelegt“). Auch in der Nahansicht (AP2-08) verwendet.
+ */
 @Composable
-private fun BoneQualityRow(bone: DigBone, hit: Boolean, texts: TextProvider, qualityTiers: List<QualityTierDefinition>) {
+internal fun BoneQualityLine(
+    speciesId: String,
+    boneId: String,
+    quality: Double,
+    hit: Boolean,
+    texts: TextProvider,
+    qualityTiers: List<QualityTierDefinition>,
+    status: String? = null,
+) {
     val tiers = remember(qualityTiers) { qualityTiers.takeIf { it.isNotEmpty() }?.let(::QualityTiers) }
-    val tier = tiers?.tierOf(bone.quality)
-    val color = LocalQualityColors.current.forQuality(bone.quality) ?: MaterialTheme.colorScheme.outline
+    val tier = tiers?.tierOf(quality)
+    val color = LocalQualityColors.current.forQuality(quality) ?: MaterialTheme.colorScheme.outline
     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }) {
         Box(Modifier.size(10.dp).background(color, CircleShape))
         Spacer(Modifier.width(6.dp))
         Column {
-            Text(texts.boneName(bone.speciesId, bone.boneId), style = MaterialTheme.typography.bodyMedium)
-            val percent = (bone.quality * PERCENT).roundToInt()
-            val quality = stringResource(R.string.dig_bone_quality, tier?.let { texts.qualityTierName(it.id) }.orEmpty(), percent)
+            Text(texts.boneName(speciesId, boneId), style = MaterialTheme.typography.bodyMedium)
+            val percent = (quality * PERCENT).roundToInt()
+            val base = stringResource(R.string.dig_bone_quality, tier?.let { texts.qualityTierName(it.id) }.orEmpty(), percent)
+            val line = if (status != null) stringResource(R.string.dig_bone_status, base, status) else base
             Text(
-                text = if (hit) stringResource(R.string.dig_bone_hit, quality) else quality,
+                text = if (hit) stringResource(R.string.dig_bone_hit, line) else line,
                 style = MaterialTheme.typography.bodySmall,
                 color = if (hit) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
             )

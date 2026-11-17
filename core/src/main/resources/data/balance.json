@@ -37,5 +37,17 @@
     "findSpacing": 2,
     "placementAttempts": 20,
     "cellsPerUnit": 8
+  },
+  "preparation": {
+    "subdivision": 4,
+    "margin": 1,
+    "looseDepthMin": 3,
+    "looseDepthMax": 6,
+    "hardDepthMin": 4,
+    "hardDepthMax": 8,
+    "hardSpotsPerCell": 0.35,
+    "hardSpotRadiusMin": 1.0,
+    "hardSpotRadiusMax": 2.5,
+    "finishedShare": 0.95
   }
 }

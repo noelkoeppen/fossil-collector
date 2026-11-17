@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://noelkoeppen.de/fossil-collector/schema/tools.schema.json",
   "title": "tools.json",
-  "description": "Grabungswerkzeuge fuer das grobe Buddeln (Kapitel 3, AP2-05)",
+  "description": "Werkzeuge fuer das grobe Buddeln (Kapitel 3, AP2-05) und das feine Freilegen (Kapitel 5.1, AP2-08)",
   "type": "array",
   "items": {
     "type": "object",
@@ -10,10 +10,17 @@
       "id": {
         "$ref": "common.schema.json#/$defs/id"
       },
+      "stage": {
+        "enum": [
+          "dig",
+          "prepare"
+        ],
+        "description": "Einsatzbereich: dig = grobes Buddeln in der Flaeche (Werte in Zellen), prepare = feines Freilegen in der Nahansicht (Werte in feinen Zellen)"
+      },
       "removal": {
         "type": "integer",
         "minimum": 1,
-        "description": "Abgetragene Erde pro Anwendung und Zelle (Erdeinheiten); hoechstens excavation.hintDepth"
+        "description": "Abgetragene Erde pro Anwendung und Zelle (Erdeinheiten bzw. Einheiten der Restschicht); bei dig hoechstens excavation.hintDepth"
       },
       "radius": {
         "type": "number",
@@ -22,7 +29,7 @@
       },
       "rough": {
         "type": "boolean",
-        "description": "Grobes Werkzeug: beschaedigt Knochen, die es trifft"
+        "description": "Grobes Werkzeug: beschaedigt Knochen, die es trifft (dig: tiefer als die Erde darueber; prepare: Knochenzelle ohne Restschicht)"
       },
       "boneDamage": {
         "type": "number",
@@ -34,15 +41,21 @@
         "type": "number",
         "exclusiveMinimum": 0,
         "description": "Abstand in Zellen zwischen zwei Anwendungen entlang einer Wischbewegung (AP2-07)"
+      },
+      "removesHard": {
+        "type": "boolean",
+        "description": "Loest harte Stellen der Restschicht (nur prepare; bei dig false)"
       }
     },
     "required": [
       "id",
+      "stage",
       "removal",
       "radius",
       "rough",
       "boneDamage",
-      "strokeSpacing"
+      "strokeSpacing",
+      "removesHard"
     ],
     "additionalProperties": false
   },

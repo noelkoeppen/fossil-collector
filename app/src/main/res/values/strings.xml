@@ -35,4 +35,14 @@
     <string name="dig_end_confirm_text">In dieser Fläche liegen noch unentdeckte Knochen. Willst du die Ausgrabung trotzdem beenden?</string>
     <string name="dig_end_confirm">Beenden</string>
     <string name="dig_end_cancel">Weitergraben</string>
+
+    <!-- Feines Freilegen (AP2-08) -->
+    <string name="dig_bone_status">%1$s · %2$s</string>
+    <string name="dig_bone_prepared">freigelegt</string>
+    <string name="prep_open">Freilegen</string>
+    <string name="prep_open_hint">Lange auf einen entdeckten Knochen drücken, um ihn freizulegen.</string>
+    <string name="prep_progress">Freigelegt: %1$d %%</string>
+    <string name="prep_controls_hint">%1$s: entfernt lose Erde, ungefährlich. %2$s: löst die dunklen harten Stellen, kostet aber Qualität, wenn du über freien Knochen kratzt.</string>
+    <string name="prep_finished">Der Knochen ist fertig freigelegt.</string>
+    <string name="prep_back">Zur Fläche</string>
 </resources>

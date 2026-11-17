@@ -51,10 +51,14 @@ data class PlacedFind(
  *
  * Gespeichert wird die Flaeche kompakt: die Tiefen als Base64 von 16-Bit-Werten (siehe [MAX_DEPTH]).
  *
+ * Feines Freilegen (AP2-08): [preparations] enthaelt die Nahansicht jedes Knochens, dessen Freilegen
+ * begonnen hat (hoechstens eine je Knochen), samt Restschicht und Zustand „fertig freigelegt“.
+ *
  * @property layerId Schicht der Ausgrabung
  * @property width Breite in Zellen
  * @property height Hoehe in Zellen
  * @property finds platzierte Funde; [BoneRef.findIndex] zeigt in diese Liste
+ * @property preparations begonnene Nahansichten (Kapitel 5.1) in Reihenfolge des Beginns
  */
 @Serializable(with = ExcavationSiteSerializer::class)
 class ExcavationSite(
@@ -63,6 +67,7 @@ class ExcavationSite(
     val height: Int,
     depths: IntArray,
     val finds: List<PlacedFind>,
+    val preparations: List<BonePreparation> = emptyList(),
 ) {
     private val depthArray: IntArray = depths.copyOf()
 
@@ -83,6 +88,12 @@ class ExcavationSite(
                 owner[cell] = index
             }
         }
+        preparations.forEach { prep ->
+            require(prep.findIndex in finds.indices && prep.boneId in finds[prep.findIndex].cells) {
+                "Nahansicht fuer unbekannten Knochen ${prep.findIndex}/${prep.boneId}"
+            }
+        }
+        require(preparations.map { it.ref }.toSet().size == preparations.size) { "Nahansicht doppelt" }
     }
 
     /** Anzahl Zellen. */
@@ -133,9 +144,19 @@ class ExcavationSite(
     /** Zustand „nichts mehr zu finden“: alle Knochen der Flaeche sind entdeckt (auch bei einer Flaeche ohne Funde). */
     val nothingLeftToFind: Boolean get() = bones.all { isDiscovered(it) }
 
+    /** Nahansicht von [ref] oder `null`, wenn das Freilegen noch nicht begonnen hat. */
+    fun preparation(ref: BoneRef): BonePreparation? = preparations.firstOrNull { it.findIndex == ref.findIndex && it.boneId == ref.boneId }
+
+    /** `true`, wenn [ref] fertig freigelegt ist (Kapitel 5.1). */
+    fun isPrepared(ref: BoneRef): Boolean = preparation(ref)?.finished == true
+
     /** Neue Flaeche mit gleichem Raster, neuen Tiefen und Funden (fuer Aktionen in `engine`). */
     fun with(depths: IntArray, finds: List<PlacedFind>): ExcavationSite =
-        ExcavationSite(layerId, width, height, depths, finds)
+        ExcavationSite(layerId, width, height, depths, finds, preparations)
+
+    /** Neue Flaeche mit neuen Tiefen, Funden und Nahansichten (fuer Aktionen in `engine`). */
+    fun with(depths: IntArray, finds: List<PlacedFind>, preparations: List<BonePreparation>): ExcavationSite =
+        ExcavationSite(layerId, width, height, depths, finds, preparations)
 
     override fun equals(other: Any?): Boolean =
         this === other || (
@@ -144,7 +165,8 @@ class ExcavationSite(
                 width == other.width &&
                 height == other.height &&
                 depthArray.contentEquals(other.depthArray) &&
-                finds == other.finds
+                finds == other.finds &&
+                preparations == other.preparations
             )
 
     override fun hashCode(): Int {
@@ -153,6 +175,7 @@ class ExcavationSite(
         result = 31 * result + height
         result = 31 * result + depthArray.contentHashCode()
         result = 31 * result + finds.hashCode()
+        result = 31 * result + preparations.hashCode()
         return result
     }
 
@@ -199,6 +222,8 @@ private class ExcavationSiteSurrogate(
     /** Base64 von 16-Bit-Werten, Zellindex `y * width + x`. */
     val depths: String,
     val finds: List<PlacedFind>,
+    /** Begonnene Nahansichten (seit Version 5, AP2-08). */
+    val preparations: List<BonePreparation> = emptyList(),
 )
 
 /** Serialisiert [ExcavationSite] ueber [ExcavationSiteSurrogate]. */
@@ -212,12 +237,13 @@ internal object ExcavationSiteSerializer : KSerializer<ExcavationSite> {
             height = value.height,
             depths = ExcavationSite.encodeDepths(value.depthsCopy()),
             finds = value.finds,
+            preparations = value.preparations,
         )
         encoder.encodeSerializableValue(ExcavationSiteSurrogate.serializer(), surrogate)
     }
 
     override fun deserialize(decoder: Decoder): ExcavationSite {
         val s = decoder.decodeSerializableValue(ExcavationSiteSurrogate.serializer())
-        return ExcavationSite(s.layerId, s.width, s.height, ExcavationSite.decodeDepths(s.depths), s.finds)
+        return ExcavationSite(s.layerId, s.width, s.height, ExcavationSite.decodeDepths(s.depths), s.finds, s.preparations)
     }
 }

@@ -116,7 +116,8 @@ mit einchecken. Die CI führt `bone_images.py --check` aus, die App-Unit-Tests
 Braucht Python 3 mit `numpy` und `Pillow`. Liest pro Art `manifest.json` und `masks/<boneId>.png`
 von `bone_images.py`, die Knochenreihenfolge aus `species.json` und den Maßstab
 `excavation.cellsPerUnit` aus `balance.json` (der Wert wird nur dort gepflegt, Start 8 Zellen pro
-Modelleinheit). Ergebnis ist `core/src/main/resources/data/footprints/<speciesId>.json`, das `core`
+Modelleinheit) und die Unterteilung `preparation.subdivision` für das feine Freilegen (AP2-08,
+Start 4). Ergebnis ist `core/src/main/resources/data/footprints/<speciesId>.json`, das `core`
 lädt (`DataFootprints`) und der `DataValidator` prüft.
 
 ```bash
@@ -125,6 +126,7 @@ python3 tools/models3d/bone_footprints.py cave_bear       # nur eine Art
 python3 tools/models3d/bone_footprints.py --check         # nur prüfen (Exit-Code 1, wenn nicht aktuell)
 python3 tools/models3d/bone_footprints.py --stats         # Zellen und abgedeckter Pixelanteil je Knochen
 python3 tools/models3d/bone_footprints.py --min-coverage 0.1   # andere Schwelle ausprobieren
+python3 tools/models3d/bone_footprints.py --fine-coverage 0.4  # andere Schwelle fuer feine Zellen
 ```
 
 Verfahren pro Knochen (ohne Drehung):
@@ -139,13 +141,19 @@ Verfahren pro Knochen (ohne Drehung):
 4. Gespeichert werden die belegten Zellen als Zeilen (`#` belegt, `.` frei) und die linke obere
    Bildecke relativ zum Umriss in Bildpixeln (`imageLeft`, `imageTop`). Damit zeichnet die App das
    Knochenbild deckungsgleich mit den Zellen.
+5. Feiner Umriss für das feine Freilegen (AP2-08): Das Rechteck aus Schritt 4 wird in
+   `subdivision` x `subdivision` feine Zellen je Zelle geteilt (Höhlenbär 48 / 4 = 12 Pixel je feiner
+   Zelle). Eine feine Zelle ist Knochen, wenn mindestens `fineCoverage` (Standard 0,5) ihrer Fläche
+   Knochen ist, mindestens aber eine. Gespeichert als `fineRows`; die Nahansicht nutzt sie als
+   Knochenzellen (`PreparationGenerator`).
 
 Höhlenbär mit den Startwerten: 105 Knochen, 604 Zellen, im Mittel 96 % der Knochenpixel auf
 belegten Zellen, mindestens 81 %. Der Oberschenkel belegt 9 x 2 Zellen, das Becken 7 x 3, kleine
 Pfotenknochen und Schwanzwirbel eine Zelle. Die Parameter stehen unter `params` in der Datei; ein
 erneuter Lauf ohne Optionen nimmt sie von dort. Nach jeder Änderung an den Masken oder an
-`cellsPerUnit` das Skript erneut ausführen; die CI prüft das mit `--check`, der `DataValidator`
-prüft, dass `cellsPerUnit` der Datei zu `balance.json` passt.
+`cellsPerUnit` oder `subdivision` das Skript erneut ausführen; die CI prüft das mit `--check`, der
+`DataValidator` prüft, dass `cellsPerUnit` und `subdivision` der Datei zu `balance.json` passen und
+die feinen Umrisse die richtige Größe haben.
 
 ## Tests
 

@@ -1,5 +1,6 @@
 package de.noelkoeppen.fossilcollector.core.data
 
+import de.noelkoeppen.fossilcollector.core.model.BonePreparation
 import de.noelkoeppen.fossilcollector.core.model.ExcavationSite
 
 /**
@@ -102,6 +103,29 @@ object DataValidator {
         }
         validateFinds(balance.finds, "$ctx/finds", errors)
         validateExcavation(balance.excavation, "$ctx/excavation", errors)
+        validatePreparation(balance.preparation, "$ctx/preparation", errors)
+    }
+
+    /**
+     * Feines Freilegen (Kapitel 5.1, AP2-08): Unterteilung >= 1, Rand >= 0, Dicken in
+     * 1..[BonePreparation.MAX_DEPTH] mit Untergrenze <= Obergrenze, Anzahl harter Stellen >= 0,
+     * Radien > 0 mit Untergrenze <= Obergrenze, Schwelle fuer fertig in (0, 1].
+     */
+    private fun validatePreparation(prep: PreparationBalance, ctx: String, errors: MutableList<String>) {
+        if (prep.subdivision < 1) errors += "$ctx: subdivision muss >= 1 sein"
+        if (prep.margin < 0) errors += "$ctx: margin muss >= 0 sein"
+        val max = BonePreparation.MAX_DEPTH
+        listOf(
+            Triple("looseDepth", prep.looseDepthMin, prep.looseDepthMax),
+            Triple("hardDepth", prep.hardDepthMin, prep.hardDepthMax),
+        ).forEach { (name, min, upper) ->
+            if (min < 1 || upper > max) errors += "$ctx: ${name}Min/${name}Max muessen in 1..$max liegen"
+            if (min > upper) errors += "$ctx: ${name}Min > ${name}Max"
+        }
+        if (!(prep.hardSpotsPerCell >= 0.0 && prep.hardSpotsPerCell.isFinite())) errors += "$ctx: hardSpotsPerCell muss >= 0 sein"
+        if (!(prep.hardSpotRadiusMin > 0.0 && prep.hardSpotRadiusMax.isFinite())) errors += "$ctx: hardSpotRadiusMin/Max muessen > 0 sein"
+        if (prep.hardSpotRadiusMin > prep.hardSpotRadiusMax) errors += "$ctx: hardSpotRadiusMin > hardSpotRadiusMax"
+        if (!(prep.finishedShare > 0.0 && prep.finishedShare <= 1.0)) errors += "$ctx: finishedShare muss in (0, 1] liegen"
     }
 
     /**
@@ -154,11 +178,18 @@ object DataValidator {
             if (footprints.cellsPerUnit < 1 || footprints.pxPerUnit < 1 || footprints.pxPerUnit % footprints.cellsPerUnit != 0) {
                 errors += "$file: pxPerUnit ${footprints.pxPerUnit} muss ein Vielfaches von cellsPerUnit sein"
             }
+            val sub = data.balance.preparation.subdivision
+            if (footprints.subdivision != sub) {
+                errors += "$file: subdivision ${footprints.subdivision} passt nicht zu balance.json ($sub), bone_footprints.py ausfuehren"
+            }
             val ids = footprints.bones.map { it.id }
             ids.groupingBy { it }.eachCount().filterValues { it > 1 }.keys.forEach { errors += "$file: Knochen '$it' doppelt" }
             (species.bones - ids.toSet()).forEach { errors += "$file: Umriss fuer Knochen '$it' fehlt" }
             (ids.toSet() - species.bones.toSet()).forEach { errors += "$file: unbekannter Knochen '$it'" }
-            footprints.bones.forEach { validateFootprint(it, ex, "$file/${it.id}", errors) }
+            footprints.bones.forEach {
+                validateFootprint(it, ex, "$file/${it.id}", errors)
+                validateFineFootprint(it, footprints.subdivision, "$file/${it.id}", errors)
+            }
         }
         (data.footprints.keys - data.speciesById.keys).forEach { errors += "footprints: Umrisse fuer unbekannte Art '$it'" }
     }
@@ -189,9 +220,27 @@ object DataValidator {
     }
 
     /**
-     * Werkzeuge (Kapitel 3): gueltige IDs, Abtrag >= 1 und hoechstens `hintDepth` (damit vor jeder
-     * Beruehrung eines Knochens ein Hinweis erscheint), Radius > 0, Schaden in 0..1, Schaden > 0 genau
-     * bei groben Werkzeugen, Abstand der Anwendungen beim Wischen > 0.
+     * Feiner Umriss (AP2-08): `fineRows` ist das Rechteck des Umrisses mal [sub] (Zeilen gleicher
+     * Laenge), nur `#` und `.`, mindestens eine Knochenzelle.
+     */
+    private fun validateFineFootprint(bone: BoneFootprintDefinition, sub: Int, ctx: String, errors: MutableList<String>) {
+        val rows = bone.fineRows
+        val allowed = setOf(BoneFootprintDefinition.OCCUPIED, BoneFootprintDefinition.FREE)
+        when {
+            rows.size != bone.height * sub || rows.any { it.length != bone.width * sub } ->
+                errors += "$ctx: fineRows muessen ${bone.width * sub}x${bone.height * sub} sein"
+            rows.any { row -> row.any { it !in allowed } } -> errors += "$ctx: fineRows: nur '#' und '.' erlaubt"
+            bone.fineCells().isEmpty() -> errors += "$ctx: fineRows ohne Knochenzelle"
+        }
+    }
+
+    /**
+     * Werkzeuge (Kapitel 3 und 5.1): gueltige IDs, Abtrag >= 1, Radius > 0, Schaden in 0..1,
+     * Schaden > 0 genau bei groben Werkzeugen, Abstand der Anwendungen beim Wischen > 0. Grobes
+     * Buddeln (`dig`): Abtrag hoechstens `hintDepth` (damit vor jeder Beruehrung eines Knochens ein
+     * Hinweis erscheint), loest keine harten Stellen. Feines Freilegen (`prepare`): mindestens ein
+     * Werkzeug loest harte Stellen (sonst liessen sich Knochen nicht fertig freilegen). Beide Bereiche
+     * brauchen mindestens ein Werkzeug.
      */
     private fun validateTools(data: GameData, errors: MutableList<String>) {
         val file = DataRepository.TOOLS
@@ -200,12 +249,20 @@ object DataValidator {
         data.tools.forEach { tool ->
             val ctx = "$file/${tool.id}"
             if (tool.removal < 1) errors += "$ctx: removal muss >= 1 sein"
-            if (tool.removal > hintDepth) errors += "$ctx: removal ${tool.removal} ist groesser als hintDepth $hintDepth"
+            if (tool.stage == ToolStage.DIG) {
+                if (tool.removal > hintDepth) errors += "$ctx: removal ${tool.removal} ist groesser als hintDepth $hintDepth"
+                if (tool.removesHard) errors += "$ctx: removesHard gibt es nur beim feinen Freilegen (stage prepare)"
+            }
             if (!(tool.radius > 0.0 && tool.radius.isFinite())) errors += "$ctx: radius muss > 0 sein"
             if (tool.boneDamage !in 0.0..1.0) errors += "$ctx: boneDamage ${tool.boneDamage} liegt nicht in 0..1"
             if (tool.rough && tool.boneDamage <= 0.0) errors += "$ctx: grobes Werkzeug braucht boneDamage > 0"
             if (!tool.rough && tool.boneDamage != 0.0) errors += "$ctx: nicht grobes Werkzeug muss boneDamage 0 haben"
             if (!(tool.strokeSpacing > 0.0 && tool.strokeSpacing.isFinite())) errors += "$ctx: strokeSpacing muss > 0 sein"
+        }
+        ToolStage.entries.filter { stage -> data.tools.none { it.stage == stage } }
+            .forEach { errors += "$file: kein Werkzeug fuer stage '${it.name.lowercase()}'" }
+        if (data.tools.none { it.stage == ToolStage.PREPARE && it.removesHard }) {
+            errors += "$file: kein Werkzeug zum feinen Freilegen loest harte Stellen (removesHard)"
         }
     }
 

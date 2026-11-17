@@ -1,4 +1,6 @@
 [
-  {"id": "shovel", "removal": 20, "radius": 2.5, "rough": true, "boneDamage": 0.08, "strokeSpacing": 2.5},
-  {"id": "trowel", "removal": 6, "radius": 1.5, "rough": false, "boneDamage": 0.0, "strokeSpacing": 1.5}
+  {"id": "shovel", "stage": "dig", "removal": 20, "radius": 2.5, "rough": true, "boneDamage": 0.08, "strokeSpacing": 2.5, "removesHard": false},
+  {"id": "trowel", "stage": "dig", "removal": 6, "radius": 1.5, "rough": false, "boneDamage": 0.0, "strokeSpacing": 1.5, "removesHard": false},
+  {"id": "brush", "stage": "prepare", "removal": 1, "radius": 2.0, "rough": false, "boneDamage": 0.0, "strokeSpacing": 1.0, "removesHard": false},
+  {"id": "scraper", "stage": "prepare", "removal": 10, "radius": 1.0, "rough": true, "boneDamage": 0.005, "strokeSpacing": 1.0, "removesHard": true}
 ]

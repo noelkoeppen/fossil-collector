@@ -1,6 +1,7 @@
 package de.noelkoeppen.fossilcollector.core.save
 
 import de.noelkoeppen.fossilcollector.core.model.GameState
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
@@ -97,7 +98,7 @@ class SaveMigrator(
         /**
          * Alle Migrationsschritte des Spiels ab [GameState.OLDEST_SUPPORTED_SAVE_VERSION], aufsteigend.
          */
-        val MIGRATIONS: List<SaveMigration> = listOf(AddExcavationV3)
+        val MIGRATIONS: List<SaveMigration> = listOf(AddExcavationV3, AddPreparationsV4)
 
         /** Migrator mit der echten Kette von [GameState.OLDEST_SUPPORTED_SAVE_VERSION] bis [GameState.CURRENT_SAVE_VERSION]. */
         val DEFAULT: SaveMigrator =
@@ -117,4 +118,22 @@ internal object AddExcavationV3 : SaveMigration {
 
     override fun migrate(save: JsonObject): JsonObject =
         if (FIELD in save) save else JsonObject(save + (FIELD to JsonNull))
+}
+
+/**
+ * Version 4 -> 5 (AP2-08): Die laufende Ausgrabung bekommt das Feld `preparations` (Nahansichten
+ * beim feinen Freilegen). Spielstaende der Version 4 haben noch keine; ohne laufende Ausgrabung
+ * bleibt alles, wie es ist.
+ */
+internal object AddPreparationsV4 : SaveMigration {
+    override val fromVersion: Int = 4
+
+    /** Name des Feldes der Nahansichten in der Ausgrabung. */
+    const val FIELD: String = "preparations"
+
+    override fun migrate(save: JsonObject): JsonObject {
+        val excavation = save[AddExcavationV3.FIELD] as? JsonObject ?: return save
+        if (FIELD in excavation) return save
+        return JsonObject(save + (AddExcavationV3.FIELD to JsonObject(excavation + (FIELD to JsonArray(emptyList())))))
+    }
 }

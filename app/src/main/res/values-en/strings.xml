@@ -35,4 +35,14 @@
     <string name="dig_end_confirm_text">There are still undiscovered bones in this area. Do you want to end the excavation anyway?</string>
     <string name="dig_end_confirm">End</string>
     <string name="dig_end_cancel">Keep digging</string>
+
+    <!-- Fine uncovering (AP2-08) -->
+    <string name="dig_bone_status">%1$s · %2$s</string>
+    <string name="dig_bone_prepared">uncovered</string>
+    <string name="prep_open">Uncover</string>
+    <string name="prep_open_hint">Long-press a discovered bone to uncover it.</string>
+    <string name="prep_progress">Uncovered: %1$d %%</string>
+    <string name="prep_controls_hint">%1$s: removes loose soil, safe. %2$s: breaks the dark hard spots, but costs quality if you scrape bare bone.</string>
+    <string name="prep_finished">The bone is fully uncovered.</string>
+    <string name="prep_back">Back to site</string>
 </resources>
