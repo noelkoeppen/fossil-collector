@@ -5,7 +5,9 @@ import de.noelkoeppen.fossilcollector.core.data.GameData
 /**
  * Prueft Spielstand-Inhalte gegen die Spieldaten: Alle IDs muessen existieren, Funde muessen im
  * Nachbarschaftsgraph der Art zusammenhaengen. Wird beim Import eines Spielstands verwendet
- * (Inventar und Funde der laufenden Ausgrabung).
+ * (Inventar und Funde der laufenden Ausgrabung). Geborgene Knochen (AP2-09) stehen sowohl im
+ * Inventar als auch weiter im Fund der Flaeche und werden an beiden Stellen geprueft; Nahansichten
+ * und Bergen prueft schon [ExcavationSite] beim Laden (Struktur, keine Spieldaten).
  * Eine leere Liste bedeutet: alles gueltig.
  */
 object ReferenceValidator {

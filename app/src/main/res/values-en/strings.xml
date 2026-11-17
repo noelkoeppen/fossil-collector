@@ -23,6 +23,8 @@
     <string name="home_title">Dig site</string>
     <string name="home_text">Remove the soil with your finger and uncover fossils. Watch for discoloured ground: a bone lies just below the surface there.</string>
     <string name="home_start">Start excavation</string>
+    <string name="home_inventory">In inventory: %1$d bones</string>
+    <string name="home_inventory_empty">No bones recovered yet.</string>
 
     <!-- Rough digging (AP2-07) -->
     <string name="dig_found_count">Bones found: %1$d</string>
@@ -32,7 +34,8 @@
     <string name="dig_nothing_left">There are no more bones here.</string>
     <string name="dig_end">End excavation</string>
     <string name="dig_end_confirm_title">End excavation?</string>
-    <string name="dig_end_confirm_text">There are still undiscovered bones in this area. Do you want to end the excavation anyway?</string>
+    <string name="dig_end_confirm_text">There are still undiscovered bones in this area.</string>
+    <string name="dig_end_confirm_question">Do you want to end the excavation anyway?</string>
     <string name="dig_end_confirm">End</string>
     <string name="dig_end_cancel">Keep digging</string>
 
@@ -45,4 +48,20 @@
     <string name="prep_controls_hint">%1$s: removes loose soil, safe. %2$s: breaks the dark hard spots, but costs quality if you scrape bare bone.</string>
     <string name="prep_finished">The bone is fully uncovered.</string>
     <string name="prep_back">Back to site</string>
+
+    <!-- Recovery (AP2-09) -->
+    <string name="dig_recovered_count">Recovered: %1$d</string>
+    <string name="dig_bone_recovered">recovered</string>
+    <string name="dig_all_recovered">All bones have been recovered.</string>
+    <string name="dig_end_confirm_unrecovered">Discovered but not recovered bones: %1$d. They stay behind in the area and are lost.</string>
+    <string name="prep_recover">Recover</string>
+    <string name="recovery_spots">Fragile spots secured: %1$d of %2$d</string>
+    <string name="recovery_hint">Tap the glowing fragile spots to secure them with plaster. Then pull the bone out calmly and steadily. Jerks and unsecured spots cost quality.</string>
+    <string name="recovery_secured">Secured.</string>
+    <string name="recovery_missed">There is no unsecured fragile spot there.</string>
+    <string name="recovery_jerk">Jerk! Pull more calmly. Jerks: %1$d</string>
+    <string name="recovery_dropped">Let go, the bone dropped back. Loss: %1$d %%</string>
+    <string name="recovery_done_title">Recovered!</string>
+    <string name="recovery_done_inventory">The bone is now in your inventory.</string>
+    <string name="recovery_done_details">Jerks: %1$d · unsecured spots: %2$d · loss when recovering: %3$d %%</string>
 </resources>

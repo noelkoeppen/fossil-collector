@@ -98,7 +98,7 @@ class SaveMigrator(
         /**
          * Alle Migrationsschritte des Spiels ab [GameState.OLDEST_SUPPORTED_SAVE_VERSION], aufsteigend.
          */
-        val MIGRATIONS: List<SaveMigration> = listOf(AddExcavationV3, AddPreparationsV4)
+        val MIGRATIONS: List<SaveMigration> = listOf(AddExcavationV3, AddPreparationsV4, AddRecoveriesV5)
 
         /** Migrator mit der echten Kette von [GameState.OLDEST_SUPPORTED_SAVE_VERSION] bis [GameState.CURRENT_SAVE_VERSION]. */
         val DEFAULT: SaveMigrator =
@@ -130,6 +130,24 @@ internal object AddPreparationsV4 : SaveMigration {
 
     /** Name des Feldes der Nahansichten in der Ausgrabung. */
     const val FIELD: String = "preparations"
+
+    override fun migrate(save: JsonObject): JsonObject {
+        val excavation = save[AddExcavationV3.FIELD] as? JsonObject ?: return save
+        if (FIELD in excavation) return save
+        return JsonObject(save + (AddExcavationV3.FIELD to JsonObject(excavation + (FIELD to JsonArray(emptyList())))))
+    }
+}
+
+/**
+ * Version 5 -> 6 (AP2-09): Die laufende Ausgrabung bekommt das Feld `recoveries` (Bergen).
+ * Spielstaende der Version 5 haben noch keines; ohne laufende Ausgrabung bleibt alles, wie es ist.
+ * Das Inventar gibt es schon seit Version 3.
+ */
+internal object AddRecoveriesV5 : SaveMigration {
+    override val fromVersion: Int = 5
+
+    /** Name des Feldes des Bergens in der Ausgrabung. */
+    const val FIELD: String = "recoveries"
 
     override fun migrate(save: JsonObject): JsonObject {
         val excavation = save[AddExcavationV3.FIELD] as? JsonObject ?: return save

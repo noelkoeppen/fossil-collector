@@ -253,6 +253,83 @@
         "finishedShare"
       ],
       "additionalProperties": false
+    },
+    "recovery": {
+      "type": "object",
+      "description": "Bergen (Kapitel 5.2, AP2-09): bruechige Stellen, Sichern mit Gips, Bewertung der Hebebewegung",
+      "properties": {
+        "fragileSpotsPerCell": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Mittlere Anzahl bruechiger Stellen je Zelle des Knochens in der Flaeche"
+        },
+        "fragileSpotsMin": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Mindestanzahl bruechiger Stellen je Knochen (sofern Platz ist)"
+        },
+        "fragileSpotsMax": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Hoechstanzahl bruechiger Stellen je Knochen"
+        },
+        "fragileSpotSpacing": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Mindestabstand zweier bruechiger Stellen in feinen Zellen"
+        },
+        "secureRadius": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "Trefferradius beim Sichern (Antippen) in feinen Zellen"
+        },
+        "liftDistance": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "Zugweg in dp, ab dem der Knochen herausgehoben ist"
+        },
+        "sampleWindowMillis": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Laenge eines Bewertungsfensters der Bewegung in Millisekunden"
+        },
+        "jerkSpeedChange": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "Geschwindigkeitswechsel zwischen zwei Fenstern in dp/s, ab dem ein Ruck vorliegt"
+        },
+        "maxSpeed": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "Geschwindigkeit in dp/s, ab der die Bewegung als Ruck zaehlt"
+        },
+        "jerkDamage": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Qualitaetsverlust je Ruck vor damage_reduction"
+        },
+        "unsecuredDamage": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Qualitaetsverlust je ungesicherter Stelle beim Herausheben vor damage_reduction"
+        }
+      },
+      "required": [
+        "fragileSpotsPerCell",
+        "fragileSpotsMin",
+        "fragileSpotsMax",
+        "fragileSpotSpacing",
+        "secureRadius",
+        "liftDistance",
+        "sampleWindowMillis",
+        "jerkSpeedChange",
+        "maxSpeed",
+        "jerkDamage",
+        "unsecuredDamage"
+      ],
+      "additionalProperties": false
     }
   },
   "required": [
@@ -260,7 +337,8 @@
     "statLimits",
     "finds",
     "excavation",
-    "preparation"
+    "preparation",
+    "recovery"
   ],
   "additionalProperties": false
 }

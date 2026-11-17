@@ -64,6 +64,7 @@ data class ToolResult(
  *   `boneDamage * (1 - damage_reduction)` Qualitaet (Stat begrenzt auf 0..1), hoechstens bis 0. Der
  *   Knochen bleibt immer erhalten (Kapitel 5).
  * - Entdeckt: Ein Knochen ist entdeckt, sobald eine seiner Zellen freiliegt (Tiefe 0).
+ * - Geborgene Knochen (AP2-09) liegen nicht mehr in der Flaeche: kein Hinweis, kein Treffer.
  *
  * @param data Spieldaten (validiert)
  * @param modifiers Modifier-System fuer `damage_reduction`
@@ -95,7 +96,7 @@ class Excavator(
         for (cell in cells) {
             val before = depths[cell]
             val after = before - minOf(tool.removal, before)
-            val bone = site.boneAt(cell)
+            val bone = site.activeBoneAt(cell)
             if (bone != null) {
                 if (before > hintDepth && after <= hintDepth) hints.getOrPut(bone) { mutableListOf() } += cell
                 if (tool.rough && tool.removal > before) hit += bone
@@ -152,7 +153,7 @@ class Excavator(
 
     /** `true`, wenn Zelle [cell] einen Hinweis auf einen Knochen zeigt (noch bedeckt, aber hoechstens `hintDepth` Erde). */
     fun isHinted(site: ExcavationSite, cell: Int): Boolean =
-        site.boneAt(cell) != null && site.depthAt(cell) in 1..hintDepth
+        site.activeBoneAt(cell) != null && site.depthAt(cell) in 1..hintDepth
 
     /** Alle Zellen mit Hinweis. */
     fun hintedCells(site: ExcavationSite): List<Int> = (0 until site.cellCount).filter { isHinted(site, it) }

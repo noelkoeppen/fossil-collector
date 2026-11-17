@@ -48,6 +48,8 @@ import de.noelkoeppen.fossilcollector.ui.dig.DigScreen
 import de.noelkoeppen.fossilcollector.ui.home.HomeScreen
 import de.noelkoeppen.fossilcollector.ui.prep.PrepActions
 import de.noelkoeppen.fossilcollector.ui.prep.PrepScreen
+import de.noelkoeppen.fossilcollector.ui.recovery.RecoveryActions
+import de.noelkoeppen.fossilcollector.ui.recovery.RecoveryScreen
 import de.noelkoeppen.fossilcollector.ui.rememberTextProvider
 import de.noelkoeppen.fossilcollector.ui.theme.AppIcons
 import de.noelkoeppen.fossilcollector.ui.theme.FossilCollectorTheme
@@ -67,6 +69,8 @@ import de.noelkoeppen.fossilcollector.vm.GameViewModel
  * Inhalt (AP2-07): Laeuft eine Ausgrabung, der Screen grobes Buddeln (auch direkt nach dem Start
  * der App, die Ausgrabung steht im Spielstand), sonst der Hauptbildschirm mit „Ausgrabung starten“.
  * Ist eine Nahansicht offen (AP2-08), der Screen feines Freilegen; Zurueck fuehrt zur Flaeche.
+ * Ist das Bergen offen (AP2-09), der Screen Bergen; Zurueck fuehrt zur Nahansicht bzw. nach dem
+ * Bergen zur Flaeche. Ohne Ausgrabung zeigt der Hauptbildschirm das Inventar (minimal).
  */
 @Composable
 fun AppShell(viewModel: GameViewModel) {
@@ -131,9 +135,19 @@ fun GameShell(
         Box(modifier = Modifier.fillMaxSize().padding(padding)) {
             val dig = state.dig
             val prep = state.prep
-            BackHandler(enabled = !showSettings && prep != null) { viewModel?.closePreparation() }
+            val recovery = state.recovery
+            BackHandler(enabled = !showSettings && prep != null && recovery == null) { viewModel?.closePreparation() }
+            BackHandler(enabled = !showSettings && recovery != null) { viewModel?.closeRecovery() }
             if (!showSettings) {
-                if (prep != null) {
+                if (recovery != null) {
+                    val texts = rememberTextProvider(state.texts, state.settings)
+                    RecoveryScreen(
+                        recovery = recovery,
+                        texts = texts,
+                        qualityTiers = state.qualityTiers,
+                        actions = remember(viewModel) { viewModel?.let(::recoveryActions) ?: RecoveryActions.NONE },
+                    )
+                } else if (prep != null) {
                     val texts = rememberTextProvider(state.texts, state.settings)
                     PrepScreen(
                         prep = prep,
@@ -150,7 +164,13 @@ fun GameShell(
                         actions = remember(viewModel) { viewModel?.let(::digActions) ?: DigActions.NONE },
                     )
                 } else {
-                    HomeScreen(onStartExcavation = { viewModel?.startExcavation() })
+                    val texts = rememberTextProvider(state.texts, state.settings)
+                    HomeScreen(
+                        onStartExcavation = { viewModel?.startExcavation() },
+                        inventory = state.inventory,
+                        texts = texts,
+                        qualityTiers = state.qualityTiers,
+                    )
                 }
             }
             if (showSettings) {
@@ -180,6 +200,15 @@ private fun prepActions(viewModel: GameViewModel) = PrepActions(
     onEnd = viewModel::prepEnd,
     onSelectTool = viewModel::selectPrepTool,
     onBack = viewModel::closePreparation,
+    onRecover = viewModel::openRecovery,
+)
+
+private fun recoveryActions(viewModel: GameViewModel) = RecoveryActions(
+    onTouchStart = viewModel::recoveryTouchStart,
+    onSample = viewModel::recoverySample,
+    onDrag = viewModel::recoveryDrag,
+    onTouchEnd = viewModel::recoveryTouchEnd,
+    onClose = viewModel::closeRecovery,
 )
 
 /** Obere Leiste: App-Name und Zahnrad bzw. Zurueck, solange die Einstellungen offen sind. */

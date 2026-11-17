@@ -43,8 +43,10 @@ import java.io.IOException
  * Es gibt keine Spielschleife und keine Zeit-Simulation (GAME_DESIGN.md, Kapitel 0 Regel 9). Der
  * Spielstand aendert sich nur durch Aktionen: Einstellungen, Export, Import und Loeschen des
  * Spielstands sowie das grobe Buddeln (AP2-07, ueber [ExcavationSession]: Ausgrabung starten,
- * Werkzeug waehlen, Wischen, Ausgrabung beenden) und das feine Freilegen (AP2-08, ueber
- * [PreparationSession]: Nahansicht oeffnen, Pinsel/Kratzer waehlen, Wischen, zurueck zur Flaeche).
+ * Werkzeug waehlen, Wischen, Ausgrabung beenden), das feine Freilegen (AP2-08, ueber
+ * [PreparationSession]: Nahansicht oeffnen, Pinsel/Kratzer waehlen, Wischen, zurueck zur Flaeche)
+ * und das Bergen (AP2-09, ueber [RecoverySession]: aus der fertigen Nahansicht oeffnen, Stellen
+ * antippen, Knochen herausziehen, zurueck zur Flaeche).
  *
  * - **Laden:** Spieldaten ueber [loadData] (Standard: [DataRepository] aus den Klassenpfad-Ressourcen
  *   von `core`, die im APK liegen; ungueltige Daten fuehren zu [GameUiState.DataError]), dann den
@@ -53,8 +55,9 @@ import java.io.IOException
  *   seine Spracheinstellung, und [messages] liefert [GameMessage.OldSaveDiscarded].
  * - **Speichern:** direkt nach jeder Aenderung, nach dem Anlegen eines neuen Spiels und beim Wechsel
  *   in den Hintergrund ([onAppBackground]). Beim Graben nicht nach jeder Anwendung, sondern am Ende
- *   jeder Wischbewegung ([digEnd], [prepEnd]), sowie beim Starten und Beenden der Ausgrabung und beim
- *   Oeffnen und Schliessen einer Nahansicht. `lastSavedAt` wird
+ *   jeder Wischbewegung ([digEnd], [prepEnd]) bzw. Beruehrung beim Bergen ([recoveryTouchEnd]), sowie
+ *   beim Starten und Beenden der Ausgrabung und beim Oeffnen und Schliessen einer Nahansicht bzw.
+ *   des Bergens und sobald ein Knochen geborgen ist. `lastSavedAt` wird
  *   beim Speichern auf die aktuelle Zeit gesetzt.
  * - **Einstellungen:** Die Sprache aendert den Spielstand und wird sofort gespeichert. Export, Import
  *   und "Spielstand loeschen" laufen ueber [SaveTransfer]; ein importierter bzw. neuer Stand ersetzt
@@ -66,8 +69,8 @@ import java.io.IOException
  * @param storage Spielstand-Dateien
  * @param time Zeitquelle
  * @param loadData laedt und validiert die Spieldaten
- * @param newRandom Zufallsquelle fuer eine neue Ausgrabung und die Restschicht einer neuen
- *   Nahansicht (Tests mit festem Seed)
+ * @param newRandom Zufallsquelle fuer eine neue Ausgrabung, die Restschicht einer neuen
+ *   Nahansicht und die bruechigen Stellen beim Bergen (Tests mit festem Seed)
  */
 class GameViewModel(
     private val storage: SaveStorage,
@@ -96,6 +99,7 @@ class GameViewModel(
     private var transfer: SaveTransfer? = null
     private var session: ExcavationSession? = null
     private var prepSession: PreparationSession? = null
+    private var recoverySession: RecoverySession? = null
     private var excavator: Excavator? = null
 
     private val saveMutex = Mutex()
@@ -154,10 +158,12 @@ class GameViewModel(
     }
 
     /**
-     * Ausgrabung beenden (die UI fragt vorher nach, wenn noch Knochen in der Flaeche liegen). Die
-     * Flaeche entfaellt; was mit freigelegten Knochen passiert, kommt mit AP2-09 (Bergen).
+     * Ausgrabung beenden (die UI fragt vorher nach, wenn noch nicht geborgene Knochen in der Flaeche
+     * liegen). Die Flaeche entfaellt; geborgene Knochen liegen schon im Inventar, nicht geborgene
+     * bleiben zurueck (Kapitel 3).
      */
     fun endExcavation() = excavationAction(save = true) { s, st ->
+        recoverySession?.close()
         prepSession?.close()
         s.end(st)
     }
@@ -206,6 +212,69 @@ class GameViewModel(
         viewModelScope.launch(gameDispatcher) {
             prepSession?.endStroke()
             saveCurrent()
+        }
+    }
+
+    // --- Bergen (AP2-09) ---
+
+    /** Bergen des Knochens der offenen Nahansicht oeffnen (nur wenn fertig freigelegt) und speichern. */
+    fun openRecovery() {
+        viewModelScope.launch(gameDispatcher) {
+            val rec = recoverySession ?: return@launch
+            val prep = prepSession ?: return@launch
+            val ref = prep.openBone ?: return@launch
+            val current = state ?: return@launch
+            prep.endStroke()
+            val next = rec.open(current, ref, newRandom())
+            if (rec.openBone == null) return@launch
+            state = next
+            publish()
+            saveCurrent()
+        }
+    }
+
+    /**
+     * Bergen schliessen: vor dem Herausheben zurueck zur Nahansicht, danach (Knochen geborgen)
+     * zurueck zur Flaeche. Speichert.
+     */
+    fun closeRecovery() {
+        viewModelScope.launch(gameDispatcher) {
+            val rec = recoverySession ?: return@launch
+            if (rec.openBone == null) return@launch
+            if (rec.outcome != null) prepSession?.close()
+            rec.close()
+            publish()
+            saveCurrent()
+        }
+    }
+
+    /** Finger setzt beim Bergen auf (bzw. Tippen); Position in feinen Zellkoordinaten. */
+    fun recoveryTouchStart(x: Double, y: Double) {
+        viewModelScope.launch(gameDispatcher) { recoverySession?.touchStart(x, y) }
+    }
+
+    /** Sample der Fingerbewegung beim Bergen: Zeitstempel der Eingabe in ms, Position in dp. */
+    fun recoverySample(timeMillis: Long, x: Double, y: Double, down: Boolean) {
+        viewModelScope.launch(gameDispatcher) { recoverySession?.sample(timeMillis, x, y, down) }
+    }
+
+    /** Finger zieht beim Bergen: Bewegung bewerten, ggf. ist der Knochen heraus (dann speichern). */
+    fun recoveryDrag() = recoveryAction(save = false) { r, st -> r.drag(st) }
+
+    /** Finger hebt beim Bergen ab: Tippen sichert, Ziehen ohne Herausheben laesst fallen; speichern. */
+    fun recoveryTouchEnd() = recoveryAction(save = true) { r, st -> r.touchEnd(st) }
+
+    private fun recoveryAction(save: Boolean, action: (RecoverySession, GameState) -> GameState) {
+        viewModelScope.launch(gameDispatcher) {
+            val rec = recoverySession ?: return@launch
+            val current = state ?: return@launch
+            val before = rec.feedback
+            val outcomeBefore = rec.outcome
+            val next = action(rec, current)
+            if (next === current && rec.feedback == before) return@launch
+            state = next
+            publish()
+            if (save || rec.outcome != outcomeBefore) saveCurrent()
         }
     }
 
@@ -302,6 +371,7 @@ class GameViewModel(
      */
     private suspend fun replaceState(newState: GameState, save: Boolean = true) {
         session?.endStroke()
+        recoverySession?.close()
         prepSession?.close()
         state = newState
         publish()
@@ -353,6 +423,7 @@ class GameViewModel(
         transfer = SaveTransfer(data = loadedData)
         session = ExcavationSession(loadedData)
         prepSession = PreparationSession(loadedData)
+        recoverySession = RecoverySession(loadedData)
         excavator = Excavator(loadedData)
         state = loadedState
         lastSavedState = if (needsInitialSave) null else loadedState
@@ -375,12 +446,19 @@ class GameViewModel(
             val ref = currentPrep?.openBone ?: return@let null
             PrepUiState.from(site, ref, gameData, currentPrep.toolId, currentPrep.feedback)
         }
+        val currentRecovery = recoverySession
+        val recovery = current.excavation?.let { site ->
+            val ref = currentRecovery?.openBone ?: return@let null
+            RecoveryUiState.from(site, ref, gameData, currentRecovery.feedback, currentRecovery.outcome)
+        }
         _uiState.value = GameUiState.Ready(
             settings = current.settings,
             qualityTiers = gameData.balance.qualityTiers,
             texts = texts,
             dig = dig,
             prep = prep,
+            recovery = recovery,
+            inventory = current.inventory,
         )
     }
 

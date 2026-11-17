@@ -94,6 +94,10 @@ Umsetzung (AP2-05, `ExcavationGenerator` und `Excavator` in `core`, Parameter in
   sobald eine seiner Zellen frei liegt. Sind alle Knochen der Fläche entdeckt, ist nichts mehr zu
   finden. Das Freilegen der Restschicht folgt in 5.1 (AP2-08): Ein entdeckter Knochen lässt sich in
   der Nahansicht öffnen (langes Drücken auf den Knochen oder „Freilegen“ in der Anzeige oben).
+- **Geborgene Knochen** (seit AP2-09, Kapitel 5.2) liegen im Inventar und nicht mehr in der Fläche:
+  Sie werden nicht mehr gezeichnet, zeigen keinen Hinweis, werden von der Schaufel nicht getroffen
+  und lassen sich nicht mehr öffnen. Der Fund bleibt dabei unverändert gespeichert (sonst fielen die
+  Knochen eines Fundes im Nachbarschaftsgraph auseinander); geborgene Knochen werden nur markiert.
 - **Umrisse der Knochen** (seit AP2-07): aus den Umrissmasken der Knochenbilder (Kapitel 8) mit
   `excavation.cellsPerUnit` Zellen pro Modelleinheit (Start 8), ohne Drehung. Eine Zelle gilt als
   belegt, wenn mindestens 5 % ihrer Fläche Knochen ist, jeder Knochen hat mindestens eine Zelle.
@@ -120,9 +124,15 @@ Screen grobes Buddeln (AP2-07):
   über dem Grund wird leicht durchscheinend. Ein Treffer mit der Schaufel lässt die Zellen des
   Knochens kurz rot aufleuchten; oben zeigt eine Anzeige den zuletzt getroffenen oder entdeckten
   Knochen mit Name, Qualitätsstufe, Prozent und Stufenfarbe sowie die Zahl der entdeckten Knochen.
-- **„Keine Knochen mehr“:** Sind alle Knochen entdeckt, erscheint die Meldung, und „Ausgrabung
-  beenden“ wird hervorgehoben. Liegen noch unentdeckte Knochen in der Fläche, fragt „Ausgrabung
-  beenden“ vorher nach.
+- **„Keine Knochen mehr“:** Sind alle Knochen entdeckt, erscheint die Meldung („Alle Knochen sind
+  geborgen“, sobald auch alle geborgen sind). Seit AP2-09 wird „Ausgrabung beenden“ erst
+  hervorgehoben, wenn alle Knochen der Fläche geborgen sind. Sonst fragt „Ausgrabung beenden“ vorher
+  nach und nennt, was zurückbleibt: noch unentdeckte Knochen und die Zahl der entdeckten, aber nicht
+  geborgenen Knochen. **Beenden:** Geborgene Knochen liegen schon im Inventar; nicht geborgene
+  Knochen (entdeckt oder nicht) bleiben in der Fläche zurück und gehen mit ihr verloren. Das ist
+  eine Entscheidung des Spielers („bis der Spieler aufgibt“), kein Fehler beim Graben; Kapitel 5
+  („nie Totalverlust“) betrifft Fehler beim Freilegen und Bergen. Oben zählt die Anzeige zusätzlich
+  die geborgenen Knochen.
 - **Speichern:** nach jeder Wischbewegung (Finger hebt ab), beim Starten und Beenden und beim Wechsel
   in den Hintergrund, nicht nach jeder einzelnen Anwendung.
 
@@ -240,6 +250,50 @@ Umsetzung (AP2-08, `PreparationGenerator` und `Preparer` in `core`, Parameter in
 - Brüchige Stellen am Knochen leuchten auf und müssen mit Gips gesichert werden (antippen).
 - Danach wird der Knochen mit ruhigem Ziehen herausgehoben. Ruckartige Bewegungen und ungesicherte
   Stellen kosten Qualität.
+
+Umsetzung (AP2-09, `RecoveryGenerator` und `Recoverer` in `core`, Parameter in
+`balance.json: recovery`, Startwerte vorläufig bis zum Playtest):
+- **Einstieg:** Bergen gibt es pro Knochen, sobald er fertig freigelegt ist (5.1): In der
+  Nahansicht erscheint dann „Bergen“. Beim ersten Öffnen entstehen die brüchigen Stellen, weitere
+  Öffnungen zeigen den gespeicherten Stand. „Zurück“ führt vor dem Herausheben zur Nahansicht.
+- **Brüchige Stellen:** Anzahl `floor(n * fragileSpotsPerCell + u)` mit `n` = Zellen des Knochens
+  in der Fläche und `u` gleichverteilt in `[0, 1)`, begrenzt auf `fragileSpotsMin..fragileSpotsMax`
+  (Start 0,25 je Zelle, 1 bis 5; der Oberschenkel mit 18 Zellen hat 4 oder 5, kleine Knochen 1).
+  Jede Stelle liegt auf einer gleichverteilt gewählten Knochenzelle der Nahansicht (feiner Umriss),
+  mindestens `fragileSpotSpacing` feine Zellen (Start 4, eine Zelle der Fläche) von den anderen
+  entfernt; ist kein Platz mehr, bleibt es bei weniger Stellen. Zufall nur über `GameRandom`.
+- **Sichern:** Antippen sichert die nächste ungesicherte Stelle höchstens `secureRadius` feine
+  Zellen (Start 3) vom Tippunkt; sie wird als Gipsfleck gezeigt. Gips ist unbegrenzt (kein
+  Verbrauchsgut).
+- **Heben:** Ziehen mit einem Finger hebt den Knochen, das Bild folgt dem Finger. Die UI liefert die
+  Bewegung als Samples (Zeitstempel des Eingabeereignisses in ms, Position in dp, also unabhängig von
+  Zoom und Bildschirmdichte). Heraus ist der Knochen, sobald der Finger `liftDistance` dp (Start
+  140) vom Startpunkt entfernt ist, auch vor dem Loslassen. Lässt der Finger vorher los, fällt der
+  Knochen zurück.
+- **Bewertung der Bewegung** (reine Funktion der Samples, keine Zeit-Simulation): Die Bewegung wird
+  linear zwischen den Samples interpoliert und in Fenster von `sampleWindowMillis` (Start 50 ms) ab
+  dem ersten Sample geteilt; ein angebrochenes letztes Fenster zählt nicht. Je Fenster ist `v` die
+  mittlere Geschwindigkeit, vor dem ersten Fenster ruht der Knochen. Ein Fenster ist ruckartig, wenn
+  sich `v` gegenüber dem vorigen Fenster um mehr als `jerkSpeedChange` dp/s ändert (Start 400) oder
+  `|v|` über `maxSpeed` dp/s liegt (Start 700, Reißen). Aufeinanderfolgende ruckartige Fenster sind
+  **ein** Ruck. Damit hängt die Bewertung nicht davon ab, wie oft das Gerät Bewegungen meldet.
+- **Schaden:** jeder Ruck `jerkDamage` (Start 0,04), beim Herausheben jede ungesicherte Stelle
+  `unsecuredDamage` (Start 0,05), beides mal `1 - damage_reduction`, zusammen höchstens bis
+  Qualität 0. Rucke kosten auch bei einem Versuch, bei dem der Knochen zurückfällt (sonst könnte man
+  nach jedem Ruck folgenlos neu ansetzen); ungesicherte Stellen nur beim Herausheben. Fehler kosten
+  nur Qualität, der Knochen wird immer geborgen.
+- **Ergebnis:** Der Knochen kommt mit seiner Qualität ins Inventar (`GameState.inventory`), das
+  Bergen ist als „geborgen“ markiert. Die Anzeige zeigt Qualitätsstufe, Rucke, ungesicherte Stellen
+  und den Verlust seit dem Öffnen des Bergens, danach „Zur Fläche“.
+- **Screen:** gleiche Gesten wie beim Freilegen (Tippen sichert, ein Finger zieht, zwei verschieben
+  und zoomen; kommt beim Ziehen ein zweiter Finger dazu, endet der Versuch). Oben Name und Qualität,
+  „Brüchige Stellen gesichert: x von y“, Bedienhilfe und Rückmeldung (gesichert, daneben getippt,
+  „Ruck!“ mit roter Markierung am Knochen, zurückgefallen mit Verlust). Ungesicherte Stellen
+  leuchten pulsierend, beim Ziehen bleibt ein dunkler Abdruck im Boden. Gespeichert wird nach jeder
+  Berührung, beim Herausheben und beim Öffnen und Schließen. Welcher Knochen gerade geborgen wird,
+  ist Bedienzustand.
+- **Inventar** (minimal bis AP2-11/14): Der Hauptbildschirm zeigt die Zahl der Knochen im Inventar
+  und die Liste mit Name und Qualität, neueste zuerst.
 
 ## 6. Zuordnen am Skelett
 
@@ -385,6 +439,14 @@ Umsetzung (AP2-08, `PreparationGenerator` und `Preparer` in `core`, Parameter in
   `preparations: []`. **Übergang bis AP2-09:** „Ausgrabung beenden“ setzt `excavation` weiter auf
   `null`; freigelegte Knochen samt Qualität entfallen mit der Fläche, bis AP2-09 sie bergen und ins
   Inventar legen lässt.
+- **Stand nach AP2-09:** Bergen ist spielbar (Kapitel 5.2), **Graben bis Bergen ist durchspielbar**.
+  Die Fläche speichert je begonnenem Bergen `recoveries` (Fund, Knochen, brüchige Stellen als feine
+  Zellen der Nahansicht, `secured` je Stelle, `recovered`); ein Bergen setzt eine fertige
+  Nahansicht voraus, die Stellen müssen auf Knochenzellen liegen (geprüft beim Laden). Geborgene
+  Knochen kommen ins Inventar (`inventory`), der Fund bleibt in der Fläche. Der Spielstand hat
+  `saveVersion` 6; die Migration 5 -> 6 ergänzt in einer laufenden Ausgrabung `recoveries: []`.
+  „Ausgrabung beenden“ setzt `excavation` auf `null`; nicht geborgene Knochen bleiben zurück
+  (Kapitel 3). Beim Import werden Inventar und Funde wie bisher gegen die Spieldaten geprüft.
 
 ## 11. Entscheidungen im Überblick
 
@@ -396,7 +458,8 @@ Umsetzung (AP2-08, `PreparationGenerator` und `Preparer` in `core`, Parameter in
 | Ausgrabung | freie Fläche, kein sichtbares Raster, kein Schrittlimit |
 | Grobes Buddeln | Wischen mit Hinweisen, Sondieren später als Upgrade |
 | Fein freilegen | Pinsel und Kratzer |
-| Bergen | mit Gips sichern, ruhig herausheben |
+| Bergen | mit Gips sichern, ruhig herausheben; Bewegung als Samples (ms, dp), Rucke über Geschwindigkeitswechsel je 50-ms-Fenster, Rucke kosten auch bei Zurückfallen (ab AP2-09) |
+| Ausgrabung beenden | erlaubt mit Rückfrage; nicht geborgene Knochen bleiben zurück (ab AP2-09) |
 | Zuordnen | Hilfe wächst mit dem Wissen im Sammelbuch |
 | Museum | Ansehen schaltet Fundorte frei, Geld aus Duplikaten, dazu Aufträge |
 | Darstellung | Graben in 2D, Skelett in 3D |
@@ -494,6 +557,12 @@ AP2-06 und AP2-10 hängen nur an AP2-01 und können vorgezogen werden.
   über den freien Oberschenkel kostet rund 0,16 Qualität), Menge und Größe der harten Stellen, Tempo
   des Pinsels und die Schwelle `finishedShare`, nach dem Playtest. Ob langes Drücken zum Öffnen der
   Nahansicht gut auffindbar ist.
+- Bergen (AP2-09): Schwellen der Bewegung (`jerkSpeedChange` 400 dp/s je 50 ms, `maxSpeed`
+  700 dp/s, Zugweg 140 dp), Schaden je Ruck (0,04) und je ungesicherter Stelle (0,05), Anzahl und
+  Abstand der brüchigen Stellen und der Trefferradius (3 feine Zellen; beim Oberschenkel ohne Zoom
+  rund 20 dp) nach dem Playtest auf einem echten Gerät. Ob nicht geborgene Knochen beim Beenden
+  verloren gehen sollen oder fertig freigelegte automatisch mit Abschlag geborgen werden
+  (Entscheidung des Projektinhabers, siehe PR zu AP2-09).
 - Ob ein kurzes Tutorial nötig ist.
 
 ## 14. Änderungsprotokoll
@@ -534,3 +603,10 @@ AP2-06 und AP2-10 hängen nur an AP2-01 und können vorgezogen werden.
   Kapitel 3 um `stage`/`removesHard` der Werkzeuge und das Öffnen, Kapitel 8 um `fineRows` und die
   Darstellung der Restschicht, Kapitel 10 um den Stand nach AP2-08 (Spielstand Version 5, Übergang
   bis AP2-09), Kapitel 11 und 13 ergänzt.
+- **AP2-09 (2026-11-17):** Kapitel 5.2 um die Umsetzung des Bergens ergänzt (Einstieg aus der
+  fertigen Nahansicht, brüchige Stellen, Sichern mit Trefferradius, Heben mit Zugweg, Bewertung der
+  Bewegung in Zeitfenstern, Schaden für Rucke und ungesicherte Stellen, Ergebnis, Screen, minimales
+  Inventar). Präzisierungen: Rucke kosten auch, wenn der Knochen zurückfällt; Beenden der Ausgrabung
+  lässt nicht geborgene Knochen zurück (mit Rückfrage), hervorgehoben wird „Beenden“ erst, wenn alles
+  geborgen ist; geborgene Knochen zählen in der Fläche nicht mehr (Kapitel 3). Kapitel 10 um den
+  Stand nach AP2-09 (Spielstand Version 6), Kapitel 11 und 13 ergänzt.

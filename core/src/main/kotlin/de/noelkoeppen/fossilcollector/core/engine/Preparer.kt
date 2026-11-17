@@ -76,6 +76,7 @@ class Preparer(
      *   noch nicht begonnen hat
      * @throws IllegalArgumentException wenn das Werkzeug nicht zum feinen Freilegen gehoert oder der
      *   Ansatzpunkt nicht endlich ist
+     * @throws IllegalStateException wenn [ref] schon geborgen ist (AP2-09)
      */
     fun applyTool(
         site: ExcavationSite,
@@ -88,6 +89,7 @@ class Preparer(
         val tool = data.tool(toolId)
         require(tool.stage == ToolStage.PREPARE) { "Werkzeug $toolId gehoert nicht zum feinen Freilegen" }
         val prep = site.preparation(ref) ?: throw NoSuchElementException("Freilegen von $ref hat nicht begonnen")
+        check(!site.isRecovered(ref)) { "Knochen $ref ist schon geborgen" }
         val cells = cellsInReach(prep, tool, centerX, centerY)
         val depths = prep.depthsCopy()
         val hard = prep.hardCopy()

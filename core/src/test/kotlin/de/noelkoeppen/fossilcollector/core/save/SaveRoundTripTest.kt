@@ -131,7 +131,7 @@ class SaveRoundTripTest {
     fun runningExcavationIsStoredCompactly() {
         val text = codec.encode(SaveFixtures.withExcavation())
         val site = Json.parseToJsonElement(text).jsonObject.getValue("excavation").jsonObject
-        assertEquals(setOf("layerId", "width", "height", "depths", "finds", "preparations"), site.keys)
+        assertEquals(setOf("layerId", "width", "height", "depths", "finds", "preparations", "recoveries"), site.keys)
         assertTrue(site.getValue("depths") is JsonPrimitive, "Tiefen als kompakter Text")
         // 32x48 Zellen: 4 KB Base64 fuer die Tiefen plus Funde; deutlich unter einer JSON-Zahlenliste.
         assertTrue(text.length < 8_000, "Spielstand mit Ausgrabung ist ${text.length} Zeichen lang")
@@ -189,6 +189,38 @@ class SaveRoundTripTest {
         assertThrows<SaveException.InvalidContent> { codec.decode(base.replace("\"bone\":\"$bone\"", "\"bone\":\"\"")) }
         val boneId = stored.getValue("boneId").jsonPrimitive.content
         assertThrows<SaveException.InvalidContent> { codec.decode(base.replace("\"boneId\":\"$boneId\"", "\"boneId\":\"unknown\"")) }
+    }
+
+    // --- Bergen (AP2-09) ---
+
+    @Test
+    fun runningRecoveryRoundTrip() {
+        val state = SaveFixtures.withRecovery()
+        val site = checkNotNull(state.excavation)
+        assertEquals(2, site.recoveries.size)
+        assertTrue(site.recoveries[0].recovered, "erster Knochen geborgen")
+        assertTrue(site.recoveries[1].securedCount == 1 && !site.recoveries[1].recovered, "zweiter Knochen teilweise gesichert")
+        assertEquals(SaveFixtures.rich.inventory.size + 1, state.inventory.size, "geborgener Knochen im Inventar")
+        val text = codec.encode(state)
+        val loaded = codec.decode(text)
+        assertEquals(state, loaded)
+        assertEquals(text, codec.encode(loaded))
+        assertEquals(state, codec.importBase64(codec.exportBase64(state)))
+        val stored = Json.parseToJsonElement(text).jsonObject.getValue("excavation").jsonObject
+            .getValue("recoveries").jsonArray.first().jsonObject
+        assertEquals(setOf("findIndex", "boneId", "spots", "secured", "recovered"), stored.keys)
+    }
+
+    @Test
+    fun invalidRecoveryIsRejected() {
+        val state = SaveFixtures.withRecovery()
+        val base = codec.encode(state)
+        val rec = checkNotNull(state.excavation).recoveries[1]
+        val spots = rec.spots.joinToString(",")
+        val secured = rec.secured.joinToString(",")
+        // Stelle ausserhalb des Knochens, Laengen passen nicht zusammen.
+        assertThrows<SaveException.InvalidContent> { codec.decode(base.replace("\"spots\":[$spots]", "\"spots\":[-1${",0".repeat(rec.spots.size - 1)}]")) }
+        assertThrows<SaveException.InvalidContent> { codec.decode(base.replace("\"secured\":[$secured]", "\"secured\":[]")) }
     }
 
     @Test

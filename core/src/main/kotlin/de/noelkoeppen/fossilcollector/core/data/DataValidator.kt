@@ -104,6 +104,30 @@ object DataValidator {
         validateFinds(balance.finds, "$ctx/finds", errors)
         validateExcavation(balance.excavation, "$ctx/excavation", errors)
         validatePreparation(balance.preparation, "$ctx/preparation", errors)
+        validateRecovery(balance.recovery, "$ctx/recovery", errors)
+    }
+
+    /**
+     * Bergen (Kapitel 5.2, AP2-09): Anzahl je Zelle >= 0, Mindest- und Hoechstanzahl >= 0 mit
+     * Mindest- <= Hoechstanzahl, Abstand >= 0, Trefferradius, Zugweg, Fenster, Ruck-Schwellen > 0,
+     * Schaden in 0..1.
+     */
+    private fun validateRecovery(rec: RecoveryBalance, ctx: String, errors: MutableList<String>) {
+        if (!(rec.fragileSpotsPerCell >= 0.0 && rec.fragileSpotsPerCell.isFinite())) errors += "$ctx: fragileSpotsPerCell muss >= 0 sein"
+        if (rec.fragileSpotsMin < 0 || rec.fragileSpotsMax < 0) errors += "$ctx: fragileSpotsMin/Max muessen >= 0 sein"
+        if (rec.fragileSpotsMin > rec.fragileSpotsMax) errors += "$ctx: fragileSpotsMin > fragileSpotsMax"
+        if (!(rec.fragileSpotSpacing >= 0.0 && rec.fragileSpotSpacing.isFinite())) errors += "$ctx: fragileSpotSpacing muss >= 0 sein"
+        listOf(
+            "secureRadius" to rec.secureRadius,
+            "liftDistance" to rec.liftDistance,
+            "jerkSpeedChange" to rec.jerkSpeedChange,
+            "maxSpeed" to rec.maxSpeed,
+        ).filterNot { (_, value) -> value > 0.0 && value.isFinite() }
+            .forEach { (name, _) -> errors += "$ctx: $name muss > 0 sein" }
+        if (rec.sampleWindowMillis < 1) errors += "$ctx: sampleWindowMillis muss >= 1 sein"
+        listOf("jerkDamage" to rec.jerkDamage, "unsecuredDamage" to rec.unsecuredDamage)
+            .filterNot { (_, value) -> value in 0.0..1.0 }
+            .forEach { (name, value) -> errors += "$ctx: $name $value liegt nicht in 0..1" }
     }
 
     /**
