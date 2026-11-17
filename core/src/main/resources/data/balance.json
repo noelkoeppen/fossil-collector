@@ -49,5 +49,18 @@
     "hardSpotRadiusMin": 1.0,
     "hardSpotRadiusMax": 2.5,
     "finishedShare": 0.95
+  },
+  "recovery": {
+    "fragileSpotsPerCell": 0.25,
+    "fragileSpotsMin": 1,
+    "fragileSpotsMax": 5,
+    "fragileSpotSpacing": 4.0,
+    "secureRadius": 3.0,
+    "liftDistance": 140.0,
+    "sampleWindowMillis": 50,
+    "jerkSpeedChange": 400.0,
+    "maxSpeed": 700.0,
+    "jerkDamage": 0.04,
+    "unsecuredDamage": 0.05
   }
 }

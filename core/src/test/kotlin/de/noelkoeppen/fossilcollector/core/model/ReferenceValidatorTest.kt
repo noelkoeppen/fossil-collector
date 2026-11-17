@@ -90,4 +90,12 @@ class ReferenceValidatorTest {
         assertTrue(errors.any { "unbekannte Schicht 'jurassic'" in it }, errors.toString())
         assertTrue(errors.any { "gehoert nicht zur Schicht" in it }, errors.toString())
     }
+
+    @Test
+    fun stateAfterRecoveryIsValid() {
+        val state = de.noelkoeppen.fossilcollector.core.save.SaveFixtures.withRecovery()
+        assertEquals(emptyList<String>(), ReferenceValidator.validate(state, data))
+        val broken = state.copy(inventory = state.inventory + Piece("cave_bear", "wing", 0.5))
+        assertEquals(listOf("inventory[${state.inventory.size}]: unbekannter Knochen 'wing' fuer Art 'cave_bear'"), ReferenceValidator.validate(broken, data))
+    }
 }

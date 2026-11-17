@@ -43,22 +43,22 @@ class SaveMigratorTest {
     private fun obj(text: String): JsonObject = Json.parseToJsonElement(text).jsonObject
 
     @Test
-    fun currentVersionIsFiveWithTwoSteps() {
-        assertEquals(5, GameState.CURRENT_SAVE_VERSION)
+    fun currentVersionIsSixWithThreeSteps() {
+        assertEquals(6, GameState.CURRENT_SAVE_VERSION)
         assertEquals(3, GameState.OLDEST_SUPPORTED_SAVE_VERSION)
         assertEquals(GameState.CURRENT_SAVE_VERSION, SaveMigrator.DEFAULT.currentVersion)
         assertEquals(GameState.OLDEST_SUPPORTED_SAVE_VERSION, SaveMigrator.DEFAULT.oldestSupportedVersion)
-        assertEquals(listOf(3, 4), SaveMigrator.MIGRATIONS.map { it.fromVersion })
+        assertEquals(listOf(3, 4, 5), SaveMigrator.MIGRATIONS.map { it.fromVersion })
     }
 
     @Test
     fun migrationThreeToFourAddsNoExcavation() {
         val migrated = SaveMigrator.DEFAULT.migrate(obj("""{ "saveVersion": 3, "lastSavedAt": 7, "inventory": [] }"""))
-        assertEquals(JsonPrimitive(5), migrated.getValue("saveVersion"))
+        assertEquals(JsonPrimitive(6), migrated.getValue("saveVersion"))
         assertEquals(JsonNull, migrated.getValue("excavation"))
         assertEquals(JsonPrimitive(7), migrated.getValue("lastSavedAt"))
         val loaded = SaveCodec.DEFAULT.decode(SaveFixtures.read("v3_full.json"))
-        assertEquals(5, loaded.saveVersion)
+        assertEquals(6, loaded.saveVersion)
         assertNull(loaded.excavation)
         assertEquals(SaveFixtures.fullV3.inventory, loaded.inventory)
     }
@@ -67,23 +67,43 @@ class SaveMigratorTest {
     fun migrationFourToFiveAddsEmptyPreparations() {
         val withoutSite = obj("""{ "saveVersion": 4, "lastSavedAt": 7, "excavation": null }""")
         val migrated = SaveMigrator.DEFAULT.migrate(withoutSite)
-        assertEquals(JsonPrimitive(5), migrated.getValue("saveVersion"))
+        assertEquals(JsonPrimitive(6), migrated.getValue("saveVersion"))
         assertEquals(JsonNull, migrated.getValue("excavation"))
         // Spielstand der Version 4 mit laufender Ausgrabung (so, wie AP2-07 ihn geschrieben hat).
         val current = Json.parseToJsonElement(SaveCodec.DEFAULT.encode(SaveFixtures.withExcavation())).jsonObject
         val site = current.getValue("excavation").jsonObject
-        val v4 = JsonObject(current + ("saveVersion" to JsonPrimitive(4)) + ("excavation" to JsonObject(site - "preparations")))
+        val v4 = JsonObject(current + ("saveVersion" to JsonPrimitive(4)) + ("excavation" to JsonObject(site - "preparations" - "recoveries")))
         val migratedSite = SaveMigrator.DEFAULT.migrate(v4).getValue("excavation").jsonObject
         assertEquals(JsonArray(emptyList()), migratedSite.getValue("preparations"))
         val loaded = SaveCodec.DEFAULT.decode(v4.toString())
-        assertEquals(5, loaded.saveVersion)
+        assertEquals(6, loaded.saveVersion)
         assertEquals(SaveFixtures.withExcavation().excavation, loaded.excavation)
         assertTrue(checkNotNull(loaded.excavation).preparations.isEmpty())
     }
 
     @Test
+    fun migrationFiveToSixAddsEmptyRecoveries() {
+        val withoutSite = obj("""{ "saveVersion": 5, "lastSavedAt": 7, "excavation": null, "inventory": [] }""")
+        val migrated = SaveMigrator.DEFAULT.migrate(withoutSite)
+        assertEquals(JsonPrimitive(6), migrated.getValue("saveVersion"))
+        assertEquals(JsonNull, migrated.getValue("excavation"))
+        // Spielstand der Version 5 mit laufendem Freilegen (so, wie AP2-08 ihn geschrieben hat).
+        val state = SaveFixtures.withPreparation()
+        val current = Json.parseToJsonElement(SaveCodec.DEFAULT.encode(state)).jsonObject
+        val site = current.getValue("excavation").jsonObject
+        val v5 = JsonObject(current + ("saveVersion" to JsonPrimitive(5)) + ("excavation" to JsonObject(site - "recoveries")))
+        val migratedSite = SaveMigrator.DEFAULT.migrate(v5).getValue("excavation").jsonObject
+        assertEquals(JsonArray(emptyList()), migratedSite.getValue("recoveries"))
+        val loaded = SaveCodec.DEFAULT.decode(v5.toString())
+        assertEquals(6, loaded.saveVersion)
+        assertEquals(state.excavation, loaded.excavation)
+        assertEquals(state.inventory, loaded.inventory)
+        assertTrue(checkNotNull(loaded.excavation).recoveries.isEmpty())
+    }
+
+    @Test
     fun currentVersionIsReturnedUnchanged() {
-        val save = obj("""{ "saveVersion": 5, "x": 5 }""")
+        val save = obj("""{ "saveVersion": 6, "x": 5 }""")
         assertSame(save, SaveMigrator.DEFAULT.migrate(save))
     }
 
@@ -136,10 +156,10 @@ class SaveMigratorTest {
     @Test
     fun tooNewVersionIsRejected() {
         val error = assertThrows<SaveException.UnsupportedVersion> {
-            SaveMigrator.DEFAULT.migrate(obj("""{ "saveVersion": 6 }"""))
+            SaveMigrator.DEFAULT.migrate(obj("""{ "saveVersion": 7 }"""))
         }
-        assertEquals(6, error.foundVersion)
-        assertEquals(5, error.supportedVersion)
+        assertEquals(7, error.foundVersion)
+        assertEquals(6, error.supportedVersion)
         assertTrue(error.isTooNew)
     }
 

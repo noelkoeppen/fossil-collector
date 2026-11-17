@@ -99,7 +99,10 @@ class ExcavationSession(
         stroke = null
     }
 
-    /** Ausgrabung beenden: Die Flaeche entfaellt (Uebergang bis AP2-09, siehe GAME_DESIGN.md Kapitel 10). */
+    /**
+     * Ausgrabung beenden: Die Flaeche entfaellt. Geborgene Knochen liegen schon im Inventar; nicht
+     * geborgene bleiben zurueck (GAME_DESIGN.md Kapitel 3, die UI fragt vorher nach).
+     */
     fun end(state: GameState): GameState {
         endStroke()
         feedback = DigFeedback(feedback.sequence + 1, emptyList(), emptyList(), null)

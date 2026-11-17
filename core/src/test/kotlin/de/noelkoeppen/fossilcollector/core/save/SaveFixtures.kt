@@ -5,6 +5,9 @@ import de.noelkoeppen.fossilcollector.core.engine.ExcavationGenerator
 import de.noelkoeppen.fossilcollector.core.engine.Excavator
 import de.noelkoeppen.fossilcollector.core.engine.PreparationGenerator
 import de.noelkoeppen.fossilcollector.core.engine.Preparer
+import de.noelkoeppen.fossilcollector.core.engine.Recoverer
+import de.noelkoeppen.fossilcollector.core.engine.RecoveryGenerator
+import de.noelkoeppen.fossilcollector.core.engine.RecoveryTestSupport
 import de.noelkoeppen.fossilcollector.core.random.SeededRandom
 import de.noelkoeppen.fossilcollector.core.model.GameState
 import de.noelkoeppen.fossilcollector.core.model.LanguageSetting
@@ -74,5 +77,29 @@ internal object SaveFixtures {
         for (x in 0 until prep.width) site = preparer.applyTool(site, bone, "brush", x + 0.5, y).site
         repeat(2) { site = preparer.applyTool(site, bone, "scraper", prep.xOf(boneCell) + 0.5, y).site }
         return state.copy(excavation = site)
+    }
+
+    /**
+     * Spielstand mit Bergen (AP2-09): [withExcavation], dann der erste Knochen fertig freigelegt,
+     * gesichert und ruhig herausgehoben (im Inventar), der zweite fertig freigelegt mit begonnenem
+     * Bergen und einer gesicherten Stelle.
+     */
+    fun withRecovery(): GameState {
+        val data = DataRepository().load()
+        var state = withExcavation()
+        var site = checkNotNull(state.excavation)
+        val (first, second) = site.bones.take(2)
+        site = RecoveryTestSupport.prepared(data, site, first, seed = 8)
+        site = RecoveryTestSupport.prepared(data, site, second, seed = 9)
+        val generator = RecoveryGenerator(data)
+        val recoverer = Recoverer(data)
+        site = generator.start(site, first, SeededRandom(10))
+        site = generator.start(site, second, SeededRandom(11))
+        listOf(first to checkNotNull(site.recovery(first)).spots, second to checkNotNull(site.recovery(second)).spots.take(1)).forEach { (bone, spots) ->
+            val prep = checkNotNull(site.preparation(bone))
+            spots.forEach { spot -> site = recoverer.secure(site, bone, prep.xOf(spot) + 0.5, prep.yOf(spot) + 0.5).site }
+        }
+        state = state.copy(excavation = site)
+        return recoverer.lift(state, first, RecoveryTestSupport.calmPull(data.balance.recovery.liftDistance + 10)).state
     }
 }

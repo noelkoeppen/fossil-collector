@@ -4,7 +4,8 @@ import kotlinx.serialization.Serializable
 
 /**
  * Spielstand (Datenmodell 2.0, AP2-03; laufende Ausgrabung seit AP2-05, Version 4; feines
- * Freilegen in der Ausgrabung seit AP2-08, Version 5).
+ * Freilegen in der Ausgrabung seit AP2-08, Version 5; Bergen in der Ausgrabung und Inventar seit
+ * AP2-09, Version 6).
  *
  * Spielstaende vor Version [OLDEST_SUPPORTED_SAVE_VERSION] (Incremental-Stand und Uebergangsstand
  * nach AP2-02) werden nicht migriert, sondern verworfen; uebernommen wird nur die Spracheinstellung
@@ -17,7 +18,8 @@ import kotlinx.serialization.Serializable
  * @property lastSavedAt Zeitpunkt des letzten Speicherns in Millisekunden seit 1970 (UTC);
  *   Zeitstempel, kein Spielwert
  * @property settings Einstellungen
- * @property inventory geborgene Knochen, die noch nicht am Skelett zugeordnet sind (gefuellt ab AP2-09)
+ * @property inventory geborgene Knochen, die noch nicht am Skelett zugeordnet sind (gefuellt ab AP2-09),
+ *   in Reihenfolge des Bergens
  * @property excavation laufende Ausgrabung oder `null`, wenn gerade nicht gegraben wird (AP2-05)
  */
 @Serializable
@@ -30,7 +32,7 @@ data class GameState(
 ) {
     companion object {
         /** Aktuelle Version des Speicherformats. Bei jeder Formataenderung erhoehen und Migration ergaenzen. */
-        const val CURRENT_SAVE_VERSION: Int = 5
+        const val CURRENT_SAVE_VERSION: Int = 6
 
         /**
          * Aelteste Version, die noch geladen (und bei Bedarf migriert) wird. Aeltere Spielstaende

@@ -63,7 +63,9 @@ data class DigActions(
  * getroffenen oder entdeckten Knochen, Meldung „keine Knochen mehr“ und „Ausgrabung beenden“ (mit
  * Bestaetigung, solange noch Knochen in der Flaeche liegen). Feines Freilegen (AP2-08): langes
  * Druecken auf einen entdeckten Knochen oder „Freilegen“ beim zuletzt entdeckten Knochen oeffnet
- * dessen Nahansicht.
+ * dessen Nahansicht. Bergen (AP2-09): geborgene Knochen sind aus der Flaeche verschwunden und
+ * werden gezaehlt; „Ausgrabung beenden“ ist hervorgehoben, wenn alle Knochen geborgen sind, und
+ * fragt sonst nach (nicht geborgene Knochen bleiben zurueck).
  *
  * @param texts Inhaltstexte in der UI-Sprache (Werkzeug-, Knochen- und Stufennamen)
  */
@@ -101,8 +103,8 @@ fun DigScreen(
                     )
                 }
                 Spacer(Modifier.weight(1f))
-                val onEnd = { if (dig.nothingLeftToFind) actions.onEndExcavation() else confirmEnd = true }
-                if (dig.nothingLeftToFind) {
+                val onEnd = { if (dig.allRecovered) actions.onEndExcavation() else confirmEnd = true }
+                if (dig.allRecovered) {
                     Button(onClick = onEnd) { Text(stringResource(R.string.dig_end)) }
                 } else {
                     OutlinedButton(onClick = onEnd) { Text(stringResource(R.string.dig_end)) }
@@ -114,7 +116,15 @@ fun DigScreen(
         AlertDialog(
             onDismissRequest = { confirmEnd = false },
             title = { Text(stringResource(R.string.dig_end_confirm_title)) },
-            text = { Text(stringResource(R.string.dig_end_confirm_text)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (!dig.nothingLeftToFind) Text(stringResource(R.string.dig_end_confirm_text))
+                    if (dig.unrecoveredDiscoveredCount > 0) {
+                        Text(stringResource(R.string.dig_end_confirm_unrecovered, dig.unrecoveredDiscoveredCount))
+                    }
+                    Text(stringResource(R.string.dig_end_confirm_question))
+                }
+            },
             confirmButton = {
                 TextButton(onClick = {
                     confirmEnd = false
@@ -145,7 +155,15 @@ private fun StatusPanel(
         ) {
             Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
                 Text(
-                    text = stringResource(R.string.dig_found_count, dig.discoveredCount),
+                    text = if (dig.recoveredCount > 0) {
+                        stringResource(
+                            R.string.dig_bone_status,
+                            stringResource(R.string.dig_found_count, dig.discoveredCount),
+                            stringResource(R.string.dig_recovered_count, dig.recoveredCount),
+                        )
+                    } else {
+                        stringResource(R.string.dig_found_count, dig.discoveredCount)
+                    },
                     style = MaterialTheme.typography.labelLarge,
                 )
                 if (focus != null) {
@@ -157,16 +175,24 @@ private fun StatusPanel(
                             hit = focus.ref in dig.feedback.damaged,
                             texts = texts,
                             qualityTiers = qualityTiers,
-                            status = if (focus.prepared) stringResource(R.string.dig_bone_prepared) else null,
+                            status = when {
+                                focus.recovered -> stringResource(R.string.dig_bone_recovered)
+                                focus.prepared -> stringResource(R.string.dig_bone_prepared)
+                                else -> null
+                            },
                         )
-                        Spacer(Modifier.width(12.dp))
-                        TextButton(onClick = { onOpenBone(focus.ref) }) { Text(stringResource(R.string.prep_open)) }
+                        if (!focus.recovered) {
+                            Spacer(Modifier.width(12.dp))
+                            TextButton(onClick = { onOpenBone(focus.ref) }) { Text(stringResource(R.string.prep_open)) }
+                        }
                     }
-                    Text(
-                        text = stringResource(R.string.prep_open_hint),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                    if (!focus.recovered) {
+                        Text(
+                            text = stringResource(R.string.prep_open_hint),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                 } else if (dig.discoveredCount == 0) {
                     Text(
                         text = stringResource(R.string.dig_controls_hint),
@@ -177,13 +203,14 @@ private fun StatusPanel(
             }
         }
         if (dig.nothingLeftToFind) {
+            val allRecovered = dig.allRecovered
             Surface(
                 color = MaterialTheme.colorScheme.primaryContainer,
                 shape = MaterialTheme.shapes.medium,
                 modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
             ) {
                 Text(
-                    text = stringResource(R.string.dig_nothing_left),
+                    text = stringResource(if (allRecovered) R.string.dig_all_recovered else R.string.dig_nothing_left),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onPrimaryContainer,
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),

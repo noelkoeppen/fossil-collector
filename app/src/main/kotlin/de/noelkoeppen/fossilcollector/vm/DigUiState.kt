@@ -19,6 +19,7 @@ import de.noelkoeppen.fossilcollector.core.model.ExcavationSite
  * @property preparationProgress Fortschritt des feinen Freilegens (AP2-08) oder `null`, wenn es
  *   noch nicht begonnen hat
  * @property prepared fertig freigelegt (Kapitel 5.1)
+ * @property recovered geborgen (Kapitel 5.2, AP2-09): liegt im Inventar und wird nicht mehr gezeichnet
  */
 @Immutable
 data class DigBone(
@@ -32,6 +33,7 @@ data class DigBone(
     val discovered: Boolean,
     val preparationProgress: Double? = null,
     val prepared: Boolean = false,
+    val recovered: Boolean = false,
 )
 
 /**
@@ -43,6 +45,9 @@ data class DigBone(
  * @property selectedTool gewaehltes Werkzeug
  * @property discoveredCount entdeckte Knochen
  * @property nothingLeftToFind alle Knochen entdeckt (Meldung „keine Knochen mehr“)
+ * @property recoveredCount geborgene Knochen (AP2-09)
+ * @property unrecoveredDiscoveredCount entdeckte, aber noch nicht geborgene Knochen
+ * @property allRecovered alle Knochen der Flaeche sind geborgen (Beenden ohne Rueckfrage)
  */
 @Immutable
 class DigUiState(
@@ -53,6 +58,9 @@ class DigUiState(
     val selectedTool: String,
     val discoveredCount: Int,
     val nothingLeftToFind: Boolean,
+    val recoveredCount: Int,
+    val unrecoveredDiscoveredCount: Int,
+    val allRecovered: Boolean,
     val feedback: DigFeedback,
     val layerColor: String,
     val layerTexture: LayerTexture,
@@ -64,15 +72,15 @@ class DigUiState(
 
     companion object {
         /**
-         * Entdeckter Knochen an Position ([x], [y]) in Zellkoordinaten oder `null` (Ziel fuer das
-         * Oeffnen der Nahansicht, AP2-08).
+         * Entdeckter, noch nicht geborgener Knochen an Position ([x], [y]) in Zellkoordinaten oder
+         * `null` (Ziel fuer das Oeffnen der Nahansicht, AP2-08).
          */
         fun discoveredBoneAt(dig: DigUiState, x: Double, y: Double): BoneRef? {
             if (!x.isFinite() || !y.isFinite() || x < 0.0 || y < 0.0) return null
             val cx = x.toInt()
             val cy = y.toInt()
             if (!dig.site.contains(cx, cy)) return null
-            val ref = dig.site.boneAt(cx, cy) ?: return null
+            val ref = dig.site.activeBoneAt(dig.site.cellIndex(cx, cy)) ?: return null
             return ref.takeIf { dig.site.isDiscovered(it) }
         }
 
@@ -99,6 +107,7 @@ class DigUiState(
                     discovered = site.isDiscovered(ref),
                     preparationProgress = site.preparation(ref)?.progress,
                     prepared = site.isPrepared(ref),
+                    recovered = site.isRecovered(ref),
                 )
             }
             val layer = data.layer(site.layerId)
@@ -110,6 +119,9 @@ class DigUiState(
                 selectedTool = selectedTool,
                 discoveredCount = bones.count { it.discovered },
                 nothingLeftToFind = site.nothingLeftToFind,
+                recoveredCount = bones.count { it.recovered },
+                unrecoveredDiscoveredCount = bones.count { it.discovered && !it.recovered },
+                allRecovered = site.allRecovered,
                 feedback = feedback,
                 layerColor = layer.color,
                 layerTexture = layer.texture,

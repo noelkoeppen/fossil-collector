@@ -21,13 +21,25 @@ import androidx.compose.ui.input.pointer.positionChanged
  * @property onEnd Finger hebt ab oder die Wischbewegung wird abgebrochen
  * @property onLongPress langes Druecken ohne Bewegung an dieser Stelle; `true`, wenn es etwas
  *   ausgeloest hat (dann wird mit dieser Beruehrung nicht gegraben). `null`: kein langes Druecken.
+ * @property onSample Rohbewegung des grabenden Fingers mit Zeitstempel (Bergen, AP2-09): beim
+ *   Aufsetzen ([DigSample.down]) und bei jeder Bewegung, solange nicht mit zwei Fingern verschoben
+ *   wird, jeweils vor [onStart]/[onMove]. `null`: keine Samples.
  */
 class DigGestureCallbacks(
     val onStart: (Double, Double) -> Unit,
     val onMove: (Double, Double) -> Unit,
     val onEnd: () -> Unit,
     val onLongPress: ((Double, Double) -> Boolean)? = null,
+    val onSample: ((DigSample) -> Unit)? = null,
 )
+
+/**
+ * Ein Sample der Fingerbewegung: Zeit des Systems seit dem Start in ms (monoton, Zeitstempel des
+ * Eingabeereignisses) und Position in Bildschirmpixeln.
+ *
+ * @property down erstes Sample einer Beruehrung (Finger setzt auf)
+ */
+data class DigSample(val uptimeMillis: Long, val x: Float, val y: Float, val down: Boolean)
 
 /**
  * Wisch-Bedienung des Grabens (AP2-07), gemeinsam fuer grobes Buddeln und feines Freilegen
@@ -59,6 +71,7 @@ fun Modifier.digGestures(
         var longPressed = false
         var longPressChecked = callbacks.value.onLongPress == null
         var lastUptime = down.uptimeMillis
+        callbacks.value.onSample?.invoke(DigSample(down.uptimeMillis, down.position.x, down.position.y, down = true))
         fun cell(position: Offset): Pair<Double, Double>? = viewport.value?.screenToCell(position.x, position.y)
         while (true) {
             val waitForLongPress = !longPressChecked && !digging && !transforming
@@ -95,6 +108,9 @@ fun Modifier.digGestures(
             } else if (!transforming) {
                 val change = event.changes.firstOrNull { it.id == down.id }
                 if (change != null) {
+                    if (change.pressed && change.positionChanged()) {
+                        callbacks.value.onSample?.invoke(DigSample(change.uptimeMillis, change.position.x, change.position.y, down = false))
+                    }
                     if (!digging && change.pressed && (change.position - down.position).getDistance() > viewConfiguration.touchSlop) {
                         cell(down.position)?.let { (x, y) -> callbacks.value.onStart(x, y) }
                         digging = true

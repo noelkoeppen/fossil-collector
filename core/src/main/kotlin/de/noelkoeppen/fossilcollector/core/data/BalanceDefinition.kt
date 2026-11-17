@@ -21,6 +21,8 @@ data class BalanceDefinition(
     val excavation: ExcavationBalance,
     /** Parameter des feinen Freilegens (Kapitel 5.1, AP2-08). */
     val preparation: PreparationBalance,
+    /** Parameter des Bergens (Kapitel 5.2, AP2-09). */
+    val recovery: RecoveryBalance,
 )
 
 /** Eine Qualitaetsstufe: gilt ab [minQuality] (inklusive) bis zur naechsten Stufe. */
@@ -134,4 +136,47 @@ data class PreparationBalance(
     val hardSpotRadiusMax: Double,
     /** Anteil freiliegender Knochenzellen, ab dem der Knochen fertig freigelegt ist (0 < x <= 1). */
     val finishedShare: Double,
+)
+
+/**
+ * Parameter des Bergens (Kapitel 5.2, AP2-09), verwendet von `RecoveryGenerator` und `Recoverer`.
+ * Startwerte vorlaeufig bis zum Playtest.
+ *
+ * **Bruechige Stellen:** Anzahl `floor(n * fragileSpotsPerCell + u)` mit `n` = Zellen des Knochens
+ * in der Flaeche und `u` gleichverteilt in `[0, 1)`, begrenzt auf
+ * `[fragileSpotsMin, fragileSpotsMax]`. Jede Stelle liegt auf einer Knochenzelle der Nahansicht,
+ * mindestens [fragileSpotSpacing] feine Zellen von den anderen entfernt. Antippen sichert die
+ * naechste ungesicherte Stelle hoechstens [secureRadius] feine Zellen vom Tippunkt (Gips).
+ *
+ * **Heben:** Die UI liefert die Bewegung als Folge von Samples (Zeit in ms, Position in dp). Der
+ * Knochen ist heraus, sobald der Finger [liftDistance] dp vom Startpunkt entfernt ist. Bewertet wird
+ * die Bewegung in Fenstern von [sampleWindowMillis] ms: Ein **Ruck** beginnt, wenn sich die
+ * Geschwindigkeit von einem Fenster zum naechsten um mehr als [jerkSpeedChange] dp/s aendert oder
+ * schneller als [maxSpeed] dp/s ist. Jeder Ruck kostet [jerkDamage], jede beim Herausheben
+ * ungesicherte Stelle [unsecuredDamage] Qualitaet (beides mal `1 - damage_reduction`).
+ */
+@Serializable
+data class RecoveryBalance(
+    /** Mittlere Anzahl bruechiger Stellen je Zelle, die der Knochen in der Flaeche belegt. */
+    val fragileSpotsPerCell: Double,
+    /** Mindestanzahl bruechiger Stellen je Knochen (sofern Platz ist). */
+    val fragileSpotsMin: Int,
+    /** Hoechstanzahl bruechiger Stellen je Knochen. */
+    val fragileSpotsMax: Int,
+    /** Mindestabstand zweier bruechiger Stellen in feinen Zellen (Mittelpunkte). */
+    val fragileSpotSpacing: Double,
+    /** Trefferradius beim Sichern (Antippen) in feinen Zellen. */
+    val secureRadius: Double,
+    /** Zugweg in dp, ab dem der Knochen herausgehoben ist. */
+    val liftDistance: Double,
+    /** Laenge eines Bewertungsfensters der Bewegung in Millisekunden. */
+    val sampleWindowMillis: Int,
+    /** Geschwindigkeitswechsel zwischen zwei Fenstern in dp/s, ab dem ein Ruck vorliegt. */
+    val jerkSpeedChange: Double,
+    /** Geschwindigkeit in dp/s, ab der die Bewegung als Ruck (Reissen) zaehlt. */
+    val maxSpeed: Double,
+    /** Qualitaetsverlust je Ruck (vor `damage_reduction`). */
+    val jerkDamage: Double,
+    /** Qualitaetsverlust je ungesicherter Stelle beim Herausheben (vor `damage_reduction`). */
+    val unsecuredDamage: Double,
 )
