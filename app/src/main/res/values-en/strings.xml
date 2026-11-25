@@ -64,4 +64,17 @@
     <string name="recovery_done_title">Recovered!</string>
     <string name="recovery_done_inventory">The bone is now in your inventory.</string>
     <string name="recovery_done_details">Jerks: %1$d · unsecured spots: %2$d · loss when recovering: %3$d %%</string>
+    <!-- 3D view (AP2-10), test screen only in debug builds -->
+    <string name="model_preview_open">3D view (test)</string>
+    <string name="model_preview_title">3D view (test screen)</string>
+    <string name="model_preview_skeleton">Skeleton</string>
+    <string name="model_preview_bone">Single bone</string>
+    <string name="model_preview_samples">Sample qualities</string>
+    <string name="model_preview_inventory">Inventory</string>
+    <string name="model_preview_hide_missing">Hide missing</string>
+    <string name="model_preview_previous">Previous</string>
+    <string name="model_preview_next">Next</string>
+    <string name="model_preview_not_in_inventory">Not in inventory</string>
+    <string name="model_preview_colored">%1$d of %2$d bones colored</string>
+    <string name="model_preview_hint">One finger rotates, two fingers zoom.</string>
 </resources>

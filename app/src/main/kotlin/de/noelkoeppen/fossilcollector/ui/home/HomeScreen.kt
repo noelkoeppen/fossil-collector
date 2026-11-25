@@ -13,6 +13,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -31,6 +32,9 @@ import de.noelkoeppen.fossilcollector.ui.dig.BoneQualityLine
  *
  * Inventar (AP2-09, nur minimal): Anzahl und Liste der geborgenen Knochen mit Qualitaet, neueste
  * zuerst. Zuordnen und Verkauf kommen mit AP2-11 und AP2-14.
+ *
+ * @param onOpenModelPreview oeffnet die 3D-Testansicht (AP2-10); `null` blendet den Eintrag aus
+ *   (Release-Builds)
  */
 @Composable
 fun HomeScreen(
@@ -38,6 +42,7 @@ fun HomeScreen(
     inventory: List<Piece> = emptyList(),
     texts: TextProvider = TextProvider.EMPTY,
     qualityTiers: List<QualityTierDefinition> = emptyList(),
+    onOpenModelPreview: (() -> Unit)? = null,
 ) {
     Column(
         modifier = Modifier.fillMaxSize().padding(24.dp),
@@ -54,6 +59,9 @@ fun HomeScreen(
         )
         Spacer(Modifier.height(24.dp))
         Button(onClick = onStartExcavation) { Text(stringResource(R.string.home_start)) }
+        if (onOpenModelPreview != null) {
+            TextButton(onClick = onOpenModelPreview) { Text(stringResource(R.string.model_preview_open)) }
+        }
         Spacer(Modifier.height(24.dp))
         Text(
             text = if (inventory.isEmpty()) stringResource(R.string.home_inventory_empty) else stringResource(R.string.home_inventory, inventory.size),

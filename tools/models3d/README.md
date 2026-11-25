@@ -46,6 +46,10 @@ Ablauf pro Art:
 4. `python3 tools/models3d/bone_images.py <speciesId>` ausführen (Knochenbilder und Masken).
 5. `python3 tools/models3d/bone_footprints.py <speciesId>` ausführen (Umrisse in der Grabungsfläche).
 6. `./gradlew :core:test` (Datenvalidierung) und `./gradlew :app:testDebugUnitTest` müssen grün sein.
+   Die Meshes kommen beim Build ohne weiteren Schritt in die App (Gradle-Aufgabe
+   `sync<Variante>ModelAssets`, AP2-10); `ModelAssetsTest` prüft, dass jede Datei in der vom
+   App-Renderer unterstützten glTF-Teilmenge liegt (Dreiecke, `POSITION`/`NORMAL` als float,
+   Indizes, `baseColorFactor`, keine Knoten-Transformationen, keine Erweiterungen wie Draco).
 
 ## bone_images.py
 

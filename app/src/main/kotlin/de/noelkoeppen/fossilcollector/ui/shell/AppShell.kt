@@ -46,6 +46,7 @@ import de.noelkoeppen.fossilcollector.core.model.Settings
 import de.noelkoeppen.fossilcollector.ui.dig.DigActions
 import de.noelkoeppen.fossilcollector.ui.dig.DigScreen
 import de.noelkoeppen.fossilcollector.ui.home.HomeScreen
+import de.noelkoeppen.fossilcollector.ui.model3d.ModelPreviewScreen
 import de.noelkoeppen.fossilcollector.ui.prep.PrepActions
 import de.noelkoeppen.fossilcollector.ui.prep.PrepScreen
 import de.noelkoeppen.fossilcollector.ui.recovery.RecoveryActions
@@ -71,6 +72,7 @@ import de.noelkoeppen.fossilcollector.vm.GameViewModel
  * Ist eine Nahansicht offen (AP2-08), der Screen feines Freilegen; Zurueck fuehrt zur Flaeche.
  * Ist das Bergen offen (AP2-09), der Screen Bergen; Zurueck fuehrt zur Nahansicht bzw. nach dem
  * Bergen zur Flaeche. Ohne Ausgrabung zeigt der Hauptbildschirm das Inventar (minimal).
+ * In Debug-Builds fuehrt ein Eintrag auf dem Hauptbildschirm zur 3D-Testansicht (AP2-10).
  */
 @Composable
 fun AppShell(viewModel: GameViewModel) {
@@ -118,16 +120,20 @@ fun GameShell(
     viewModel: GameViewModel? = null,
 ) {
     var showSettings by rememberSaveable { mutableStateOf(false) }
+    var showModelPreview by rememberSaveable { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
+    val previewOpen = showModelPreview && !showSettings && state.dig == null
 
     BackHandler(enabled = showSettings) { showSettings = false }
+    BackHandler(enabled = previewOpen) { showModelPreview = false }
 
     Scaffold(
         topBar = {
             TopBar(
                 settingsOpen = showSettings,
+                showBack = showSettings || previewOpen,
                 onSettingsClick = { showSettings = true },
-                onBackClick = { showSettings = false },
+                onBackClick = { if (showSettings) showSettings = false else showModelPreview = false },
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -163,6 +169,14 @@ fun GameShell(
                         qualityTiers = state.qualityTiers,
                         actions = remember(viewModel) { viewModel?.let(::digActions) ?: DigActions.NONE },
                     )
+                } else if (previewOpen) {
+                    val texts = rememberTextProvider(state.texts, state.settings)
+                    ModelPreviewScreen(
+                        species = state.species,
+                        inventory = state.inventory,
+                        texts = texts,
+                        qualityTiers = state.qualityTiers,
+                    )
                 } else {
                     val texts = rememberTextProvider(state.texts, state.settings)
                     HomeScreen(
@@ -170,6 +184,8 @@ fun GameShell(
                         inventory = state.inventory,
                         texts = texts,
                         qualityTiers = state.qualityTiers,
+                        // 3D-Testansicht (AP2-10) nur in Debug-Builds.
+                        onOpenModelPreview = if (BuildConfig.DEBUG) ({ showModelPreview = true }) else null,
                     )
                 }
             }
@@ -211,10 +227,14 @@ private fun recoveryActions(viewModel: GameViewModel) = RecoveryActions(
     onClose = viewModel::closeRecovery,
 )
 
-/** Obere Leiste: App-Name und Zahnrad bzw. Zurueck, solange die Einstellungen offen sind. */
+/**
+ * Obere Leiste: App-Name und Zahnrad; Zurueck, solange die Einstellungen oder die 3D-Testansicht
+ * offen sind.
+ */
 @Composable
 private fun TopBar(
     settingsOpen: Boolean,
+    showBack: Boolean,
     onSettingsClick: () -> Unit,
     onBackClick: () -> Unit,
 ) {
@@ -225,7 +245,7 @@ private fun TopBar(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
             ) {
-                if (settingsOpen) {
+                if (showBack) {
                     IconButton(onClick = onBackClick) {
                         Icon(painterResource(AppIcons.Back), contentDescription = stringResource(R.string.back))
                     }

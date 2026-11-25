@@ -6,7 +6,8 @@ zusammensetzen und im eigenen Museum ausstellen. Hobbyprojekt, umgesetzt mit Cla
 - Design und Aufgabenliste: [`docs/GAME_DESIGN.md`](docs/GAME_DESIGN.md) (Version 2.0)
 - Regeln für Agenten: [`CLAUDE.md`](CLAUDE.md)
 - 3D-Modelle: `art/models3d/<speciesId>/` (eine `.glb` pro Knochen plus `bones.json` und
-  `neighbors_overrides.json`)
+  `neighbors_overrides.json`); der Build kopiert die Meshes in die App-Assets, angezeigt werden sie
+  mit einem eigenen OpenGL-ES-Renderer (`app/.../ui/model3d`, seit AP2-10)
 
 > **Umbau läuft.** Das Projekt war bis Version 1.1 ein Incremental-/Idle-Spiel. Dieser Stand liegt auf
 > dem Branch `archive/incremental-v1.1`. Der Code auf `main` wird schrittweise auf das neue Design

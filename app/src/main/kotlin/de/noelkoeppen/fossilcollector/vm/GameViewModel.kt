@@ -459,6 +459,7 @@ class GameViewModel(
             prep = prep,
             recovery = recovery,
             inventory = current.inventory,
+            species = gameData.species,
         )
     }
 

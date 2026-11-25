@@ -357,10 +357,60 @@ Umsetzung (AP2-09, `RecoveryGenerator` und `Recoverer` in `core`, Parameter in
     interpoliert, Lochkanten mit festem Rauschen ausgefranst, die Tiefen-Abstufung (dunkler, je
     tiefer gegraben) über 3 x 3 Zellen gemittelt und erst unterhalb der kleinsten Anfangstiefe,
     damit die zufälligen Anfangstiefen kein Zellmuster zeigen. Nach einer Aktion wird nur der
-    geänderte Ausschnitt neu gerechnet; Verschieben und Zoomen zeichnen nur neu. zum Drehen gibt es beim Zuordnen, im Museum und im Sammelbuch.
+    geänderte Ausschnitt neu gerechnet; Verschieben und Zoomen zeichnen nur neu.
+  - Das Skelett in 3D zum Drehen gibt es beim Zuordnen, im Museum und im Sammelbuch.
 - 3D-Meshes: eine `.glb`-Datei pro Knochen plus `bones.json` pro Art
   (`art/models3d/<speciesId>/`). Realistisch wirkender Look, nicht zwingend anatomisch exakt.
-- Wahl des 3D-Renderers für Android/Compose: wird in AP-10 geprüft und hier nachgetragen.
+- **3D-Renderer (AP2-10): eigener kleiner OpenGL-ES-3.0-Renderer** in `app`
+  (`ui/model3d`), keine 3D-Bibliothek. Geprüft wurden:
+  - **SceneView** (Filament mit Compose-API, Apache 2.0, Maven Central): aktuelle Versionen (4.x)
+    ziehen Kotlin-Stdlib 2.4 und Compose-BOM 2026.09 nach sich (Projekt: Kotlin 2.2, BOM 2025.08),
+    also ein Toolchain-Upgrade, dazu Filament mit derselben APK-Größe wie unten.
+  - **Filament mit gltfio** (Google, Apache 2.0, Maven Central, minSdk 21): schöne PBR-Darstellung
+    und volle glTF-Unterstützung, aber native Bibliotheken für vier ABIs; Filament 1.70 macht die
+    Debug-APK ohne die Modelle 21,9 MB größer (12,5 auf 34,4 MB), ab 1.77 braucht es compileSdk 37. Einfärben ginge
+    über Material-Parameter, Ausblenden über die Szene, Treffertest über `View.pick`; eine Silhouette
+    bräuchte eigene, vorab übersetzte Materialien (`matc`).
+  - **Eigener Renderer:** Die Modelle kommen aus unserer eigenen Pipeline und nutzen nur eine kleine
+    glTF-Teilmenge (ein Mesh je Datei, Positionen, Normalen, Indizes, eine Materialfarbe, keine
+    Texturen, keine Transformationen). Ein Leser dafür (`GlbReader`) und ein Renderer mit einem
+    Draw-Call je Knochen sind klein, ohne native Abhängigkeit und JVM-testbar (Leser, Kamera,
+    Einfärbung). Einfärben, Ausblenden und später eine Silhouette sind je Knochen eine Farbe bzw.
+    ein Schalter; für den Treffertest beim Zuordnen (AP2-11) liegen die Meshes auch auf der CPU
+    (Strahl durch den Fingerpunkt gegen die Dreiecke oder eine ID-Farbe je Knochen in einem
+    Offscreen-Bild). Die APK wächst nur um die Modelle selbst.
+
+  Entscheidung für den eigenen Renderer: Er erfüllt alles, was Zuordnen, Sammelbuch und Museum
+  brauchen, ohne Toolchain-Upgrade, und die Debug-APK wächst nur um 4,3 MB (fast nur die Modelle,
+  12,5 auf 16,8 MB) statt zusätzlich um rund 22 MB für die Bibliothek. PBR-Materialien,
+  Texturen, Animationen und Schatten gibt es damit nicht; die Beleuchtung ist dieselbe wie bei den
+  2D-Knochenbildern (`bone_images.py`), Knochen sehen in Grabung und Skelett gleich aus. Sollte der
+  Look später nicht reichen, ist der Renderer hinter `SkeletonView`/`BoneView` austauschbar.
+- Umsetzung (AP2-10):
+  - **Modelle in der App:** Die Gradle-Aufgabe `sync<Variante>ModelAssets` kopiert beim Build für
+    jede Art aus `species.json` die Dateien `art/models3d/<speciesId>/bones/<boneId>.glb` nach
+    `models3d/<speciesId>/bones/` in die Assets (nicht eingecheckt, keine Kopie im Repo, eine neue
+    Art braucht keinen Code). Einzelne Dateien statt `cave_bear_all.glb`, weil jeder Knochen ein
+    eigenes Netz mit eigener Farbe und Sichtbarkeit braucht, die Einzeldateien Normalen tragen (die
+    Gesamtdatei nicht) und die Pipeline (`neighbors.py`, `bone_images.py`) ebenfalls von ihnen
+    ausgeht. Höhlenbär: 105 Dateien, 6,7 MB, im APK komprimiert rund 4,1 MB; 274 650 Dreiecke, ein
+    Draw-Call je Knochen. `ModelAssetsTest` prüft je Art Vollständigkeit und dass jede Datei in der
+    unterstützten Teilmenge liegt.
+  - **Compose-Elemente:** `SkeletonView(speciesId, boneIds, boneQualities, missingBones)` und
+    `BoneView(speciesId, boneId, quality)`. Welcher Knochen welche Qualität hat, liefert der Aufrufer
+    aus `core` (bis AP2-11 `BoneQualities`: beste Qualität je Knochen im Inventar oder
+    Beispielqualitäten); Knochen ohne Eintrag werden je nach `missingBones` ausgeblendet oder
+    neutral (Modellfarbe) gezeichnet.
+  - **Einfärbung:** Stufe über `QualityTiers`, Farbe aus `balance.json: qualityTiers[].color`,
+    gemischt wie im Referenz-Shader `skeleton.html`: `mix(knochen, stufe * (0.35 + 1.1 * helligkeit),
+    0.62)`. Die Knochenfarbe bleibt erkennbar, die Stufe ist klar.
+  - **Steuerung:** ein Finger dreht (0,4 Grad je dp, Nickwinkel auf ±80 Grad begrenzt, damit oben
+    oben bleibt), zwei Finger zoomen (1 bis 4 wie beim Graben; 1 zeigt das ganze Modell). Die Kamera
+    kreist um die Mitte der Bounding-Box aller Knochen der Ansicht (auch ausgeblendeter, damit nichts
+    springt). Startansicht schräg von vorn links, leicht von oben. Gezeichnet wird nur bei
+    Änderungen, nicht dauernd.
+  - **Testansicht:** In Debug-Builds führt „3D-Ansicht (Test)“ auf dem Hauptbildschirm zu Skelett
+    oder Einzelknochen mit Beispielqualitäten oder Inventar.
 
 ## 9. Umfang
 
@@ -447,6 +497,11 @@ Umsetzung (AP2-09, `RecoveryGenerator` und `Recoverer` in `core`, Parameter in
   `saveVersion` 6; die Migration 5 -> 6 ergänzt in einer laufenden Ausgrabung `recoveries: []`.
   „Ausgrabung beenden“ setzt `excavation` auf `null`; nicht geborgene Knochen bleiben zurück
   (Kapitel 3). Beim Import werden Inventar und Funde wie bisher gegen die Spieldaten geprüft.
+- **Stand nach AP2-10:** Der 3D-Renderer steht (Kapitel 8): eigener OpenGL-ES-3.0-Renderer mit
+  `SkeletonView` und `BoneView` in `app/ui/model3d`, Meshes kommen per Gradle-Aufgabe aus
+  `art/models3d` in die Assets. Die App verlangt OpenGL ES 3.0 (`uses-feature`). Zu sehen ist das
+  Skelett bisher nur in der Testansicht der Debug-Builds; Zuordnen, Sammelbuch und Museum
+  (AP2-11 bis AP2-13) nutzen die Elemente. Spielstand unverändert (Version 6).
 
 ## 11. Entscheidungen im Überblick
 
@@ -463,6 +518,7 @@ Umsetzung (AP2-09, `RecoveryGenerator` und `Recoverer` in `core`, Parameter in
 | Zuordnen | Hilfe wächst mit dem Wissen im Sammelbuch |
 | Museum | Ansehen schaltet Fundorte frei, Geld aus Duplikaten, dazu Aufträge |
 | Darstellung | Graben in 2D, Skelett in 3D |
+| 3D-Renderer | eigener OpenGL-ES-3.0-Renderer, keine 3D-Bibliothek (Größe, Toolchain, Bedarf: Farbe/Sichtbarkeit je Knochen); Modelle per Gradle aus `art/models3d` (ab AP2-10) |
 | Knochenbilder | Liegelage pro Knochen (Seite mit der größten Fläche), einheitlicher Maßstab pro Art |
 | Knochenumrisse in der Fläche | aus den Masken, 8 Zellen pro Modelleinheit (vorläufig), ohne Drehung (ab AP2-07) |
 | Wischen | eine Anwendung je `strokeSpacing` Zellen Wischweg, ein Finger gräbt, zwei verschieben/zoomen |
@@ -563,6 +619,10 @@ AP2-06 und AP2-10 hängen nur an AP2-01 und können vorgezogen werden.
   rund 20 dp) nach dem Playtest auf einem echten Gerät. Ob nicht geborgene Knochen beim Beenden
   verloren gehen sollen oder fertig freigelegte automatisch mit Abschlag geborgen werden
   (Entscheidung des Projektinhabers, siehe PR zu AP2-09).
+- 3D-Ansicht (AP2-10): Test auf einem echten Gerät steht aus (Darstellung, Flüssigkeit mit 105
+  Knochen auf einem Mittelklasse-Gerät, Gesten, Drehgeschwindigkeit 0,4 Grad je dp). Ob die
+  Stufenfarben am Skelett gut unterscheidbar sind (Fragment grau vs. neutrale Knochenfarbe) und ob
+  Verschieben beim Zoomen nötig ist (heute kreist die Kamera um die Mitte), mit AP2-11.
 - Ob ein kurzes Tutorial nötig ist.
 
 ## 14. Änderungsprotokoll
@@ -610,3 +670,8 @@ AP2-06 und AP2-10 hängen nur an AP2-01 und können vorgezogen werden.
   lässt nicht geborgene Knochen zurück (mit Rückfrage), hervorgehoben wird „Beenden“ erst, wenn alles
   geborgen ist; geborgene Knochen zählen in der Fläche nicht mehr (Kapitel 3). Kapitel 10 um den
   Stand nach AP2-09 (Spielstand Version 6), Kapitel 11 und 13 ergänzt.
+- **AP2-10 (2026-11-25):** Renderer-Wahl in Kapitel 8 nachgetragen (eigener OpenGL-ES-3.0-Renderer
+  statt SceneView/Filament, mit Vergleich und Begründung) samt Umsetzung (Modelle per Gradle in die
+  Assets, `SkeletonView`/`BoneView`, Einfärbung, Steuerung, Testansicht). Kaputten Satzrest in
+  Kapitel 8 („zum Drehen gibt es …“) als eigenen Punkt gefasst. Kapitel 10 um den Stand nach
+  AP2-10, Kapitel 11 um den Renderer, Kapitel 13 um den offenen Gerätetest ergänzt.
