@@ -30,3 +30,5 @@ Der frühere Incremental-Stand liegt auf dem Branch `archive/incremental-v1.1`. 
 - Keine Strings im Code: UI-Texte in `strings.xml` (de + en), Inhaltstexte in `data/locale/*.json`.
 - Neue Logik in `core` braucht Unit-Tests.
 - Keine Emojis im Code.
+- 3D-Modelle folgen [`art/models3d/MODELLING_RULES.md`](art/models3d/MODELLING_RULES.md). Vor dem Commit
+  muss `python3 tools/models3d/check.py <speciesId>` ohne Fehler durchlaufen.
