@@ -23,6 +23,8 @@
     <string name="home_title">Grabungsfeld</string>
     <string name="home_text">Trage die Erde mit dem Finger ab und stoße auf Fossilien. Achte auf Verfärbungen im Boden: Dort liegt ein Knochen dicht unter der Oberfläche.</string>
     <string name="home_start">Ausgrabung starten</string>
+    <string name="home_inventory">Im Inventar: %1$d Knochen</string>
+    <string name="home_inventory_empty">Noch keine Knochen geborgen.</string>
 
     <!-- Grobes Buddeln (AP2-07) -->
     <string name="dig_found_count">Entdeckte Knochen: %1$d</string>
@@ -32,7 +34,8 @@
     <string name="dig_nothing_left">Hier liegen keine Knochen mehr.</string>
     <string name="dig_end">Ausgrabung beenden</string>
     <string name="dig_end_confirm_title">Ausgrabung beenden?</string>
-    <string name="dig_end_confirm_text">In dieser Fläche liegen noch unentdeckte Knochen. Willst du die Ausgrabung trotzdem beenden?</string>
+    <string name="dig_end_confirm_text">In dieser Fläche liegen noch unentdeckte Knochen.</string>
+    <string name="dig_end_confirm_question">Willst du die Ausgrabung trotzdem beenden?</string>
     <string name="dig_end_confirm">Beenden</string>
     <string name="dig_end_cancel">Weitergraben</string>
 
@@ -45,4 +48,20 @@
     <string name="prep_controls_hint">%1$s: entfernt lose Erde, ungefährlich. %2$s: löst die dunklen harten Stellen, kostet aber Qualität, wenn du über freien Knochen kratzt.</string>
     <string name="prep_finished">Der Knochen ist fertig freigelegt.</string>
     <string name="prep_back">Zur Fläche</string>
+
+    <!-- Bergen (AP2-09) -->
+    <string name="dig_recovered_count">Geborgen: %1$d</string>
+    <string name="dig_bone_recovered">geborgen</string>
+    <string name="dig_all_recovered">Alle Knochen sind geborgen.</string>
+    <string name="dig_end_confirm_unrecovered">Entdeckte, aber nicht geborgene Knochen: %1$d. Sie bleiben in der Fläche zurück und gehen verloren.</string>
+    <string name="prep_recover">Bergen</string>
+    <string name="recovery_spots">Brüchige Stellen gesichert: %1$d von %2$d</string>
+    <string name="recovery_hint">Tippe auf die leuchtenden brüchigen Stellen, um sie mit Gips zu sichern. Ziehe den Knochen dann ruhig und gleichmäßig heraus. Rucke und ungesicherte Stellen kosten Qualität.</string>
+    <string name="recovery_secured">Gesichert.</string>
+    <string name="recovery_missed">Dort ist keine ungesicherte brüchige Stelle.</string>
+    <string name="recovery_jerk">Ruck! Ruhiger ziehen. Rucke: %1$d</string>
+    <string name="recovery_dropped">Losgelassen, der Knochen ist zurückgefallen. Verlust: %1$d %%</string>
+    <string name="recovery_done_title">Geborgen!</string>
+    <string name="recovery_done_inventory">Der Knochen liegt jetzt im Inventar.</string>
+    <string name="recovery_done_details">Rucke: %1$d · ungesicherte Stellen: %2$d · Verlust beim Bergen: %3$d %%</string>
 </resources>

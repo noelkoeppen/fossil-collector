@@ -146,6 +146,7 @@ private fun DrawScope.drawSite(
     drawImage(texture)
     drawRect(FLOOR_SHADE, size = Size(base.width.toFloat(), base.height.toFloat()))
     for (bone in dig.bones) {
+        if (bone.recovered) continue
         val image = images[bone.speciesId to bone.boneId] ?: continue
         val rect = BoneImageLayout.imageRect(bone.cells, dig.site.width, bone.footprint, bone.pxPerCell, image.width, image.height)
         drawImage(

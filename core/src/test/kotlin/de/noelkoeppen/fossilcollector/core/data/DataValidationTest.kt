@@ -176,6 +176,54 @@ class DataValidationTest {
     }
 
     @Test
+    fun recoveryParametersHaveStartValues() {
+        val rec = data.balance.recovery
+        assertEquals(0.25, rec.fragileSpotsPerCell)
+        assertEquals(1, rec.fragileSpotsMin)
+        assertEquals(5, rec.fragileSpotsMax)
+        assertEquals(3.0, rec.secureRadius)
+        assertEquals(140.0, rec.liftDistance)
+        assertEquals(50, rec.sampleWindowMillis)
+        assertTrue(rec.jerkSpeedChange < rec.maxSpeed)
+    }
+
+    @Test
+    fun detectsInvalidRecovery() {
+        val errors = errorsOf(DataRepository.BALANCE) {
+            it.replace("\"fragileSpotsPerCell\": 0.25", "\"fragileSpotsPerCell\": -1")
+                .replace("\"fragileSpotsMin\": 1", "\"fragileSpotsMin\": 9")
+                .replace("\"fragileSpotSpacing\": 4.0", "\"fragileSpotSpacing\": -2")
+                .replace("\"secureRadius\": 3.0", "\"secureRadius\": 0")
+                .replace("\"liftDistance\": 140.0", "\"liftDistance\": -5")
+                .replace("\"sampleWindowMillis\": 50", "\"sampleWindowMillis\": 0")
+                .replace("\"maxSpeed\": 700.0", "\"maxSpeed\": 0")
+                .replace("\"jerkDamage\": 0.04", "\"jerkDamage\": 1.5")
+                .replace("\"unsecuredDamage\": 0.05", "\"unsecuredDamage\": -0.1")
+        }
+        listOf(
+            "recovery: fragileSpotsPerCell muss >= 0 sein",
+            "recovery: fragileSpotsMin > fragileSpotsMax",
+            "recovery: fragileSpotSpacing muss >= 0 sein",
+            "recovery: secureRadius muss > 0 sein",
+            "recovery: liftDistance muss > 0 sein",
+            "recovery: sampleWindowMillis muss >= 1 sein",
+            "recovery: maxSpeed muss > 0 sein",
+            "recovery: jerkDamage 1.5 liegt nicht in 0..1",
+            "recovery: unsecuredDamage -0.1 liegt nicht in 0..1",
+        ).forEach { expected -> assertTrue(errors.any { expected in it }, "$expected fehlt in $errors") }
+    }
+
+    @Test
+    fun recoverySchemaListsAllParameters() {
+        val schema = Json.parseToJsonElement(checkNotNull(resource("schema/balance.schema.json"))).jsonObject
+        val recovery = schema.getValue("properties").jsonObject.getValue("recovery").jsonObject
+        val names = recovery.getValue("properties").jsonObject.keys
+        val inData = Json.parseToJsonElement(dataFile(DataRepository.BALANCE)).jsonObject.getValue("recovery").jsonObject.keys
+        assertEquals(inData, names)
+        assertEquals(names, recovery.getValue("required").jsonArray.map { it.jsonPrimitive.content }.toSet())
+    }
+
+    @Test
     fun detectsInvalidPrepareTools() {
         val errors = errorsOf(DataRepository.TOOLS) {
             it.replace("\"strokeSpacing\": 1.5, \"removesHard\": false", "\"strokeSpacing\": 1.5, \"removesHard\": true")

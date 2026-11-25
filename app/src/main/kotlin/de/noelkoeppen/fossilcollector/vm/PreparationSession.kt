@@ -69,12 +69,12 @@ class PreparationSession(
 
     /**
      * Nahansicht von [ref] oeffnen. Hat das Freilegen noch nicht begonnen, beginnt es jetzt (Zufall
-     * fuer die Restschicht aus [random]). Nur fuer entdeckte Knochen der laufenden Ausgrabung; sonst
-     * bleibt alles unveraendert.
+     * fuer die Restschicht aus [random]). Nur fuer entdeckte, nicht geborgene Knochen der laufenden
+     * Ausgrabung; sonst bleibt alles unveraendert.
      */
     fun open(state: GameState, ref: BoneRef, random: GameRandom): GameState {
         val site = state.excavation ?: return state
-        if (ref !in site.bones || !site.isDiscovered(ref)) return state
+        if (ref !in site.bones || !site.isDiscovered(ref) || site.isRecovered(ref)) return state
         endStroke()
         openBone = ref
         feedback = PrepFeedback(feedback.sequence + 1, emptyList(), false)
@@ -119,11 +119,11 @@ class PreparationSession(
         strokeExposed.clear()
     }
 
-    /** Offener Knochen, wenn er in der laufenden Ausgrabung eine Nahansicht hat. */
+    /** Offener Knochen, wenn er in der laufenden Ausgrabung eine Nahansicht hat und nicht geborgen ist. */
     private fun current(state: GameState): BoneRef? {
         val ref = openBone ?: return null
         val site = state.excavation ?: return null
-        return ref.takeIf { site.preparation(it) != null }
+        return ref.takeIf { site.preparation(it) != null && !site.isRecovered(it) }
     }
 
     private fun apply(state: GameState, points: List<DigPoint>): GameState {

@@ -54,11 +54,17 @@ data class PlacedFind(
  * Feines Freilegen (AP2-08): [preparations] enthaelt die Nahansicht jedes Knochens, dessen Freilegen
  * begonnen hat (hoechstens eine je Knochen), samt Restschicht und Zustand „fertig freigelegt“.
  *
+ * Bergen (AP2-09): [recoveries] enthaelt das Bergen jedes Knochens, dessen Bergen begonnen hat
+ * (hoechstens eines je Knochen, nur fuer fertig freigelegte Knochen), samt bruechigen Stellen und
+ * Zustand „geborgen“. Geborgene Knochen liegen im Inventar; in der Flaeche zaehlen sie nicht mehr
+ * als Knochen (kein Hinweis, kein Treffer, keine Nahansicht).
+ *
  * @property layerId Schicht der Ausgrabung
  * @property width Breite in Zellen
  * @property height Hoehe in Zellen
  * @property finds platzierte Funde; [BoneRef.findIndex] zeigt in diese Liste
  * @property preparations begonnene Nahansichten (Kapitel 5.1) in Reihenfolge des Beginns
+ * @property recoveries begonnenes Bergen (Kapitel 5.2) in Reihenfolge des Beginns
  */
 @Serializable(with = ExcavationSiteSerializer::class)
 class ExcavationSite(
@@ -68,6 +74,7 @@ class ExcavationSite(
     depths: IntArray,
     val finds: List<PlacedFind>,
     val preparations: List<BonePreparation> = emptyList(),
+    val recoveries: List<BoneRecovery> = emptyList(),
 ) {
     private val depthArray: IntArray = depths.copyOf()
 
@@ -94,6 +101,12 @@ class ExcavationSite(
             }
         }
         require(preparations.map { it.ref }.toSet().size == preparations.size) { "Nahansicht doppelt" }
+        recoveries.forEach { rec ->
+            val prep = preparations.firstOrNull { it.ref == rec.ref }
+            require(prep != null && prep.finished) { "Bergen von ${rec.findIndex}/${rec.boneId} ohne fertig freigelegte Nahansicht" }
+            require(rec.spots.all { it < prep.cellCount && prep.isBone(it) }) { "Bruechige Stelle ausserhalb des Knochens ${rec.boneId}" }
+        }
+        require(recoveries.map { it.ref }.toSet().size == recoveries.size) { "Bergen doppelt" }
     }
 
     /** Anzahl Zellen. */
@@ -150,13 +163,41 @@ class ExcavationSite(
     /** `true`, wenn [ref] fertig freigelegt ist (Kapitel 5.1). */
     fun isPrepared(ref: BoneRef): Boolean = preparation(ref)?.finished == true
 
+    /** Bergen von [ref] oder `null`, wenn es noch nicht begonnen hat (Kapitel 5.2). */
+    fun recovery(ref: BoneRef): BoneRecovery? = recoveries.firstOrNull { it.findIndex == ref.findIndex && it.boneId == ref.boneId }
+
+    /** `true`, wenn [ref] geborgen ist (liegt im Inventar). */
+    fun isRecovered(ref: BoneRef): Boolean = recovery(ref)?.recovered == true
+
+    /** Geborgene Knochen in [bones]-Reihenfolge. */
+    val recoveredBones: List<BoneRef> get() = bones.filter { isRecovered(it) }
+
+    /** Noch nicht geborgene Knochen in [bones]-Reihenfolge (entdeckt oder nicht). */
+    val unrecoveredBones: List<BoneRef> get() = bones.filterNot { isRecovered(it) }
+
+    /** Entdeckte, aber noch nicht geborgene Knochen in [bones]-Reihenfolge. */
+    val discoveredUnrecoveredBones: List<BoneRef> get() = bones.filter { isDiscovered(it) && !isRecovered(it) }
+
+    /** Alle Knochen der Flaeche sind geborgen (auch bei einer Flaeche ohne Funde). */
+    val allRecovered: Boolean get() = bones.all { isRecovered(it) }
+
+    /**
+     * Knochen in Zelle [cell], der noch in der Flaeche liegt (nicht geborgen), oder `null`. Geborgene
+     * Knochen zaehlen beim Graben nicht mehr.
+     */
+    fun activeBoneAt(cell: Int): BoneRef? = boneAt(cell)?.takeUnless { isRecovered(it) }
+
     /** Neue Flaeche mit gleichem Raster, neuen Tiefen und Funden (fuer Aktionen in `engine`). */
     fun with(depths: IntArray, finds: List<PlacedFind>): ExcavationSite =
-        ExcavationSite(layerId, width, height, depths, finds, preparations)
+        ExcavationSite(layerId, width, height, depths, finds, preparations, recoveries)
 
     /** Neue Flaeche mit neuen Tiefen, Funden und Nahansichten (fuer Aktionen in `engine`). */
     fun with(depths: IntArray, finds: List<PlacedFind>, preparations: List<BonePreparation>): ExcavationSite =
-        ExcavationSite(layerId, width, height, depths, finds, preparations)
+        ExcavationSite(layerId, width, height, depths, finds, preparations, recoveries)
+
+    /** Neue Flaeche mit neuen Funden und neuem Bergen, sonst unveraendert (fuer Aktionen in `engine`). */
+    fun withRecoveries(finds: List<PlacedFind>, recoveries: List<BoneRecovery>): ExcavationSite =
+        ExcavationSite(layerId, width, height, depthArray, finds, preparations, recoveries)
 
     override fun equals(other: Any?): Boolean =
         this === other || (
@@ -166,7 +207,8 @@ class ExcavationSite(
                 height == other.height &&
                 depthArray.contentEquals(other.depthArray) &&
                 finds == other.finds &&
-                preparations == other.preparations
+                preparations == other.preparations &&
+                recoveries == other.recoveries
             )
 
     override fun hashCode(): Int {
@@ -176,6 +218,7 @@ class ExcavationSite(
         result = 31 * result + depthArray.contentHashCode()
         result = 31 * result + finds.hashCode()
         result = 31 * result + preparations.hashCode()
+        result = 31 * result + recoveries.hashCode()
         return result
     }
 
@@ -224,6 +267,8 @@ private class ExcavationSiteSurrogate(
     val finds: List<PlacedFind>,
     /** Begonnene Nahansichten (seit Version 5, AP2-08). */
     val preparations: List<BonePreparation> = emptyList(),
+    /** Begonnenes Bergen (seit Version 6, AP2-09). */
+    val recoveries: List<BoneRecovery> = emptyList(),
 )
 
 /** Serialisiert [ExcavationSite] ueber [ExcavationSiteSurrogate]. */
@@ -238,12 +283,13 @@ internal object ExcavationSiteSerializer : KSerializer<ExcavationSite> {
             depths = ExcavationSite.encodeDepths(value.depthsCopy()),
             finds = value.finds,
             preparations = value.preparations,
+            recoveries = value.recoveries,
         )
         encoder.encodeSerializableValue(ExcavationSiteSurrogate.serializer(), surrogate)
     }
 
     override fun deserialize(decoder: Decoder): ExcavationSite {
         val s = decoder.decodeSerializableValue(ExcavationSiteSurrogate.serializer())
-        return ExcavationSite(s.layerId, s.width, s.height, ExcavationSite.decodeDepths(s.depths), s.finds, s.preparations)
+        return ExcavationSite(s.layerId, s.width, s.height, ExcavationSite.decodeDepths(s.depths), s.finds, s.preparations, s.recoveries)
     }
 }

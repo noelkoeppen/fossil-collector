@@ -39,6 +39,8 @@ data class PrepActions(
     val onEnd: () -> Unit,
     val onSelectTool: (String) -> Unit,
     val onBack: () -> Unit,
+    /** Bergen des fertig freigelegten Knochens oeffnen (AP2-09). */
+    val onRecover: () -> Unit = {},
 ) {
     companion object {
         val NONE = PrepActions({ _, _ -> }, { _, _ -> }, {}, {}, {})
@@ -48,7 +50,8 @@ data class PrepActions(
 /**
  * Screen feines Freilegen (AP2-08, Kapitel 5.1): Nahansicht des Knochens, Wahl von Pinsel und
  * Kratzer, oben Name und Qualitaet des Knochens (mit Treffer-Anzeige) und die Fortschrittsanzeige,
- * Meldung „fertig freigelegt“, unten „Zur Flaeche“ (zurueck zur Grabungsflaeche).
+ * Meldung „fertig freigelegt“, unten „Zur Flaeche“ (zurueck zur Grabungsflaeche). Ist der Knochen
+ * fertig freigelegt, fuehrt „Bergen“ zum Bergen (AP2-09).
  */
 @Composable
 fun PrepScreen(
@@ -82,10 +85,9 @@ fun PrepScreen(
                     )
                 }
                 Spacer(Modifier.weight(1f))
+                OutlinedButton(onClick = actions.onBack) { Text(stringResource(R.string.prep_back)) }
                 if (prep.finished) {
-                    Button(onClick = actions.onBack) { Text(stringResource(R.string.prep_back)) }
-                } else {
-                    OutlinedButton(onClick = actions.onBack) { Text(stringResource(R.string.prep_back)) }
+                    Button(onClick = actions.onRecover) { Text(stringResource(R.string.prep_recover)) }
                 }
             }
         }
