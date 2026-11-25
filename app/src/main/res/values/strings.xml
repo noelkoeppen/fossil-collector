@@ -64,4 +64,17 @@
     <string name="recovery_done_title">Geborgen!</string>
     <string name="recovery_done_inventory">Der Knochen liegt jetzt im Inventar.</string>
     <string name="recovery_done_details">Rucke: %1$d · ungesicherte Stellen: %2$d · Verlust beim Bergen: %3$d %%</string>
+    <!-- 3D-Ansicht (AP2-10), Testansicht nur in Debug-Builds -->
+    <string name="model_preview_open">3D-Ansicht (Test)</string>
+    <string name="model_preview_title">3D-Ansicht (Testansicht)</string>
+    <string name="model_preview_skeleton">Skelett</string>
+    <string name="model_preview_bone">Einzelknochen</string>
+    <string name="model_preview_samples">Beispielqualitäten</string>
+    <string name="model_preview_inventory">Inventar</string>
+    <string name="model_preview_hide_missing">Fehlende ausblenden</string>
+    <string name="model_preview_previous">Vorheriger</string>
+    <string name="model_preview_next">Nächster</string>
+    <string name="model_preview_not_in_inventory">Nicht im Inventar</string>
+    <string name="model_preview_colored">%1$d von %2$d Knochen eingefärbt</string>
+    <string name="model_preview_hint">Ein Finger dreht, zwei Finger zoomen.</string>
 </resources>

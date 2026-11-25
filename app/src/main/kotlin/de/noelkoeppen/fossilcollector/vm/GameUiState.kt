@@ -2,6 +2,7 @@ package de.noelkoeppen.fossilcollector.vm
 
 import androidx.compose.runtime.Immutable
 import de.noelkoeppen.fossilcollector.core.data.QualityTierDefinition
+import de.noelkoeppen.fossilcollector.core.data.SpeciesDefinition
 import de.noelkoeppen.fossilcollector.core.data.TextProvider
 import de.noelkoeppen.fossilcollector.core.model.Piece
 import de.noelkoeppen.fossilcollector.core.model.Settings
@@ -29,6 +30,7 @@ sealed interface GameUiState {
      * @property prep offene Nahansicht beim feinen Freilegen (AP2-08) oder `null`; nur bei laufender Ausgrabung
      * @property recovery offenes Bergen (AP2-09) oder `null`; nur bei laufender Ausgrabung
      * @property inventory geborgene Knochen im Inventar (AP2-09), in Reihenfolge des Bergens
+     * @property species Arten mit ihren Knochen (Reihenfolge aus `species.json`), z. B. fuer die 3D-Ansicht (AP2-10)
      */
     @Immutable
     data class Ready(
@@ -39,6 +41,7 @@ sealed interface GameUiState {
         val prep: PrepUiState? = null,
         val recovery: RecoveryUiState? = null,
         val inventory: List<Piece> = emptyList(),
+        val species: List<SpeciesDefinition> = emptyList(),
     ) : GameUiState
 }
 

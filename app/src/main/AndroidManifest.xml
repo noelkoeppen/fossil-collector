@@ -2,6 +2,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <!-- 3D-Ansicht (AP2-10): eigener Renderer mit OpenGL ES 3.0 (ab Android 4.3, praktisch alle Geraete mit minSdk 26). -->
+    <uses-feature android:glEsVersion="0x00030000" android:required="true" />
+
     <application
         android:allowBackup="false"
         android:dataExtractionRules="@xml/data_extraction_rules"
